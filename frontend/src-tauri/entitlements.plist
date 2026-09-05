@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!--
+    Stage 1 is local-only, self-signed with a certificate that exists only
+    on this Mac (docs/DECISIONS.md's native-packaging entry) — never
+    notarized, never distributed. Hardened runtime's default Library
+    Validation rejects loading any dylib whose own signature doesn't share
+    the main executable's Team ID, which the PyInstaller-bundled backend
+    sidecar's Python.framework and native extension modules (numpy,
+    ctranslate2, onnxruntime, etc. — each carrying its own original
+    upstream signature, never ours) always will. Disabling it here is safe
+    specifically because nothing here is notarized or distributed to
+    another machine; it would be the wrong choice for a real
+    Developer-ID/notarized build.
+  -->
+  <key>com.apple.security.cs.disable-library-validation</key>
+  <true/>
+  <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+  <true/>
+  <!--
+    Required under hardened runtime for getUserMedia (push-to-talk) to ever
+    reach macOS's TCC permission layer at all. Without this, WKWebView's
+    microphone request is blocked at the platform level before any prompt
+    is shown and before Jarvis appears in System Settings > Privacy &
+    Security > Microphone — surfacing to the page only as a generic
+    NotAllowedError, which is exactly the symptom that led here.
+  -->
+  <key>com.apple.security.device.audio-input</key>
+  <true/>
+</dict>
+</plist>

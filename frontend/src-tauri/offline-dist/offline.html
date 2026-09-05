@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Jarvis</title>
+    <style>
+      :root { color-scheme: dark; }
+      html, body {
+        margin: 0;
+        height: 100%;
+        background: #0a0812;
+        color: #e8e0ff;
+        font-family: -apple-system, "SF Pro Text", system-ui, sans-serif;
+      }
+      body {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .wrap {
+        text-align: center;
+        max-width: 420px;
+        padding: 0 24px;
+      }
+      .core {
+        width: 72px;
+        height: 72px;
+        margin: 0 auto 28px;
+        border-radius: 50%;
+        border: 2px solid #a58bff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 0 32px rgba(139, 107, 242, 0.45), 0 0 6px rgba(139, 107, 242, 0.5);
+      }
+      .core::after {
+        content: "";
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        background: #e8e0ff;
+      }
+      .core.state-error {
+        border-color: #f2555b;
+        box-shadow: 0 0 32px rgba(242, 85, 91, 0.4);
+        animation: diagnostic-scan 2.4s linear infinite;
+      }
+      @keyframes diagnostic-scan {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+      .core.state-starting {
+        animation: pulse 1.8s ease-in-out infinite;
+      }
+      @keyframes pulse {
+        0%, 100% { opacity: 0.55; }
+        50% { opacity: 1; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .core.state-error, .core.state-starting { animation: none; }
+      }
+      h1 {
+        font-size: 15px;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        margin: 0 0 8px;
+        color: #a58bff;
+      }
+      p {
+        margin: 0;
+        font-size: 13px;
+        line-height: 1.5;
+        color: rgba(232, 224, 255, 0.7);
+      }
+      .actions {
+        display: none;
+        gap: 10px;
+        justify-content: center;
+        margin-top: 20px;
+      }
+      .actions.visible {
+        display: flex;
+      }
+      button {
+        font: inherit;
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        color: #e8e0ff;
+        background: rgba(139, 107, 242, 0.16);
+        border: 1px solid rgba(165, 139, 255, 0.5);
+        border-radius: 6px;
+        padding: 7px 14px;
+        cursor: pointer;
+      }
+      button:hover {
+        background: rgba(139, 107, 242, 0.28);
+      }
+      button:disabled {
+        opacity: 0.5;
+        cursor: default;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="core state-starting" id="core"></div>
+      <h1 id="title">Jarvis Controller</h1>
+      <p id="detail">Starting local services&hellip;</p>
+      <div class="actions" id="actions">
+        <button type="button" id="retry-button">Retry Connection</button>
+        <button type="button" id="logs-button">Show Logs</button>
+      </div>
+    </div>
+    <script>
+      // Purely a status readout — every value here is driven by a real
+      // "jarvis://sidecar-status" event the Rust process lifecycle emits
+      // (see src-tauri/src/sidecar.rs). No fabricated activity, per
+      // CLAUDE.md's HUD requirement: "every status indicator must
+      // correspond to real application state." Once the backend reports
+      // healthy, Rust navigates this window away from this page entirely
+      // — this script never needs to handle that transition itself. Rust
+      // also keeps checking automatically in the background after a
+      // timeout (see run_recovery_loop in sidecar.rs) — the buttons below
+      // are for an immediate, user-initiated check and diagnostics, not
+      // the only way this recovers.
+      const core = document.getElementById("core");
+      const title = document.getElementById("title");
+      const detail = document.getElementById("detail");
+      const actions = document.getElementById("actions");
+      const retryButton = document.getElementById("retry-button");
+      const logsButton = document.getElementById("logs-button");
+
+      function applyStatus(payload) {
+        const { state, message } = payload;
+        core.className = "core state-" + state;
+        if (state === "error") {
+          title.textContent = "Jarvis Controller Offline";
+          actions.classList.add("visible");
+        } else {
+          title.textContent = "Jarvis Controller";
+          actions.classList.remove("visible");
+        }
+        if (message) detail.textContent = message;
+      }
+
+      if (window.__TAURI__ && window.__TAURI__.event) {
+        window.__TAURI__.event.listen("jarvis://sidecar-status", (event) => {
+          applyStatus(event.payload);
+        });
+      }
+
+      if (window.__TAURI__ && window.__TAURI__.core) {
+        retryButton.addEventListener("click", () => {
+          retryButton.disabled = true;
+          retryButton.textContent = "Checking…";
+          window.__TAURI__.core.invoke("retry_connection").finally(() => {
+            retryButton.disabled = false;
+            retryButton.textContent = "Retry Connection";
+          });
+        });
+        logsButton.addEventListener("click", () => {
+          window.__TAURI__.core.invoke("reveal_log_folder");
+        });
+      }
+    </script>
+  </body>
+</html>

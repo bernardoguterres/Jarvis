@@ -1,0 +1,46 @@
+# Personal data (lives outside the repo, see README)
+JarvisData/
+*.sqlite
+*.sqlite3
+*.db
+jarvis-export-*.zip
+jarvis-backup-*.sqlite
+jarvis-backup-*.sqlite.sha256
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Backend (Python / uv)
+backend/.venv/
+backend/__pycache__/
+backend/**/__pycache__/
+backend/.pytest_cache/
+backend/*.egg-info/
+
+# Frontend (Node)
+frontend/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+frontend/*.local
+frontend/coverage/
+
+# Native macOS packaging build output
+frontend/src-tauri/target/
+frontend/src-tauri/gen/
+frontend/src-tauri/binaries/
+backend/packaging/dist/
+backend/packaging/build/
+
+*.log
+
+# Editor / OS
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+
+.devcontainer/
+.claude/settings.local.json

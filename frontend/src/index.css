@@ -1,0 +1,4568 @@
+/* =========================================================================
+   Jarvis Phase 6 visual system — design tokens.
+   "Direction B geometry with Direction C lighting and atmosphere"
+   (docs/DESIGN_DIRECTION.md): circular domain/core geometry, spacious
+   orbital proportions and readable labels (B) rendered in a deep
+   purple-black atmosphere with a violet core glow and cyan/teal accents,
+   restrained everywhere else (C). Every other screen reuses these same
+   tokens/classes so the whole app reads as one visual system.
+   ========================================================================= */
+
+:root {
+  color-scheme: dark;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* --- background layers (deep purple-black, darkest to most raised) --- */
+  --bg-void: #050308;
+  --bg-deep: #0a0714;
+  --bg-panel: #12101f;
+  --bg-panel-raised: #181528;
+  --bg-panel-hover: #1e1a33;
+  --bg-panel-sunken: #0d0b18;
+
+  /* --- borders --- */
+  --border-subtle: #29233f;
+  --border-default: #342c4d;
+  --border-strong: #463c66;
+  --border-violet: #7c5cf0;
+  --border-cyan: #2dd9d0;
+
+  /* --- accents --- */
+  --accent-violet: #8b6bf2;
+  --accent-violet-strong: #a58bff;
+  --accent-violet-soft: rgba(139, 107, 242, 0.32);
+  --accent-cyan: #33d9e8;
+  --accent-cyan-strong: #6fe9f2;
+  --accent-cyan-soft: rgba(51, 217, 232, 0.28);
+
+  /* --- text hierarchy --- */
+  --text-primary: #f2effa;
+  --text-secondary: #bcb6d8;
+  /* WCAG AA contrast correction: #85809f measured 4.466:1 against the
+     lightest panel background this token is ever paired with
+     (--bg-panel-hover, #1e1a33) — a genuine miss of the 4.5:1 normal-text
+     threshold, found via axe-core on Research Centre's brief-version
+     ledger (.ledger-row-meta) but present on every other already-shipped
+     surface using this token too (44 usages across ~29 selectors:
+     .ledger-row-meta, .ledger-empty, .console-eyebrow/-description,
+     .change-badge, .briefing-item-subtitle, .memory-status, etc.).
+     +4/+4/+4 (the smallest RGB step that clears 4.5:1 with a real margin,
+     not exactly 4.50) raises the worst case to 4.712:1 against
+     --bg-panel-hover, with every other background this token is ever used
+     on landing at 5:1 or higher — see tests/contrast.test.ts. */
+  --text-tertiary: #8984a3;
+  --text-disabled: #6b6690;
+  --text-on-accent: #0a0714;
+
+  /* --- status colors (never the only signal — always paired with text) --- */
+  --status-ok: #3fdb9a;
+  --status-ok-soft: rgba(63, 219, 154, 0.16);
+  --status-error: #ff6b7a;
+  --status-error-soft: rgba(255, 107, 122, 0.14);
+  --status-warn: #f5b955;
+  --status-warn-soft: rgba(245, 185, 85, 0.14);
+  --status-neutral: #8a84ab;
+  --status-neutral-soft: rgba(138, 132, 171, 0.14);
+
+  /* --- glow (reserved for the core, active domain, voice activity,
+     meaningful state — never decorative/constant) --- */
+  --glow-violet-sm: 0 0 14px rgba(139, 107, 242, 0.4), 0 0 2px rgba(139, 107, 242, 0.6);
+  --glow-violet-md: 0 0 32px rgba(139, 107, 242, 0.45), 0 0 6px rgba(139, 107, 242, 0.5);
+  --glow-violet-lg: 0 0 64px rgba(139, 107, 242, 0.5), 0 0 12px rgba(139, 107, 242, 0.55);
+  --glow-cyan-sm: 0 0 14px rgba(51, 217, 232, 0.4);
+  --glow-cyan-md: 0 0 28px rgba(51, 217, 232, 0.42);
+  --glow-error-sm: 0 0 14px rgba(255, 107, 122, 0.45);
+
+  /* --- shadows (depth) --- */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 6px 20px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.55), 0 4px 12px rgba(0, 0, 0, 0.4);
+
+  /* --- spacing scale --- */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 2.75rem;
+  --space-8: 3.5rem;
+
+  /* --- radii --- */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 22px;
+  --radius-full: 999px;
+
+  /* --- motion --- */
+  --motion-fast: 120ms;
+  --motion-medium: 220ms;
+  --motion-slow: 420ms;
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* The refined interaction-motion system: controls (buttons, nav items,
+     domain nodes, palette rows, toggles) vs. panels (popovers, the domain
+     info card, entrance transitions) get their own tuned durations, both
+     riding a single deliberate easing curve rather than the generic
+     ease-standard used for ambient/decorative motion above. */
+  --motion-control: 190ms;
+  --motion-panel: 240ms;
+  --ease-hud: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* Ring/node presence: entering (fading/growing in) reads better slightly
+     slower than leaving, so a hover ring never feels like it's lagging on
+     the way out. Split so CSS can give each direction its own duration
+     without any JS animation loop — see .node-ring below. */
+  --motion-ring-enter: 260ms;
+  --motion-ring-exit: 190ms;
+
+  /* --- shell chrome heights (reserved layout space, never overlaid) --- */
+  --topbar-height: 3.25rem;
+  --bottombar-height: 2.5rem;
+}
+
+/* Disable all non-essential motion/glow animation when requested. Static
+   state (color, static glow, opacity) is preserved — only movement and
+   pulsing stop. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background:
+    radial-gradient(ellipse 900px 600px at 50% -10%, rgba(139, 107, 242, 0.14), transparent 60%),
+    radial-gradient(ellipse 700px 500px at 90% 100%, rgba(51, 217, 232, 0.06), transparent 60%),
+    var(--bg-void);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font-family: inherit;
+}
+
+a {
+  color: var(--accent-cyan-strong);
+}
+
+h1,
+h2,
+h3,
+h4 {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* =========================================================================
+   App shell — reserves real layout space for top/bottom chrome; the main
+   content area never sits underneath either bar.
+   ========================================================================= */
+
+.app {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-main {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.top-bar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0 var(--space-4);
+  min-height: var(--topbar-height);
+  background: linear-gradient(180deg, rgba(18, 16, 31, 0.92), rgba(18, 16, 31, 0.72));
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+/* At narrow widths the top bar scrolls internally rather than the page
+   gaining a horizontal scrollbar (App.tsx toggles this class only when
+   the bar is actually overflowing) — fade the trailing edge so content
+   off-screen reads as "more here, scroll for it", not as clipped/missing. */
+.top-bar.is-scrollable {
+  mask-image: linear-gradient(90deg, black calc(100% - 28px), transparent 100%);
+  -webkit-mask-image: linear-gradient(90deg, black calc(100% - 28px), transparent 100%);
+}
+
+.top-bar-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.top-bar-brand-dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: var(--accent-violet);
+  box-shadow: var(--glow-violet-sm);
+  flex: none;
+}
+
+.top-bar-location {
+  font-size: 0.78rem;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+  padding-left: var(--space-2);
+  border-left: 1px solid var(--border-subtle);
+}
+
+.top-bar-status-group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  white-space: nowrap;
+}
+
+.top-bar-spacer {
+  flex: 1 1 auto;
+  min-width: var(--space-3);
+}
+
+.top-bar-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: nowrap;
+}
+
+.palette-hint-button {
+  display: inline-flex;
+  align-items: center;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  padding: 0.4rem 0.6rem;
+  cursor: pointer;
+  transition: border-color var(--motion-control) var(--ease-hud), background var(--motion-control) var(--ease-hud),
+    transform var(--motion-control) var(--ease-hud);
+}
+
+.palette-hint-button kbd {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.palette-hint-button:hover {
+  border-color: var(--border-cyan);
+  background: var(--bg-panel-hover);
+  transform: translateY(-1px);
+}
+
+.palette-hint-button:active {
+  transform: scale(0.98);
+}
+
+.systems-menu {
+  position: relative;
+}
+
+.systems-menu-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45em;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  padding: 0.4rem 0.75rem;
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  transition: border-color var(--motion-control) var(--ease-hud), color var(--motion-control) var(--ease-hud),
+    background var(--motion-control) var(--ease-hud), transform var(--motion-control) var(--ease-hud);
+}
+
+.systems-menu-icon {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 2px;
+  border: 1.5px solid currentColor;
+  opacity: 0.75;
+}
+
+.systems-menu-trigger:hover,
+.systems-menu-trigger[aria-expanded="true"] {
+  border-color: var(--border-cyan);
+  color: var(--text-primary);
+  background: var(--bg-panel-hover);
+  transform: translateY(-1px);
+}
+
+.systems-menu-trigger:active {
+  transform: scale(0.98);
+}
+
+.systems-menu-panel {
+  /* position/top/right are set inline (SystemsMenu.tsx) from the trigger
+     button's real measured position, since this renders through a portal
+     into document.body — see that component's comment for why. */
+  min-width: 200px;
+  background: var(--bg-panel-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-2);
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  z-index: 200;
+  animation: panel-enter var(--motion-panel) var(--ease-hud);
+}
+
+.systems-menu-item {
+  text-align: left;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.65rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background var(--motion-control) var(--ease-hud), color var(--motion-control) var(--ease-hud);
+}
+
+.systems-menu-item:hover,
+.systems-menu-item:focus-visible {
+  background: var(--accent-violet-soft);
+  color: var(--text-primary);
+}
+
+.health-dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  display: inline-block;
+  flex: none;
+}
+
+.health-dot.ok {
+  background: var(--status-ok);
+  box-shadow: 0 0 8px rgba(63, 219, 154, 0.55);
+}
+
+.health-dot.error {
+  background: var(--status-error);
+  box-shadow: 0 0 8px rgba(255, 107, 122, 0.55);
+}
+
+.health-dot.checking {
+  background: var(--status-warn);
+  box-shadow: 0 0 8px rgba(245, 185, 85, 0.5);
+}
+
+/* Hermes/model reduced-but-usable state — same amber as ModelLinkBanner's
+   degraded treatment, never the red used for a genuinely unavailable
+   controller. */
+.health-dot.degraded {
+  background: var(--status-warn);
+  box-shadow: 0 0 8px rgba(245, 185, 85, 0.5);
+}
+
+.bottom-bar {
+  flex: 0 0 auto;
+  min-height: var(--bottombar-height);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-5);
+  padding: var(--space-2) var(--space-4);
+  background: linear-gradient(0deg, rgba(10, 7, 20, 0.9), rgba(10, 7, 20, 0.55));
+  border-top: 1px solid var(--border-subtle);
+  color: var(--text-tertiary);
+  font-size: 0.72rem;
+  flex-wrap: wrap;
+  text-align: center;
+}
+
+.bottom-bar kbd {
+  display: inline-block;
+  min-width: 1.3em;
+  padding: 0.05em 0.4em;
+  margin-right: 0.35em;
+  border: 1px solid var(--border-default);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background: var(--bg-panel-raised);
+  color: var(--text-secondary);
+  font-size: 0.85em;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+/* =========================================================================
+   Shared buttons, inputs, panels — used by every internal screen so the
+   product reads as one system.
+   ========================================================================= */
+
+button {
+  color: var(--text-primary);
+}
+
+.back-button {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-default);
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+  padding: 0.45rem 0.9rem;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: border-color var(--motion-control) var(--ease-hud), color var(--motion-control) var(--ease-hud),
+    background var(--motion-control) var(--ease-hud), transform var(--motion-control) var(--ease-hud);
+}
+
+.back-button:hover {
+  border-color: var(--border-cyan);
+  color: var(--text-primary);
+  background: var(--bg-panel-hover);
+  transform: translateY(-1px);
+}
+
+.back-button:active {
+  transform: scale(0.98);
+}
+
+button.primary {
+  background: linear-gradient(180deg, var(--accent-violet-strong), var(--accent-violet));
+  border: 1px solid var(--border-violet);
+  color: #100b22;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  padding: 0.55rem 1rem;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow var(--motion-control) var(--ease-hud), transform var(--motion-control) var(--ease-hud);
+}
+
+button.primary:hover:not(:disabled) {
+  box-shadow: var(--glow-violet-sm), var(--shadow-sm);
+  transform: translateY(-1px);
+}
+
+button.primary:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+button.primary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+button:not(.primary):not(.back-button):not(.domain-button):not(.push-to-talk-button):not(.jarvis-hud-interactive) {
+  background: var(--bg-panel-raised);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.85rem;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: border-color var(--motion-control) var(--ease-hud), background var(--motion-control) var(--ease-hud),
+    transform var(--motion-control) var(--ease-hud);
+}
+
+button:not(.primary):not(.back-button):not(.domain-button):not(.push-to-talk-button):not(.jarvis-hud-interactive):hover:not(:disabled) {
+  border-color: var(--border-cyan);
+  background: var(--bg-panel-hover);
+  transform: translateY(-1px);
+}
+
+button:not(.primary):not(.back-button):not(.domain-button):not(.push-to-talk-button):not(.jarvis-hud-interactive):active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* A "danger" convention for destructive actions. Applied additively via
+   className — no existing accessible name changes. */
+button.danger {
+  border-color: var(--status-error);
+  color: var(--status-error);
+}
+
+button.danger:hover:not(:disabled) {
+  background: var(--status-error-soft);
+  box-shadow: var(--glow-error-sm);
+}
+
+input[type="text"],
+input[type="time"],
+input[type="file"],
+input[type="search"],
+textarea,
+select {
+  background: var(--bg-panel-sunken);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  padding: 0.5rem 0.65rem;
+  font-family: inherit;
+  font-size: 0.88rem;
+  transition: border-color var(--motion-fast) var(--ease-standard);
+}
+
+input[type="text"]:focus,
+input[type="time"]:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--border-cyan);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-disabled);
+}
+
+label {
+  color: var(--text-secondary);
+}
+
+code,
+pre {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  background: var(--bg-panel-sunken);
+  border-radius: var(--radius-sm);
+}
+
+pre {
+  padding: var(--space-3);
+  overflow-x: auto;
+  max-width: 100%;
+  border: 1px solid var(--border-subtle);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+code {
+  padding: 0.1em 0.35em;
+}
+
+details > summary {
+  cursor: pointer;
+  color: var(--text-secondary);
+}
+
+/* =========================================================================
+   Page shell used by every internal (non-home) view.
+   ========================================================================= */
+
+/* Internal pages get a near-black operational canvas of their own, deliberately
+   flatter than Home's atmospheric violet glow — an interior console, not a
+   continuation of the hero screen. The grid is a fixed, near-invisible
+   texture (never scrolls with content, never implies activity). */
+.console-canvas {
+  background:
+    linear-gradient(rgba(124, 92, 240, 0.05) 1px, transparent 1px) 0 0 / 100% 42px,
+    linear-gradient(90deg, rgba(124, 92, 240, 0.05) 1px, transparent 1px) 0 0 / 42px 100%,
+    var(--bg-void);
+  background-attachment: fixed;
+}
+
+.domain-view {
+  flex: 1;
+  max-width: 920px;
+  width: 100%;
+  margin: 0 auto;
+  padding: var(--space-5) var(--space-4) var(--space-8);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  overflow-x: hidden;
+  /* Inherited — a safety net so long scope URIs, audit values, filenames,
+     and IDs anywhere in a centre wrap instead of forcing horizontal
+     overflow, without every screen needing its own rule. */
+  overflow-wrap: anywhere;
+  animation: console-page-enter 260ms var(--ease-hud);
+}
+
+@keyframes console-page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.domain-view table {
+  width: 100%;
+  max-width: 100%;
+  display: block;
+  overflow-x: auto;
+}
+
+/* Console header — near-black, matte, a thin 1px violet border instead of
+   the old gradient-and-glow hero card. A fine bottom divider stands in for
+   the decorative purple blob this used to carry. */
+.domain-header {
+  background: var(--bg-panel-sunken);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-4) var(--space-5);
+  position: relative;
+}
+
+.domain-header::before {
+  content: "";
+  position: absolute;
+  left: var(--space-5);
+  right: var(--space-5);
+  bottom: 0;
+  height: 1px;
+  background: linear-gradient(90deg, var(--border-violet), transparent 70%);
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.domain-header h1 {
+  margin: 0 0 0.4rem;
+  letter-spacing: 0.04em;
+  font-size: 1.5rem;
+}
+
+.domain-header p {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.55;
+  max-width: 62ch;
+}
+
+/* Generic panel/card primitives, reused across every centre. Matte,
+   near-black, thin 1px violet border, smaller radius than Home's circular
+   language — a module surface, not a decorative card. */
+
+.panel {
+  background: var(--bg-panel-sunken);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-5);
+}
+
+.panel > h2:first-child,
+.panel > h3:first-child {
+  margin-top: 0;
+}
+
+section.panel[aria-label],
+section[aria-label].panel {
+  scroll-margin-top: calc(var(--topbar-height) + var(--space-3));
+}
+
+/* Every <section aria-label="…"> across the app becomes a module surface
+   automatically (at any nesting depth), so restyling here reaches every
+   screen without touching each component's markup. */
+.domain-view section[aria-label] {
+  background: var(--bg-panel-sunken);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-5);
+  transition: border-color var(--motion-control) var(--ease-hud);
+}
+
+.domain-view section[aria-label]:focus-within,
+.domain-view section[aria-label]:hover {
+  border-color: var(--border-default);
+}
+
+.domain-view section[aria-label] h2 {
+  margin-top: 0;
+  font-size: 0.78rem;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.domain-view section[aria-label] h3 {
+  font-size: 0.78rem;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* A domain page's dashboard split: identity/memory/records (secondary,
+   reference material) beside the conversation (primary, where time is
+   actually spent). Stacks on narrower widths. */
+.domain-grid {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) minmax(360px, 1.6fr);
+  gap: var(--space-5);
+  align-items: start;
+}
+
+.domain-secondary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  min-width: 0;
+}
+
+.domain-grid > .conversation-panel {
+  margin: 0;
+  min-width: 0;
+}
+
+@media (max-width: 1100px) {
+  .domain-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.notice {
+  font-size: 0.85rem;
+  border: 1px dashed var(--border-strong);
+  background: var(--bg-panel-sunken);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.error-banner {
+  color: var(--status-error);
+  background: var(--status-error-soft);
+  border: 1px solid rgba(255, 107, 122, 0.35);
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-3);
+  font-size: 0.85rem;
+  display: block;
+}
+
+/* A truthful, transient result line for a command executed from anywhere
+   (Home, a Centre page, or the palette) — a safe action's real outcome, or
+   an ambient voice question's real answer. Never decorative: it always
+   states what actually happened. */
+.command-feedback-banner {
+  position: fixed;
+  top: var(--space-3);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 550;
+  max-width: min(32rem, calc(100vw - var(--space-6)));
+  margin: 0;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-md);
+  font-size: 0.85rem;
+  line-height: 1.4;
+  text-align: center;
+  box-shadow: var(--shadow-lg);
+  animation: voice-overlay-enter 180ms var(--ease-hud);
+}
+
+.command-feedback-banner.ok {
+  color: var(--accent-cyan-strong);
+  background: var(--accent-cyan-soft);
+  border: 1px solid color-mix(in srgb, var(--accent-cyan) 45%, transparent);
+}
+
+.command-feedback-banner.error {
+  color: var(--status-error);
+  background: var(--status-error-soft);
+  border: 1px solid rgba(255, 107, 122, 0.35);
+}
+
+/* =========================================================================
+   Status chips — a single consistent way to show lifecycle/connection
+   state as text + color (never color alone).
+   ========================================================================= */
+
+/* Applied briefly to whatever control a safe/sensitive interface command
+   points at (see commands/highlight.ts) — never a click, just "look here". */
+.command-highlight {
+  animation: command-highlight-pulse 1.8s var(--ease-hud);
+  outline: 2px solid var(--accent-cyan-strong) !important;
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+@keyframes command-highlight-pulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent-cyan) 60%, transparent);
+  }
+  30% {
+    box-shadow: 0 0 0 8px color-mix(in srgb, var(--accent-cyan) 0%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+  padding: 0.15em 0.65em;
+  border-radius: var(--radius-full);
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border: 1px solid var(--border-default);
+  background: var(--status-neutral-soft);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.status-chip::before {
+  content: "";
+  width: 0.4em;
+  height: 0.4em;
+  border-radius: 50%;
+  background: currentColor;
+  flex: none;
+}
+
+.status-chip.tone-ok {
+  color: var(--status-ok);
+  border-color: rgba(63, 219, 154, 0.4);
+  background: var(--status-ok-soft);
+}
+
+.status-chip.tone-error {
+  color: var(--status-error);
+  border-color: rgba(255, 107, 122, 0.4);
+  background: var(--status-error-soft);
+}
+
+.status-chip.tone-warn {
+  color: var(--status-warn);
+  border-color: rgba(245, 185, 85, 0.4);
+  background: var(--status-warn-soft);
+}
+
+.status-chip.tone-active {
+  color: var(--accent-cyan-strong);
+  border-color: rgba(51, 217, 232, 0.4);
+  background: var(--accent-cyan-soft);
+}
+
+/* =========================================================================
+   Home — orbital HUD (Phase 6A).
+   ========================================================================= */
+
+.home {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4) var(--space-3);
+  min-height: 0;
+}
+
+.core-layout {
+  position: relative;
+  width: min(78vmin, 640px);
+  height: min(78vmin, 640px);
+  max-width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* =========================================================================
+   Jarvis HUD — a layered, state-driven ring system (Phase 6 cinematic
+   direction). Every ring is a decorative, compositor-friendly
+   transform/opacity animation; only .jc-core carries real text, and it
+   never rotates, so the label stays upright regardless of what the
+   surrounding rings are doing. --ring-color/--ring-glow/--spin-speed are
+   set once per state and consumed by every layer below, so a new state
+   only ever needs one small block rather than per-layer overrides.
+   ========================================================================= */
+
+.jarvis-hud {
+  --core-size: clamp(84px, 15vmin, 132px);
+  --hud-size: clamp(160px, 30vmin, 268px);
+  --ring-color: var(--accent-violet);
+  --ring-glow: var(--glow-violet-sm);
+  --spin-speed: 1;
+  width: var(--hud-size);
+  height: var(--hud-size);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+}
+
+/* The core as a real control (Phase 6: entry point to a general Jarvis
+   conversation). Reset button chrome first so it's visually identical to
+   the non-interactive .jarvis-hud; hover/focus then add a restrained,
+   local response — a touch of scale and glow — without disturbing any of
+   the existing ring animations or shifting layout. */
+.jarvis-hud-interactive {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+  transition: transform var(--motion-control) var(--ease-hud), filter var(--motion-control) var(--ease-hud);
+}
+
+.jarvis-hud-interactive:hover,
+.jarvis-hud-interactive:focus-visible {
+  transform: scale(1.015);
+  filter: drop-shadow(0 0 18px color-mix(in srgb, var(--ring-color) 30%, transparent));
+}
+
+.jarvis-hud-interactive:focus-visible {
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: 6px;
+  border-radius: 50%;
+}
+
+.jarvis-hud-interactive:active {
+  transform: scale(0.99);
+}
+
+/* Brief energize before the general conversation view actually mounts —
+   the same "focusing a subsystem" treatment DomainNode gives a selected
+   domain, so opening the core into a conversation reads consistently with
+   opening a domain. */
+.jarvis-hud-interactive.is-activating {
+  --ring-color: var(--accent-cyan-strong);
+  --ring-glow: var(--glow-cyan-sm);
+}
+
+.jc-layer {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.jc-boundary {
+  width: 100%;
+  height: 100%;
+  border: 1px solid color-mix(in srgb, var(--ring-color) 35%, transparent);
+  box-shadow: inset 0 0 24px color-mix(in srgb, var(--ring-color) 12%, transparent);
+  animation: jc-breathe calc(5.5s / var(--spin-speed)) ease-in-out infinite;
+}
+
+.jc-segmented {
+  width: 84%;
+  height: 84%;
+  background: repeating-conic-gradient(
+    var(--ring-color) 0deg 10deg,
+    transparent 10deg 26deg
+  );
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
+  opacity: 0.55;
+}
+
+.jc-ticks {
+  width: 68%;
+  height: 68%;
+  background: repeating-conic-gradient(
+    var(--ring-color) 0deg 2deg,
+    transparent 2deg 30deg
+  );
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
+  opacity: 0.7;
+}
+
+.jc-inner-ring {
+  width: 54%;
+  height: 54%;
+  background: repeating-conic-gradient(
+    var(--ring-color) 0deg 14deg,
+    transparent 14deg 40deg
+  );
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
+  opacity: 0.65;
+}
+
+.jc-sweep {
+  width: 78%;
+  height: 78%;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    color-mix(in srgb, var(--ring-color) 85%, white 15%) 14deg,
+    transparent 46deg,
+    transparent 360deg
+  );
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 30px), #000 calc(100% - 29px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 30px), #000 calc(100% - 29px));
+  opacity: 0.8;
+}
+
+.jc-spin-cw {
+  animation: jc-spin-cw calc(34s / var(--spin-speed)) linear infinite;
+}
+
+.jc-spin-ccw {
+  animation: jc-spin-ccw calc(46s / var(--spin-speed)) linear infinite;
+}
+
+.jc-spin-cw-fast {
+  /* Was 16s — the most frantic ambient layer relative to the others;
+     slowed ~25% so the idle core reads as calm rather than busy, while
+     staying visibly faster than .jc-spin-cw's 34s. */
+  animation: jc-spin-cw calc(20s / var(--spin-speed)) linear infinite;
+}
+
+.jc-spin-cw-sweep {
+  /* The scanning sweep is allowed to stay the fastest ambient layer, but
+     still eased back slightly from 4.2s so it reads as a deliberate scan
+     rather than a spinner. */
+  animation: jc-spin-cw calc(4.8s / var(--spin-speed)) linear infinite;
+}
+
+@keyframes jc-spin-cw {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes jc-spin-ccw {
+  to {
+    transform: rotate(-360deg);
+  }
+}
+
+@keyframes jc-breathe {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.02);
+  }
+}
+
+.jc-halo {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 62%;
+  height: 62%;
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--ring-color) 55%, transparent), transparent 72%);
+  filter: blur(2px);
+  /* Was 2.4s — slowed ~25% to match the rest of the calmer idle core. */
+  animation: jc-halo-pulse calc(3s / var(--spin-speed)) ease-in-out infinite;
+}
+
+@keyframes jc-halo-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.94);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(1.04);
+  }
+}
+
+.jc-bars {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity var(--motion-medium) var(--ease-standard);
+}
+
+.jc-bar {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 3px;
+  height: 12px;
+  margin: -6px 0 0 -1.5px;
+  border-radius: 2px;
+  background: var(--ring-color);
+  transform-origin: center;
+  animation: jc-bar-pulse 900ms ease-in-out infinite;
+}
+
+@keyframes jc-bar-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+    scale: 1 0.6;
+  }
+  50% {
+    opacity: 1;
+    scale: 1 1.6;
+  }
+}
+
+.jc-core {
+  width: var(--core-size);
+  height: var(--core-size);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 0.15rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  font-size: clamp(0.78rem, 1.5vmin, 0.98rem);
+  background: radial-gradient(circle at 32% 28%, var(--bg-panel-hover), var(--bg-void) 72%);
+  border: 1px solid var(--ring-color);
+  color: var(--text-primary);
+  box-shadow: var(--ring-glow), var(--shadow-lg);
+  z-index: 2;
+  transition: box-shadow var(--motion-slow) var(--ease-standard), border-color var(--motion-slow) var(--ease-standard);
+}
+
+.jarvis-core-substate {
+  font-size: 0.62em;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+  text-transform: none;
+}
+
+/* --- per-state tuning: color, glow, and overall tempo only --- */
+
+.jarvis-hud.state-idle {
+  --ring-color: var(--accent-violet);
+  --ring-glow: var(--glow-violet-sm);
+  --spin-speed: 1;
+}
+
+/* Mission Control's restrained "focus active" tint — only ever combined
+   with state-idle (see JarvisCore.tsx's focusActive prop), so it can
+   never visually compete with a real voice state. Deliberately no change
+   to --spin-speed or any animation — a color/glow shift only, calm enough
+   to sit behind the six-domain orbit without drawing attention away from
+   it. */
+.jarvis-hud.state-idle.is-focus-active {
+  --ring-color: color-mix(in srgb, var(--accent-violet) 55%, var(--accent-cyan) 45%);
+  --ring-glow: var(--glow-cyan-sm);
+}
+
+.jarvis-hud.state-listening {
+  --ring-color: var(--accent-cyan);
+  --ring-glow: var(--glow-cyan-md);
+  --spin-speed: 2.6;
+}
+.jarvis-hud.state-listening .jc-bars {
+  opacity: 1;
+}
+
+.jarvis-hud.state-transcribing {
+  --ring-color: var(--accent-cyan-strong);
+  --ring-glow: var(--glow-cyan-md);
+  --spin-speed: 3.2;
+}
+
+.jarvis-hud.state-thinking {
+  --ring-color: var(--accent-violet-strong);
+  --ring-glow: var(--glow-violet-lg);
+  --spin-speed: 2.2;
+}
+
+.jarvis-hud.state-speaking {
+  --ring-color: var(--accent-cyan);
+  --ring-glow: var(--glow-cyan-md);
+  --spin-speed: 2.2;
+}
+.jarvis-hud.state-speaking .jc-bars {
+  opacity: 1;
+}
+
+.jarvis-hud.state-error {
+  --ring-color: var(--status-error);
+  --ring-glow: var(--glow-error-sm);
+  --spin-speed: 0.4;
+}
+.jarvis-hud.state-error .jc-sweep,
+.jarvis-hud.state-error .jc-inner-ring {
+  animation-play-state: paused;
+  opacity: 0.3;
+}
+
+/* A faint shared orbit ring at the domains' own radius — brightens as a
+   whole when any node is hovered/focused, reading as "the orbit path
+   energizes" without needing a fragile per-node line to the core. */
+.orbit-path {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: calc(38% * 2);
+  height: calc(38% * 2);
+  border-radius: 50%;
+  border: 1px dashed color-mix(in srgb, var(--accent-violet) 22%, transparent);
+  opacity: 0.5;
+  transition: opacity var(--motion-medium) var(--ease-standard), border-color var(--motion-medium) var(--ease-standard);
+  pointer-events: none;
+}
+
+/* Deliberately no whole-ring reaction to any single node's hover/focus
+   anymore — "illuminate only the relevant portion," not the entire
+   six-domain orbit. Per-node feedback (.domain-connector, .node-ring)
+   carries all of that signal now; this stays a constant, quiet backdrop. */
+
+@keyframes home-enter {
+  from {
+    /* Never a full fade from 0 — a slow first paint should never read as a
+       blank/broken page, only as a quick settle-in. */
+    opacity: 0.55;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.core-layout {
+  animation: home-enter 380ms var(--ease-standard);
+}
+
+.domain-ring {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  position: absolute;
+  inset: 0;
+}
+
+.domain-node {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  transition: transform var(--motion-medium) var(--ease-standard);
+}
+
+.domain-node.is-focusing {
+  z-index: 3;
+}
+
+.domain-node.is-focusing .domain-button {
+  border-color: var(--accent-cyan-strong);
+  color: var(--text-primary);
+  transform: scale(1.03);
+  box-shadow: var(--glow-cyan-md), var(--shadow-lg);
+  transition: transform 90ms var(--ease-hud), border-color 90ms var(--ease-hud), box-shadow 90ms var(--ease-hud);
+}
+
+/* A short stub pointing toward the core, invisible at rest — the
+   "orbital connection" that energizes only for the node being interacted
+   with, rather than redrawing the whole shared ring per node. A slow
+   flowing gradient (not a discrete extra element) stands in for an
+   outward energy pulse during the genuine activation moment only —
+   hover/focus stay a calmer static glow. */
+.domain-connector {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 2px;
+  height: 16px;
+  margin-left: -1px; /* centers the 2px bar on the anchor point (static, not part of the transform below) */
+  transform-origin: 1px 0;
+  /* translateY first pushes the bar's start point out to just past the
+     outer ring's edge (in the element's own pre-rotation frame), then
+     rotate() carries that whole offset segment around to point toward the
+     layout centre — so the visible 16px stub starts right at the ring
+     boundary and extends outward from there, rather than starting at the
+     node's centre and being hidden entirely behind the node/ring (which
+     is what the original top:50%/left:50%-anchored short stub did — the
+     button and rings, painted above it, fully hid a 22px stub that never
+     reached past their own ~70px radius). */
+  transform: rotate(var(--connector-angle, 0deg)) translateY(66px);
+  background: linear-gradient(var(--accent-cyan-strong), transparent);
+  background-size: 100% 220%;
+  opacity: 0;
+  transition: opacity var(--motion-control) var(--ease-hud);
+  pointer-events: none;
+}
+
+.domain-node:hover .domain-connector,
+.domain-node:focus-within .domain-connector {
+  opacity: 0.7;
+  background: linear-gradient(var(--accent-violet-strong), transparent);
+}
+
+.domain-node.is-focusing .domain-connector {
+  opacity: 1;
+  animation: connector-pulse 900ms var(--ease-hud) infinite;
+}
+
+@keyframes connector-pulse {
+  0% {
+    background-position: 0 120%;
+  }
+  100% {
+    background-position: 0 -20%;
+  }
+}
+
+/* The node's own small, quiet echo of JarvisCore's ring language — fully
+   dormant (no paint, no animation) until activated. At most two layers,
+   per the design brief: one segmented rotating ring, one thin
+   counter-rotating ring. Reduced-motion's existing global rule (index.css
+   top) already zeroes every animation/transition duration here, so an
+   activated ring still appears, just instantly and without rotating. */
+/* Centering technique note: the previous version used `inset:0; margin:
+   auto` to center a percentage-sized box within `.domain-node`. That
+   relies on the browser splitting the width/height deficit evenly across
+   both auto margins — which measurably failed on this exact combination
+   (a `position:absolute` parent whose own width is content-derived/auto,
+   not explicit, holding a percentage-sized absolutely-positioned child):
+   Chromium resolved margin-left to 0 and dumped the entire deficit into
+   margin-right, offsetting the ring's centre by 13-22px instead of
+   centering it. `top/left: 50%` + `transform: translate(-50%, -50%)` does
+   not depend on margin auto-resolution at all and centers correctly
+   regardless of how the parent's own size was computed — verified via a
+   focused browser assertion (ringCentering.spec) comparing each ring's
+   measured centre against its node's measured centre. */
+.node-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  border-radius: 50%;
+  pointer-events: none;
+  /* 0.001, not a literal 0 — WebKit throttles/freezes a running CSS
+     animation on an element it considers fully invisible (opacity:0 with
+     nothing else keeping it "live"), which is what made the rotation
+     look like it always restarted from the same spot on hover: the
+     animation's own clock was effectively frozen the entire time it was
+     hidden, so every reveal resumed from wherever it froze rather than
+     wherever 10s/14s of continuous real time would have put it. An
+     imperceptible non-zero opacity keeps WebKit treating it as a live,
+     still-animating element throughout. */
+  opacity: 0.001;
+  /* Deliberately the SAME translate/scale as every other state below
+     (hover, focus-within, is-focusing) — never overridden by them. The
+     rotation keyframes (bottom of this block) animate `transform` too;
+     if hover also changed `transform` (it used to, via a 0.96→1 hover
+     "grow" effect), the browser recomputes the animation's implicit
+     from-state against the new static value on every hover, which reads
+     as the rotation restarting even though the animation's own elapsed
+     time never actually reset. Keeping every non-animated state's
+     `transform` identical removes that interaction entirely — only
+     `opacity` changes on hover now. */
+  transform: translate(-50%, -50%) scale(1);
+  /* Exit duration lives on the base rule (applies whenever :hover/
+     :focus-within stops matching); entrance gets its own longer duration
+     below so appearing reads calmer than disappearing. */
+  transition: opacity var(--motion-ring-exit) var(--ease-hud);
+  /* Runs continuously regardless of hover/focus state — never toggled by
+     :hover/:focus-within, which only change opacity (below). At
+     opacity:0 it's invisible but never paused, so it's already mid-turn
+     the next time it becomes visible, rather than restarting from frame
+     0 every time. */
+  animation: node-ring-cw 10s linear infinite;
+}
+
+/* The closer/first layer — a restrained violet segmented circumference,
+   hugging the node with roughly an 8-12px gap at the node's largest
+   (1440px-class) size. Segments and stroke are deliberately smaller/
+   thinner than JarvisCore's own rings (10deg/26deg, ~3px stroke) so the
+   node's mechanism always reads as quieter than the core. */
+.node-ring-inner {
+  width: 114%;
+  height: 114%;
+  background: repeating-conic-gradient(var(--accent-violet-strong) 0deg 7deg, transparent 7deg 27deg);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1px));
+}
+
+/* The further/second layer — thinner and sparser again, reading as a
+   scanning sweep once it counter-rotates. */
+.node-ring-outer {
+  width: 121%;
+  height: 121%;
+  background: repeating-conic-gradient(var(--accent-violet-strong) 0deg 2deg, transparent 2deg 38deg);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 1.5px), #000 calc(100% - 0.5px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 1.5px), #000 calc(100% - 0.5px));
+  /* 0.001, not 0 — see .node-ring's own comment above (WebKit throttling). */
+  opacity: 0.001;
+  /* See .node-ring's own comment above — continuous regardless of hover,
+     so the ring is already mid-rotation, never restarting, whenever it
+     becomes visible. */
+  animation: node-ring-ccw 14s linear infinite;
+}
+
+.domain-node:hover .node-ring,
+.domain-node:focus-within .node-ring {
+  opacity: 0.8;
+  transition: opacity var(--motion-ring-enter) var(--ease-hud);
+}
+
+.domain-node:hover .node-ring-outer,
+.domain-node:focus-within .node-ring-outer {
+  opacity: 0.55;
+}
+
+/* Activation ("selected" / command-highlighted, see DomainNode.tsx) —
+   same two layers, switched to the cyan "active signal" colour and slowed
+   down noticeably relative to the hover/focus preview above, so a genuine
+   activation reads as calmer and more deliberate, not more excited. */
+.domain-node.is-focusing .node-ring-inner {
+  opacity: 0.9;
+  background-image: repeating-conic-gradient(var(--accent-cyan-strong) 0deg 7deg, transparent 7deg 27deg);
+  animation: node-ring-cw 27s linear infinite;
+}
+
+.domain-node.is-focusing .node-ring-outer {
+  opacity: 0.6;
+  background-image: repeating-conic-gradient(var(--accent-cyan-strong) 0deg 2deg, transparent 2deg 38deg);
+  animation: node-ring-ccw 19s linear infinite;
+}
+
+@keyframes node-ring-cw {
+  from {
+    transform: translate(-50%, -50%) scale(1) rotate(0deg);
+  }
+  to {
+    transform: translate(-50%, -50%) scale(1) rotate(360deg);
+  }
+}
+
+@keyframes node-ring-ccw {
+  from {
+    transform: translate(-50%, -50%) scale(1) rotate(0deg);
+  }
+  to {
+    transform: translate(-50%, -50%) scale(1) rotate(-360deg);
+  }
+}
+
+.domain-button {
+  --node-size: clamp(72px, 14vmin, 118px);
+  width: var(--node-size);
+  height: var(--node-size);
+  border-radius: 50%;
+  border: 1px solid var(--border-default);
+  background: linear-gradient(160deg, var(--bg-panel-raised), var(--bg-panel-sunken));
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.15rem;
+  padding: 0.5rem;
+  text-align: center;
+  box-shadow: var(--shadow-sm);
+  position: relative;
+  z-index: 1;
+  transition: border-color var(--motion-control) var(--ease-hud), transform var(--motion-control) var(--ease-hud),
+    box-shadow var(--motion-control) var(--ease-hud), color var(--motion-control) var(--ease-hud);
+}
+
+.domain-button .domain-kbd {
+  position: absolute;
+  top: -0.15rem;
+  right: -0.15rem;
+  width: 1.1rem;
+  height: 1.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1px solid var(--border-default);
+  background: var(--bg-panel-sunken);
+  font-size: 0.58rem;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  z-index: 2;
+  transition: border-color var(--motion-control) var(--ease-hud), color var(--motion-control) var(--ease-hud);
+}
+
+.domain-button:hover,
+.domain-button:focus-visible {
+  /* Deliberately no transform here — the activation rings now carry the
+     hover/focus signal, and the node itself must stay pixel-stable so the
+     rings (measured/centered on the node's own static box) never appear
+     to drift relative to it. Resizing is reserved for the brief, distinct
+     `.is-focusing` selection-commit moment (see below), not for hover. */
+  border-color: var(--border-cyan);
+  color: var(--text-primary);
+  box-shadow: var(--glow-cyan-sm), var(--shadow-md);
+  outline: none;
+}
+
+.domain-button:hover .domain-kbd,
+.domain-button:focus-visible .domain-kbd {
+  border-color: var(--border-cyan);
+  color: var(--accent-cyan-strong);
+}
+
+.domain-button:active {
+  transform: scale(0.98);
+}
+
+/* Phase 6, D91: the dominant central visual inside each Home node —
+   scaled off the node's own `--node-size` (≈36-44px at the largest
+   supported node size, scaling down with it on narrower viewports so it
+   never crowds the name/subtitle below). Default colour follows the
+   button's own text colour; hover/focus turns violet exactly like the
+   button's own border/glow, and `.is-focusing` turns cyan with a small
+   glow — the same signal vocabulary the button already uses, just also
+   reflected in the glyph. The glyph itself never rotates or scales on
+   its own; only the button's existing hover/focus/is-focusing treatments
+   (border, glow, brief scale) move around it. */
+/* `.domain-button .domain-node-glyph` (not just `.domain-node-glyph`)
+   deliberately outranks `.domain-glyph`'s own base sizing below,
+   regardless of source order — two same-specificity class rules would
+   otherwise let whichever is later in the file win by accident. */
+.domain-button .domain-node-glyph {
+  width: calc(var(--node-size) * 0.36);
+  height: calc(var(--node-size) * 0.36);
+  color: var(--text-secondary);
+  transition: color var(--motion-control) var(--ease-hud), filter var(--motion-control) var(--ease-hud);
+}
+
+.domain-button:hover .domain-node-glyph,
+.domain-button:focus-visible .domain-node-glyph {
+  color: var(--accent-violet-strong);
+}
+
+.domain-node.is-focusing .domain-node-glyph {
+  color: var(--accent-cyan-strong);
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--accent-cyan-strong) 55%, transparent));
+}
+
+.domain-name {
+  font-weight: 700;
+  font-size: clamp(0.7rem, 1.4vmin, 0.86rem);
+  letter-spacing: 0.06em;
+  color: var(--text-primary);
+}
+
+.domain-subtitle {
+  font-size: clamp(0.5rem, 1vmin, 0.6rem);
+  opacity: 0.85;
+  color: var(--text-secondary);
+  line-height: 1.3;
+  max-width: 90%;
+  letter-spacing: 0.01em;
+}
+
+/* The full domain description, shown only for the hovered/focused node —
+   never inside the circle itself. */
+.domain-info-panel {
+  position: absolute;
+  left: 50%;
+  bottom: 1.75rem;
+  transform: translateX(-50%);
+  width: min(360px, 86vw);
+  background: var(--bg-panel-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--space-3) var(--space-4);
+  box-shadow: var(--shadow-lg);
+  text-align: center;
+  animation: domain-info-enter var(--motion-panel) var(--ease-hud);
+  pointer-events: none;
+}
+
+@keyframes domain-info-enter {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 6px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+.domain-info-name {
+  display: block;
+  font-weight: 700;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  color: var(--accent-cyan-strong);
+  margin-bottom: 0.25rem;
+}
+
+.domain-info-description {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+/* =========================================================================
+   Domain emblem — the small circular identity badge in a domain view's own
+   header (DomainEmblem.tsx). Deliberately much smaller than Home's orbital
+   node and carries no ring/sweep animation of its own; it exists as the
+   landing target for the Home→domain shared View Transition below, not as
+   a second decorative scene on an operational screen.
+   ========================================================================= */
+
+.domain-emblem {
+  --emblem-size: 34px;
+  width: var(--emblem-size);
+  height: var(--emblem-size);
+  border-radius: 50%;
+  border: 1px solid var(--accent-cyan-strong);
+  background: linear-gradient(160deg, var(--bg-panel-raised), var(--bg-panel-sunken));
+  box-shadow: var(--glow-cyan-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  flex: none;
+}
+
+/* Phase 6, D91: the bespoke inline-SVG icon family (DomainGlyph.tsx) that
+   replaced the previous plain first-letter mark. `currentColor`-driven so
+   one shared rule set covers every context the glyph appears in; the SVG
+   itself never rotates or scales — only its `color` (and, in
+   `.domain-button`, a drop-shadow glow) ever changes. In the header
+   emblem specifically, cyan reads as "this is the domain you're
+   currently in," matching the emblem's existing cyan ring border — not a
+   hover/focus state, since this element is decorative and non-interactive. */
+.domain-glyph {
+  width: 60%;
+  height: 60%;
+  color: var(--accent-cyan-strong);
+  overflow: visible;
+}
+
+.domain-emblem-kbd {
+  position: absolute;
+  top: -0.2rem;
+  right: -0.2rem;
+  width: 0.95rem;
+  height: 0.95rem;
+  border-radius: 50%;
+  background: var(--bg-void);
+  border: 1px solid var(--border-default);
+  font-size: 0.55rem;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* =========================================================================
+   Home↔domain shared View Transition (`transitions/domainViewTransition.ts`).
+   The selected node/emblem morphs continuously between Home and the
+   destination header via `::view-transition-group(jarvis-domain-shared)`;
+   everything else on the page (the other five nodes, the orbit path, the
+   core, or the destination's own content) rides the browser's default
+   root crossfade, customized here for duration/easing/reveal-stagger only.
+   Guarded entirely behind `no-preference`: the JS layer never calls
+   `document.startViewTransition` under reduced motion in the first place,
+   so this rarely even matters, but it keeps the guarantee structural
+   rather than incidental. */
+@media (prefers-reduced-motion: no-preference) {
+  ::view-transition-group(jarvis-domain-shared) {
+    animation-duration: 420ms;
+    animation-timing-function: var(--ease-hud);
+  }
+
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 260ms;
+    animation-timing-function: ease-out;
+  }
+
+  /* Replaces the default fade-in keyframe with one that also carries the
+     destination content upward by a few pixels, starting slightly after
+     the shared emblem begins moving — the "short deliberate stagger"
+     between the identity morph and the rest of the page resolving. */
+  ::view-transition-new(root) {
+    animation-name: jarvis-domain-reveal;
+    animation-delay: 90ms;
+    animation-fill-mode: both;
+  }
+}
+
+@keyframes jarvis-domain-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Fallback for browsers without the View Transitions API (Safari <18,
+   older Firefox): `runDomainViewTransition` calls `commit()` immediately
+   with no artificial wait either way, so this is purely a short CSS
+   crossfade riding the natural remount — never a JS-timed animation. */
+@media (prefers-reduced-motion: no-preference) {
+  .no-view-transitions .home,
+  .no-view-transitions .domain-view {
+    animation: jarvis-domain-reveal 220ms ease-out both;
+  }
+}
+
+/* =========================================================================
+   Conversation experience.
+   ========================================================================= */
+
+.conversation-panel {
+  display: flex;
+  gap: var(--space-5);
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+.conversation-list {
+  flex: 1;
+  min-width: 220px;
+}
+
+.conversation-list ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.conversation-list li button {
+  width: 100%;
+  text-align: left;
+  background: var(--bg-panel-sunken);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  padding: 0.55rem 0.7rem;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+  transition: border-color var(--motion-fast) var(--ease-standard);
+}
+
+.conversation-list li button:hover {
+  border-color: var(--border-cyan);
+}
+
+.conversation-list li button[aria-current="true"] {
+  border-color: var(--accent-violet);
+  color: var(--text-primary);
+  box-shadow: var(--glow-violet-sm);
+}
+
+.new-conversation-form {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: var(--space-3);
+}
+
+.new-conversation-form input {
+  flex: 1;
+  min-width: 0;
+}
+
+.conversation-detail {
+  flex: 2;
+  min-width: 280px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.message-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  max-height: 420px;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+
+.message-item {
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-panel-sunken);
+  border-radius: var(--radius-md);
+  padding: 0.6rem 0.8rem;
+  overflow-wrap: anywhere;
+}
+
+.message-item:has(.message-role:first-line) {
+  /* progressive enhancement only; safe if :has unsupported */
+}
+
+.message-list li.message-item:nth-child(1) {
+  /* no-op anchor kept intentionally minimal */
+}
+
+.message-role {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  letter-spacing: 0.06em;
+}
+
+.message-content {
+  margin: 0.2rem 0 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+
+.message-model {
+  color: var(--text-tertiary);
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.message-pending {
+  opacity: 0.75;
+  font-style: italic;
+  border-color: var(--border-violet);
+}
+
+.turn-meta {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  margin: 0;
+}
+
+.message-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  position: sticky;
+  bottom: 0;
+  background: var(--bg-panel);
+  padding-top: var(--space-2);
+}
+
+.message-form textarea {
+  min-height: 3.4rem;
+  resize: vertical;
+  width: 100%;
+}
+
+.message-form-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.context-used-panel {
+  margin-top: 0.4rem;
+  border-left: 2px solid var(--border-violet);
+  padding-left: var(--space-3);
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.context-used-panel ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.remember-form {
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-panel-sunken);
+  padding: var(--space-3);
+  margin: var(--space-2) 0;
+}
+
+.extra-domain-selector {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin: 0.4rem 0;
+}
+
+.extra-domain-selector label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+  font-size: 0.85rem;
+}
+
+.sensitive-warning {
+  border: 1px solid rgba(245, 185, 85, 0.4);
+  background: var(--status-warn-soft);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  font-size: 0.85rem;
+  margin-bottom: var(--space-2);
+  color: var(--text-primary);
+}
+
+/* =========================================================================
+   Voice-state indicator + push-to-talk.
+   ========================================================================= */
+
+.push-to-talk {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: 0.2rem 0;
+  flex-wrap: wrap;
+}
+
+.push-to-talk-button {
+  background: var(--bg-panel-raised);
+  border: 1px solid var(--border-violet);
+  color: var(--text-primary);
+  border-radius: var(--radius-full);
+  padding: 0.6rem 1.1rem;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.85rem;
+  box-shadow: var(--glow-violet-sm);
+  transition: box-shadow var(--motion-fast) var(--ease-standard), border-color var(--motion-fast) var(--ease-standard);
+}
+
+.push-to-talk-button:hover:not(:disabled) {
+  box-shadow: var(--glow-violet-md);
+}
+
+.push-to-talk-button.recording {
+  border-color: var(--border-cyan);
+  background: var(--accent-cyan-soft);
+  box-shadow: var(--glow-cyan-md);
+  animation: ptt-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes ptt-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.035);
+  }
+}
+
+.push-to-talk-button:disabled {
+  box-shadow: none;
+}
+
+.voice-state-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45em;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.voice-state-indicator .voice-state-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--status-neutral);
+  flex: none;
+}
+
+.voice-state-indicator.voice-listening .voice-state-dot,
+.voice-state-indicator.voice-speaking .voice-state-dot {
+  background: var(--accent-cyan);
+  box-shadow: var(--glow-cyan-sm);
+}
+
+.voice-state-indicator.voice-transcribing .voice-state-dot,
+.voice-state-indicator.voice-thinking .voice-state-dot {
+  background: var(--accent-violet-strong);
+  box-shadow: var(--glow-violet-sm);
+}
+
+.voice-state-indicator.voice-error .voice-state-dot {
+  background: var(--status-error);
+  box-shadow: var(--glow-error-sm);
+}
+
+.voice-state {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  text-transform: capitalize;
+}
+
+.voice-command-feedback {
+  width: 100%;
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  background: var(--bg-panel-sunken);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 0.4rem 0.6rem;
+  overflow-wrap: anywhere;
+}
+
+.voice-command-feedback.is-sensitive {
+  border-color: rgba(245, 185, 85, 0.4);
+  color: var(--status-warn);
+  background: var(--status-warn-soft);
+}
+
+/* =========================================================================
+   Memory / records / onboarding.
+   ========================================================================= */
+
+.memory-list {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.memory-card {
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-panel-sunken);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  overflow-wrap: anywhere;
+}
+
+.memory-card-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.memory-kind {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  padding: 0.1rem 0.45rem;
+  letter-spacing: 0.04em;
+}
+
+.memory-status {
+  font-size: 0.7rem;
+  color: var(--text-tertiary);
+  margin-left: auto;
+}
+
+.sensitive-tag {
+  font-size: 0.68rem;
+  color: var(--status-warn);
+  border: 1px solid rgba(245, 185, 85, 0.4);
+  background: var(--status-warn-soft);
+  border-radius: var(--radius-sm);
+  padding: 0.1rem 0.45rem;
+}
+
+.memory-actions {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  margin-top: 0.5rem;
+}
+
+.memory-edit-form textarea,
+.memory-create-form textarea {
+  width: 100%;
+  min-height: 3rem;
+}
+
+.memory-create-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-width: 480px;
+}
+
+.memory-delete-confirm {
+  margin-top: var(--space-2);
+  border: 1px solid rgba(255, 107, 122, 0.45);
+  background: var(--status-error-soft);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+}
+
+.memory-version-history {
+  margin-top: var(--space-2);
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  list-style: none;
+  padding: 0;
+  border-left: 2px solid var(--border-default);
+  padding-left: var(--space-3);
+}
+
+.onboarding-field {
+  margin-bottom: var(--space-3);
+}
+
+.onboarding-current {
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+  margin: 0.1rem 0;
+}
+
+.message-actions {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 0.3rem;
+  flex-wrap: wrap;
+}
+
+/* =========================================================================
+   Command palette.
+   ========================================================================= */
+
+.command-palette-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(5, 3, 8, 0.65);
+  backdrop-filter: blur(3px);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 12vh;
+  z-index: 100;
+}
+
+.command-palette {
+  width: min(480px, 92vw);
+  background: var(--bg-panel-raised);
+  border: 1px solid var(--border-violet);
+  border-radius: var(--radius-lg);
+  padding: var(--space-3);
+  box-shadow: var(--glow-violet-sm), var(--shadow-lg);
+  animation: panel-enter var(--motion-panel) var(--ease-hud);
+}
+
+@keyframes panel-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.command-palette input {
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: var(--space-2);
+}
+
+.command-palette-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.command-palette-list button {
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.6rem;
+  color: var(--text-secondary);
+  transition: background var(--motion-control) var(--ease-hud), color var(--motion-control) var(--ease-hud),
+    transform var(--motion-control) var(--ease-hud);
+}
+
+.command-palette-list button:active {
+  transform: scale(0.98);
+}
+
+.command-palette-list button.highlighted {
+  background: var(--accent-violet-soft);
+  color: var(--text-primary);
+}
+
+.command-palette-empty {
+  padding: 0.4rem 0.5rem;
+  color: var(--text-tertiary);
+}
+
+/* =========================================================================
+   Responsive behaviour — no horizontal scrollbar, all six orbit nodes
+   remain visible, chrome always reserves its own space.
+   ========================================================================= */
+
+@media (max-width: 1024px) {
+  .top-bar {
+    font-size: 0.76rem;
+    gap: var(--space-2);
+  }
+
+  .top-bar-location {
+    display: none;
+  }
+
+  .domain-view {
+    padding: var(--space-4) var(--space-3) var(--space-7);
+  }
+
+  .conversation-panel {
+    flex-direction: column;
+  }
+
+  .core-layout {
+    width: min(84vmin, 92vw);
+    height: min(84vmin, 92vw);
+  }
+}
+
+@media (max-width: 840px) {
+  .bottom-bar {
+    gap: var(--space-3);
+  }
+
+  .top-bar-brand span:last-child {
+    display: none;
+  }
+}
+
+/* body-only (never html) — setting this on both elements makes the root
+   element create its own clipped 100%-height scrollport instead of
+   deferring vertical scrolling to the viewport, which silently trapped
+   any content taller than one screen (e.g. a domain page with several
+   expanded memory cards) with no way to scroll down to it at all. */
+body {
+  overflow-x: hidden;
+}
+
+/* =========================================================================
+   Console design system (Phase 6 Part 3) — the shared interior language
+   every internal page (a domain conversation, the general conversation,
+   every Centre) is built from: near-black, matte, thin 1px violet
+   borders, cyan reserved strictly for something live right now. See
+   components/console/Console.tsx for the primitives that emit these
+   classes. Motion here is calmer than Home's: entrance only, no
+   permanent per-card rotation — see .mini-core-ring below for the one
+   exception, gated on real activity.
+   ========================================================================= */
+
+.console-header {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-4);
+  background: var(--bg-panel-sunken);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-4) var(--space-5);
+  position: relative;
+}
+
+.console-header::after {
+  content: "";
+  position: absolute;
+  left: var(--space-5);
+  right: var(--space-5);
+  bottom: 0;
+  height: 1px;
+  background: linear-gradient(90deg, var(--border-violet), transparent 70%);
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.console-header-indicator {
+  flex: none;
+  padding-top: 0.2rem;
+}
+
+.console-header-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.console-header-text h1 {
+  margin: 0.15rem 0 0.3rem;
+  font-size: 1.3rem;
+  letter-spacing: 0.02em;
+}
+
+.console-eyebrow {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--text-tertiary);
+}
+
+.console-subtitle {
+  margin: 0 0 0.35rem;
+  color: var(--text-secondary);
+  font-size: 0.92rem;
+  max-width: 62ch;
+}
+
+.console-description {
+  margin: 0;
+  color: var(--text-tertiary);
+  font-size: 0.85rem;
+  line-height: 1.5;
+  max-width: 62ch;
+}
+
+.console-header-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.console-header-actions {
+  flex: none;
+}
+
+/* One reusable module surface. Deliberately unopinionated about size —
+   callers vary width/height/grid placement via className, so a page reads
+   as "several differently-sized instruments" rather than a stack of
+   identical cards. */
+.console-module {
+  background: var(--bg-panel-sunken);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  transition: border-color var(--motion-control) var(--ease-hud);
+}
+
+.console-module:hover,
+.console-module:focus-within {
+  border-color: var(--border-default);
+}
+
+/* The one state that earns the cyan accent — something actually
+   listening/syncing/executing/connected right now, never decorative. */
+.console-module.is-live {
+  border-color: color-mix(in srgb, var(--accent-cyan) 45%, var(--border-subtle));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent-cyan) 10%, transparent);
+}
+
+.console-module-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.console-section-label {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-tertiary);
+}
+
+/* Compact label/value telemetry line — providers, routines, audit rows. */
+.telemetry-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 0.35rem 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--border-subtle) 60%, transparent);
+  font-size: 0.85rem;
+}
+
+.telemetry-row:last-child {
+  border-bottom: none;
+}
+
+.telemetry-label {
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  flex: none;
+}
+
+.telemetry-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--text-primary);
+  text-align: right;
+}
+
+.telemetry-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.telemetry-dot.tone-ok {
+  background: var(--status-ok);
+}
+.telemetry-dot.tone-warn {
+  background: var(--status-warn);
+}
+.telemetry-dot.tone-error {
+  background: var(--status-error);
+}
+.telemetry-dot.tone-active {
+  background: var(--accent-cyan);
+  box-shadow: 0 0 6px var(--accent-cyan);
+}
+.telemetry-dot.tone-neutral {
+  background: var(--status-neutral);
+}
+
+/* The small circular system glyph used in console headers instead of a
+   giant decorative core. Static unless `active` — only then does its one
+   ring segment slowly rotate, exactly the "live status" case Phase 6
+   calls out, never a permanent decoration. */
+.mini-core {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mini-core-sm {
+  width: 22px;
+  height: 22px;
+}
+
+.mini-core-md {
+  width: 32px;
+  height: 32px;
+}
+
+.mini-core-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1.5px solid color-mix(in srgb, var(--accent-violet) 55%, transparent);
+  border-top-color: transparent;
+  border-right-color: transparent;
+}
+
+.mini-core-cyan .mini-core-ring {
+  border-color: color-mix(in srgb, var(--accent-cyan) 60%, transparent);
+  border-top-color: transparent;
+  border-right-color: transparent;
+}
+
+.mini-core-dot {
+  width: 30%;
+  height: 30%;
+  border-radius: 50%;
+  background: var(--accent-violet);
+}
+
+.mini-core-cyan .mini-core-dot {
+  background: var(--accent-cyan);
+}
+
+.mini-core.is-active .mini-core-ring {
+  animation: mini-core-spin 3.2s linear infinite;
+}
+
+.mini-core.is-active .mini-core-dot {
+  box-shadow: 0 0 8px currentColor;
+}
+
+@keyframes mini-core-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* The domain/general conversation "cockpit": a primary workspace beside a
+   narrower context rail, not a stacked hero + full-width banner. Stacks
+   on narrower viewports, rail moving below the main column. */
+.cockpit-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 68%) minmax(260px, 1fr);
+  gap: var(--space-5);
+  align-items: start;
+}
+
+.cockpit-main {
+  min-width: 0;
+}
+
+.cockpit-rail {
+  position: sticky;
+  top: calc(var(--topbar-height) + var(--space-3));
+}
+
+@media (max-width: 1100px) {
+  .cockpit-layout {
+    grid-template-columns: 1fr;
+  }
+  .cockpit-rail {
+    position: static;
+  }
+}
+
+.general-header {
+  margin-bottom: 0;
+}
+
+.empty-console-state {
+  padding: var(--space-6) var(--space-4);
+  text-align: center;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-panel-sunken);
+}
+
+.empty-hint {
+  color: var(--text-tertiary);
+  font-size: 0.85rem;
+}
+
+.technical-details {
+  margin-top: var(--space-3);
+  font-size: 0.82rem;
+}
+
+.technical-details summary {
+  cursor: pointer;
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  list-style: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45em;
+}
+
+.technical-details summary::-webkit-details-marker {
+  display: none;
+}
+
+/* A single chevron, driven only by the native <details> [open] state —
+   one source of truth, never a second independent toggle control. */
+.technical-details summary::before {
+  content: "";
+  display: inline-block;
+  width: 0;
+  height: 0;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  border-left: 5px solid currentColor;
+  transition: transform 200ms var(--ease-hud);
+}
+
+.technical-details[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+.technical-details-body {
+  margin-top: var(--space-2);
+  padding: var(--space-3);
+  background: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  overflow-x: auto;
+}
+
+/* =========================================================================
+   Diagnostic system — truthful, distinct fault states, in the same visual
+   language as JarvisCore but never confusable with it: every ring here is
+   deliberately incomplete or interrupted (a missing segment, a connector
+   that never reaches the core, a scan that fails to complete), because a
+   *fault* should never look like a calmer version of the same healthy
+   core. No square/card ever sits behind the core itself. Color is load-
+   bearing: red only for a genuine unavailable/failure state, amber for
+   degraded-but-usable, violet/cyan for neutral/navigational conditions
+   (404). See components/diagnostic/Diagnostic.tsx.
+   ========================================================================= */
+
+.diagnostic-page {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-6);
+  padding: var(--space-6) var(--space-4);
+  min-height: 0;
+  text-align: center;
+  animation: diagnostic-enter 360ms var(--ease-hud);
+}
+
+@keyframes diagnostic-enter {
+  from {
+    opacity: 0.4;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Recovery transition — swapping the diagnostic page back out once the
+   underlying condition clears. Applied to whatever mounts in its place. */
+.diagnostic-recovered-enter {
+  animation: diagnostic-recovered 300ms var(--ease-hud);
+}
+
+@keyframes diagnostic-recovered {
+  from {
+    opacity: 0.5;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.diag-core {
+  --diag-size: clamp(96px, 16vmin, 148px);
+  --diag-color: var(--accent-violet);
+  --diag-glow: var(--glow-violet-sm);
+  --diag-spin: 1;
+  position: relative;
+  width: var(--diag-size);
+  height: var(--diag-size);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* No background/border here — the core floats on the bare canvas. */
+}
+
+/* ~10% larger — the Controller Offline core specifically (this is the
+   diagnostic Bernardo spends the most real time looking at, waiting on a
+   genuine outage). Text/buttons are untouched. */
+.diag-core.is-large {
+  --diag-size: clamp(106px, 17.6vmin, 163px);
+}
+
+.diag-core.tone-critical {
+  --diag-color: var(--status-error);
+  --diag-glow: var(--glow-error-sm);
+}
+
+.diag-core.tone-degraded {
+  --diag-color: var(--status-warn);
+  --diag-glow: 0 0 14px rgba(245, 185, 85, 0.35);
+}
+
+.diag-core.tone-neutral {
+  --diag-color: var(--accent-cyan);
+  --diag-glow: var(--glow-cyan-sm);
+}
+
+/* The middle step of a recovery color transition (red -> violet ->
+   cyan) — explicit rather than relying on "no tone class" defaulting to
+   the same violet, so the sequence reads clearly in the component. */
+.diag-core.tone-recovered {
+  --diag-color: var(--accent-violet-strong);
+  --diag-glow: var(--glow-violet-sm);
+}
+
+.diag-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+/* The segmented outer ring, identical technique to JarvisCore's own, but
+   with one wedge permanently cut away by `.diag-ring-gap` below — "one
+   missing segment" rather than a uniform, healthy-looking ring. */
+.diag-ring-outer {
+  background: repeating-conic-gradient(var(--diag-color) 0deg 22deg, transparent 22deg 45deg);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 10px), #000 calc(100% - 9px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 10px), #000 calc(100% - 9px));
+  opacity: 0.85;
+}
+
+/* A wedge of the page's own canvas color, laid over the ring at a fixed
+   angle — this is what makes a segment read as genuinely *missing* rather
+   than just dim, regardless of which ring pattern sits underneath it. */
+.diag-ring-gap {
+  background: var(--diag-gap-color, var(--bg-void));
+  clip-path: polygon(50% 50%, 38% -12%, 78% -12%);
+}
+
+.diag-core.variant-interrupted .diag-ring-outer {
+  animation: diag-spin-interrupted calc(14s / var(--diag-spin)) linear infinite;
+}
+
+/* A rotation that stutters rather than spinning smoothly — pauses,
+   advances, pauses again — reading as a mechanism failing to complete a
+   sweep, not as a slower version of a healthy spin. */
+@keyframes diag-spin-interrupted {
+  0%,
+  38% {
+    transform: rotate(0deg);
+  }
+  46% {
+    transform: rotate(58deg);
+  }
+  70%,
+  100% {
+    transform: rotate(58deg);
+  }
+}
+
+.diag-core.variant-gap .diag-ring-outer {
+  /* Static — a navigational fault (404) is not "the system" failing, so
+     nothing here spins or stutters. */
+  animation: none;
+}
+
+/* Controller Offline's own variant: the mechanism visibly keeps trying —
+   a smooth continuous (not stuttering) outer rotation, a counter-rotating
+   inner diagnostic trace, a breathing core, and a probe that extends and
+   retracts as if attempting a handshake. Distinct from the plain
+   "interrupted" stutter-once variant ErrorBoundary uses for a terminal,
+   non-retrying crash. */
+.diag-core.variant-reconnecting .diag-ring-outer {
+  animation: diag-spin-cw 14s linear infinite;
+}
+
+.diag-core.variant-reconnecting .diag-inner-ring {
+  background: repeating-conic-gradient(var(--diag-color) 0deg 10deg, transparent 10deg 26deg);
+  opacity: 0.5;
+  animation: diag-spin-ccw 9.5s linear infinite;
+}
+
+.diag-core.variant-reconnecting .diag-core-face {
+  animation: diag-breathe 3.2s ease-in-out infinite;
+}
+
+.diag-core.variant-reconnecting .diag-connector {
+  animation: diag-probe-idle 2.6s ease-in-out infinite;
+}
+
+@keyframes diag-spin-cw {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes diag-spin-ccw {
+  to {
+    transform: rotate(-360deg);
+  }
+}
+
+@keyframes diag-breathe {
+  0%,
+  100% {
+    box-shadow: var(--diag-glow);
+  }
+  50% {
+    box-shadow: var(--diag-glow), 0 0 22px color-mix(in srgb, var(--diag-color) 45%, transparent);
+  }
+}
+
+/* A gentle extend/retract — never fully reaching the core at rest,
+   "attempting" rather than "connected." */
+@keyframes diag-probe-idle {
+  0%,
+  100% {
+    transform: scaleY(0.72);
+    opacity: 0.4;
+  }
+  50% {
+    transform: scaleY(1);
+    opacity: 0.65;
+  }
+}
+
+/* During an actual retry attempt: the outer ring visibly accelerates, one
+   brighter scan pulse sweeps the circumference, and the probe reaches
+   further toward the centre (still an *attempt*, not a connection, until
+   recovery is confirmed). */
+.diag-core.variant-reconnecting.is-scanning .diag-ring-outer {
+  animation: diag-spin-cw 2.5s linear infinite, diag-scan-pulse 1.1s var(--ease-hud);
+}
+
+.diag-core.variant-reconnecting.is-scanning .diag-connector {
+  animation: diag-probe-reach 1.1s var(--ease-hud);
+}
+
+@keyframes diag-scan-pulse {
+  0% {
+    filter: none;
+  }
+  35% {
+    filter: drop-shadow(0 0 10px color-mix(in srgb, var(--status-error) 70%, var(--diag-color)));
+  }
+  100% {
+    filter: none;
+  }
+}
+
+@keyframes diag-probe-reach {
+  0% {
+    transform: scaleY(0.72);
+    opacity: 0.4;
+  }
+  45% {
+    transform: scaleY(1.05);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scaleY(0.72);
+    opacity: 0.4;
+  }
+}
+
+/* One-shot success transition: the missing segment reconnects, one
+   controlled sweep plays, and the color shift (red -> violet -> cyan) is
+   driven by the component swapping --diag-color/--diag-glow in sequence —
+   these are ordinary CSS custom properties consumed by real transitioned
+   properties (border-color/box-shadow below), so the browser genuinely
+   interpolates between the concrete colors rather than jumping. */
+.diag-core.is-recovering .diag-ring-gap {
+  opacity: 0;
+  transition: opacity 300ms var(--ease-hud);
+}
+
+.diag-core.is-recovering .diag-ring-outer {
+  animation: diag-recovery-sweep 650ms ease-out 1;
+}
+
+@keyframes diag-recovery-sweep {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.diag-core.is-recovering .diag-inner-ring {
+  animation: diag-spin-ccw 3s linear 1;
+}
+
+.diag-core.is-recovering .diag-core-face,
+.diag-core.is-recovering .diag-connector {
+  transition: border-color 600ms var(--ease-hud), box-shadow 600ms var(--ease-hud), background 600ms var(--ease-hud);
+}
+
+.diag-inner-ring {
+  width: 62%;
+  height: 62%;
+  top: 19%;
+  left: 19%;
+  background: repeating-conic-gradient(var(--accent-cyan-strong) 0deg 14deg, transparent 14deg 34deg);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 6px), #000 calc(100% - 5px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 6px), #000 calc(100% - 5px));
+  opacity: 0.9;
+}
+
+.diag-inner-ring.is-interrupted {
+  animation: none;
+  opacity: 0.35;
+}
+
+.diag-inner-ring.is-interrupted .diag-ring-gap {
+  --diag-gap-color: var(--bg-void);
+}
+
+/* The "cognitive ring interrupted, controller ring alive" composition for
+   a degraded (Hermes-down, backend-up) state: outer ring keeps its normal
+   healthy rotation in violet; only the inner ring is gapped and static. */
+.diag-core.variant-dual .diag-ring-outer {
+  background: repeating-conic-gradient(var(--accent-violet) 0deg 22deg, transparent 22deg 45deg);
+  animation: diag-spin-slow 22s linear infinite;
+  opacity: 0.8;
+}
+.diag-core.variant-dual .diag-ring-outer .diag-ring-gap {
+  display: none; /* the outer ring is intentionally whole/healthy */
+}
+
+@keyframes diag-spin-slow {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.diag-core-face {
+  position: relative;
+  width: 34%;
+  height: 34%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 32% 28%, var(--bg-panel-hover), var(--bg-void) 72%);
+  border: 1px solid var(--diag-color);
+  box-shadow: var(--diag-glow);
+  z-index: 1;
+}
+
+/* A short signal/connector line that fades out before reaching the core —
+   "the connection path ends before it gets there." Purely decorative,
+   aria-hidden. */
+.diag-connector {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 1px;
+  height: calc(var(--diag-size) * 0.62);
+  background: linear-gradient(to top, var(--diag-color), transparent 55%);
+  transform-origin: bottom center;
+  opacity: 0.55;
+}
+
+/* Occasional restrained scan attempt — a brief brighter pulse along the
+   outer ring that decays back to the interrupted resting state, standing
+   in for "the system just tried again and it didn't reach." */
+.diag-core.is-scanning .diag-ring-outer {
+  animation: diag-scan-attempt 1.1s var(--ease-hud);
+}
+
+@keyframes diag-scan-attempt {
+  0% {
+    opacity: 0.85;
+  }
+  35% {
+    opacity: 1;
+    filter: drop-shadow(0 0 6px var(--diag-color));
+  }
+  100% {
+    opacity: 0.85;
+    filter: none;
+  }
+}
+
+.diag-code {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 0.2rem 0.6rem;
+  border-radius: var(--radius-full);
+  display: inline-block;
+  /* .diag-code is a sibling of .diag-core, not a descendant — it can't
+     inherit --diag-color from it, so each tone gets its own explicit
+     color here rather than silently falling back to neutral gray. */
+  color: var(--text-tertiary);
+  border: 1px solid var(--border-default);
+  transition: color 300ms var(--ease-hud), border-color 300ms var(--ease-hud);
+}
+
+.diag-code.tone-critical {
+  color: var(--status-error);
+  border-color: color-mix(in srgb, var(--status-error) 45%, transparent);
+}
+
+.diag-code.tone-degraded {
+  color: var(--status-warn);
+  border-color: color-mix(in srgb, var(--status-warn) 45%, transparent);
+}
+
+.diag-code.tone-neutral {
+  color: var(--accent-cyan);
+  border-color: color-mix(in srgb, var(--accent-cyan) 45%, transparent);
+}
+
+.diag-code.tone-recovered {
+  color: var(--accent-violet-strong);
+  border-color: color-mix(in srgb, var(--accent-violet-strong) 45%, transparent);
+}
+
+.diagnostic-heading {
+  margin: 0;
+  font-size: 1.4rem;
+  letter-spacing: 0.02em;
+  color: var(--text-primary);
+}
+
+.diagnostic-explanation {
+  margin: 0;
+  max-width: 46ch;
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+
+.diagnostic-text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  /* Text itself never moves/animates, even while the core above it does. */
+}
+
+.diagnostic-meta {
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  color: var(--text-tertiary);
+}
+
+.recovery-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-3);
+}
+
+.recovery-actions .primary {
+  min-width: 9rem;
+}
+
+/* Compact, inline degraded-state banner (Hermes down, backend up) — never
+   a full-page takeover, since local functionality remains available. */
+.model-link-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  background: var(--bg-panel-sunken);
+  border: 1px solid color-mix(in srgb, var(--status-warn) 40%, var(--border-subtle));
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+}
+
+.model-link-banner .diag-core {
+  --diag-size: 44px;
+  flex: none;
+}
+
+.model-link-banner-text {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+}
+
+.model-link-banner-heading {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 0.88rem;
+}
+
+.model-link-banner-body {
+  margin: 0.2rem 0 0;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.model-link-banner-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  flex: none;
+}
+
+/* Compact module-level failure — a single failed request must never
+   replace an otherwise-healthy page. */
+.module-error-state {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  align-items: flex-start;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid color-mix(in srgb, var(--status-error) 35%, var(--border-subtle));
+  border-radius: var(--radius-md);
+  background: var(--bg-panel-sunken);
+}
+
+.module-error-state-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 0.85rem;
+  color: var(--text-primary);
+}
+
+.module-error-state-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--status-error);
+  flex: none;
+}
+
+.module-error-state-body {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .diag-core.is-scanning .diag-ring-outer {
+    filter: none;
+  }
+}
+
+/* =========================================================================
+   Voice waveform + capture overlay (Phase 6 voice-interface pass). The
+   waveform's bar heights are driven imperatively via JS (useAudioLevels
+   sets `transform` directly on each bar every animation frame) — no CSS
+   transition on transform here, since the JS side already interpolates;
+   stacking a CSS transition on top would just add lag on top of real
+   audio data. Everything else here (ring dimming, glow, overlay entrance,
+   scan sweep, mic-pulse) is ordinary decorative CSS, fully covered by the
+   existing global prefers-reduced-motion rule.
+   ========================================================================= */
+
+.jarvis-hud.has-waveform .jc-boundary,
+.jarvis-hud.has-waveform .jc-segmented,
+.jarvis-hud.has-waveform .jc-ticks,
+.jarvis-hud.has-waveform .jc-inner-ring,
+.jarvis-hud.has-waveform .jc-sweep,
+.jarvis-hud.has-waveform .jc-halo {
+  opacity: 0.4;
+}
+
+.jc-core:has(.voice-waveform.tone-violet) {
+  box-shadow: var(--ring-glow), 0 0 40px rgba(139, 107, 242, 0.35);
+}
+
+.jc-core:has(.voice-waveform.tone-cyan) {
+  box-shadow: var(--ring-glow), 0 0 56px rgba(51, 217, 232, 0.3);
+}
+
+.voice-waveform {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  height: 58%;
+  width: 62%;
+}
+
+.voice-waveform-bar {
+  flex: 1;
+  height: 100%;
+  min-width: 2px;
+  max-width: 6px;
+  border-radius: 999px;
+  background: var(--accent-violet);
+  transform: scaleY(0.16);
+  transform-origin: center;
+  will-change: transform;
+}
+
+.voice-waveform.tone-cyan .voice-waveform-bar {
+  background: var(--accent-cyan);
+}
+
+/* Restrained CSS breathing fallback — only when Web Audio analysis is
+   genuinely unavailable, still a truthful (if coarser) listening/speaking
+   indicator rather than a static bar. */
+.voice-waveform.is-fallback .voice-waveform-bar {
+  animation: voice-waveform-breathe 1.6s ease-in-out infinite;
+}
+
+@keyframes voice-waveform-breathe {
+  0%,
+  100% {
+    transform: scaleY(0.16);
+  }
+  50% {
+    transform: scaleY(0.55);
+  }
+}
+
+/* The "transcribing" state's controlled local-processing scan — replaces
+   the waveform bars entirely (not analyzing anything real once the
+   recording has stopped). */
+.voice-transcribe-scan {
+  display: block;
+  width: 58%;
+  height: 3px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, var(--accent-violet-strong), transparent);
+  background-size: 220% 100%;
+  animation: voice-scan-sweep 1.2s linear infinite;
+}
+
+@keyframes voice-scan-sweep {
+  from {
+    background-position: 220% 0;
+  }
+  to {
+    background-position: -220% 0;
+  }
+}
+
+.voice-capture-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  background: rgba(4, 2, 7, 0.9);
+  /* Never intercepts pointer events — the release gesture that stops a
+     recording must always reach the real push-to-talk control beneath
+     this overlay, for mouse, touch, and keyboard alike. */
+  pointer-events: none;
+  animation: voice-overlay-enter 210ms var(--ease-hud);
+  transition: background 210ms var(--ease-hud);
+}
+
+/* The one exception to "never intercepts pointer events" above: the error
+   state has nothing left to release into, so it accepts a click/tap
+   anywhere on it to dismiss (see VoiceCaptureOverlay.tsx's onDismiss) —
+   otherwise a viewer with no keyboard handy had no way to clear a stuck
+   error short of Escape. */
+.voice-capture-overlay.is-dismissible {
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.voice-capture-dismiss-button {
+  pointer-events: auto;
+  cursor: pointer;
+  margin-top: var(--space-2);
+  padding: var(--space-2) var(--space-5);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-strong);
+  background: var(--bg-panel-raised);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition: border-color var(--motion-fast) var(--ease-standard), background var(--motion-fast) var(--ease-standard);
+}
+
+.voice-capture-dismiss-button:hover,
+.voice-capture-dismiss-button:focus-visible {
+  border-color: var(--status-error);
+  background: var(--bg-panel-hover);
+}
+
+@keyframes voice-overlay-enter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.voice-capture-scope {
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.voice-capture-text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  text-align: center;
+}
+
+.voice-capture-label {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+}
+
+.voice-capture-mic-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45em;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--status-error);
+}
+
+.voice-capture-mic-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--status-error);
+  box-shadow: 0 0 8px var(--status-error);
+  animation: voice-mic-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes voice-mic-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.voice-capture-hint {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.voice-capture-timer {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--text-tertiary);
+}
+
+/* =========================================================================
+   Confirm dialog (Phase 6 global-voice pass) — the real "Confirm" tier
+   gate (CLAUDE.md §12) for a named, consequential local configuration
+   change reached via a typed or spoken command. Pointer-events are fully
+   active here (unlike the voice capture overlay) since this genuinely is
+   an interactive modal, not a passive status layer.
+   ========================================================================= */
+
+.confirm-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(5, 3, 8, 0.65);
+  animation: voice-overlay-enter 180ms var(--ease-hud);
+}
+
+.confirm-dialog {
+  max-width: 26rem;
+  margin: var(--space-4);
+  padding: var(--space-5);
+  background: var(--bg-panel-sunken);
+  border: 1px solid var(--border-violet);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+}
+
+.confirm-dialog h2 {
+  margin: 0 0 var(--space-2);
+  font-size: 1.05rem;
+}
+
+.confirm-dialog p {
+  margin: 0 0 var(--space-4);
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.confirm-dialog-actions {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.confirm-dialog.tone-danger {
+  border-color: var(--status-error);
+  box-shadow: var(--shadow-lg), var(--glow-error-sm);
+}
+
+.confirm-dialog.tone-danger h2::before {
+  content: "⚠ ";
+  color: var(--status-error);
+}
+
+/* =========================================================================
+   Operational component library (Phase 6 Part 4) — the vocabulary the six
+   Centres and every structured list are built from instead of repeating
+   .memory-card / stacked <section> composition everywhere. Nothing here
+   changes an existing accessible name, role, or text: these are wrapper/
+   layout classes applied around markup that already carries the real
+   content and semantics, so restyling never requires touching a test.
+   ========================================================================= */
+
+/* Native checkbox/radio treatment — consistent across every screen instead
+   of the bare browser default, using the platform's own accessible control
+   (no custom SVG replacement, so no change to semantics or keyboard
+   behavior). */
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: var(--accent-violet);
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+  vertical-align: -2px;
+}
+
+input[type="checkbox"]:disabled,
+input[type="radio"]:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* A generic native <details> gets the same hover/focus courtesy as the
+   .technical-details variant, without forcing that class everywhere. */
+details > summary:hover {
+  color: var(--text-primary);
+}
+
+details > summary:focus-visible {
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* --- Segmented tab row --------------------------------------------------
+   Visually turns an existing radio-button filter/tab group (Actions'
+   status filter, Skills' draft/active/archived tabs) into a segmented
+   control, without changing the underlying <input type="radio"> markup,
+   labels, or accessible names — text-transform is purely presentational
+   and never alters the computed accessible name. */
+.tab-row {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  background: var(--bg-panel-sunken);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  width: fit-content;
+  max-width: 100%;
+  overflow-x: auto;
+  margin: 0 0 var(--space-2);
+}
+
+.tab-row label {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  padding: 0.4rem 0.85rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.78rem;
+  text-transform: capitalize;
+  letter-spacing: 0.02em;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color var(--motion-control) var(--ease-hud), background var(--motion-control) var(--ease-hud);
+}
+
+.tab-row label:hover {
+  color: var(--text-primary);
+}
+
+.tab-row label:has(input:checked) {
+  color: var(--text-primary);
+  background: var(--bg-panel-raised);
+  box-shadow: inset 0 0 0 1px var(--border-violet);
+}
+
+.tab-row label:has(input:focus-visible) {
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: 1px;
+}
+
+/* Hide the native radio dot itself — the pill background already
+   communicates the checked state, and CLAUDE.md requires state never rely
+   on color alone, which the bold/background shift plus checked semantics
+   (still announced to assistive tech) already satisfies. */
+.tab-row input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+}
+
+.tab-row .tab-count {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--text-disabled);
+}
+
+/* --- Compact ledger rows -------------------------------------------------
+   A dense, scan-friendly row for a list of like items (calendars, cached
+   events, health summaries/sessions, documents, skills, exports/backups) —
+   used instead of a stack of full-width .memory-card blocks when every
+   item shares the same 2-4 fields. */
+.ledger {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--bg-panel-sunken);
+}
+
+.ledger-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0.55rem var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 0.85rem;
+  transition: background var(--motion-control) var(--ease-hud);
+}
+
+.ledger-row:last-child {
+  border-bottom: none;
+}
+
+.ledger-row:hover {
+  background: var(--bg-panel-hover);
+}
+
+.ledger-row-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.ledger-row-meta {
+  color: var(--text-tertiary);
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.ledger-row-actions {
+  display: flex;
+  gap: 0.4rem;
+  flex: none;
+}
+
+.ledger-empty {
+  padding: var(--space-4);
+  color: var(--text-tertiary);
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+/* --- Timeline -------------------------------------------------------------
+   A vertical connected-dot history (action audit trail, routine run
+   history, export/backup archive history) — reads as a sequence of real
+   events, not another bulleted list. */
+.timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 var(--space-4);
+  border-left: 1px solid var(--border-default);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.timeline-item {
+  position: relative;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+
+.timeline-item::before {
+  content: "";
+  position: absolute;
+  left: calc(-1 * var(--space-4) - 4px);
+  top: 0.35em;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--status-neutral);
+}
+
+.timeline-item.tone-ok::before {
+  background: var(--status-ok);
+  box-shadow: 0 0 6px var(--status-ok);
+}
+
+.timeline-item.tone-error::before {
+  background: var(--status-error);
+  box-shadow: 0 0 6px var(--status-error);
+}
+
+.timeline-item.tone-active::before {
+  background: var(--accent-cyan);
+  box-shadow: var(--glow-cyan-sm);
+}
+
+.timeline-item.tone-warn::before {
+  background: var(--status-warn);
+}
+
+.timeline-empty {
+  color: var(--text-tertiary);
+  font-size: 0.85rem;
+}
+
+/* --- Priority queue --------------------------------------------------------
+   Pending action proposals get a distinct left accent from resolved/
+   historical ones — never casual, per CLAUDE.md's Confirm-tier language. */
+.queue-item {
+  border-left: 3px solid var(--border-subtle);
+}
+
+.queue-item.is-pending {
+  border-left-color: var(--status-warn);
+}
+
+.queue-item.is-approved {
+  border-left-color: var(--accent-cyan);
+}
+
+/* Deliberately no opacity dimming here — resolved items are already
+   distinguished by living in the History module and by a neutral (not
+   warn/cyan) left border; fading text toward the canvas would drop below
+   WCAG AA contrast for anything using --text-tertiary inside (confirmed
+   via axe-core during the Phase 6 operational-redesign QA pass). */
+
+/* --- Status cluster --------------------------------------------------------
+   A provider/system status header row — compact identity + chip + meta,
+   for Integrations Centre's per-provider header and Routine Centre's
+   schedule overview strip. */
+.status-cluster {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+
+.status-cluster-item {
+  flex: 1 1 220px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-panel-sunken);
+}
+
+.status-cluster-item.is-live {
+  border-color: var(--border-cyan);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent-cyan) 25%, transparent);
+}
+
+.status-cluster-item-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.status-cluster-item-head h2,
+.status-cluster-item-head h3 {
+  margin: 0;
+}
+
+/* --- Identity grid ----------------------------------------------------------
+   Memory Centre's onboarding profile fields as compact label/input/action
+   rows instead of five stacked full-width blocks. */
+.identity-grid {
+  display: grid;
+  grid-template-columns: minmax(140px, 220px) 1fr auto;
+  gap: var(--space-2) var(--space-3);
+  align-items: center;
+}
+
+@media (max-width: 640px) {
+  .identity-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.identity-grid-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.identity-grid-current {
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+}
+
+/* --- Builder surface --------------------------------------------------------
+   A deliberate, collapsed-by-default authoring surface (Skills Centre's
+   new-draft form) — a <details> so opening it is an explicit action, not
+   another form competing with the registry for attention by default. */
+.builder-surface {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-panel-sunken);
+  padding: var(--space-3) var(--space-4);
+}
+
+.builder-surface summary {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+  list-style: none;
+}
+
+.builder-surface summary::-webkit-details-marker {
+  display: none;
+}
+
+.builder-surface summary::before {
+  content: "";
+  width: 0;
+  height: 0;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  border-left: 5px solid currentColor;
+  transition: transform 200ms var(--ease-hud);
+}
+
+.builder-surface[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+.builder-surface[open] {
+  padding-bottom: var(--space-4);
+}
+
+.builder-surface-body {
+  margin-top: var(--space-3);
+}
+
+/* --- Vault hierarchy --------------------------------------------------------
+   Data Management's storage/export/backup/restore tiers — a clear ordered
+   hierarchy rather than four equally-weighted paragraphs of prose. */
+.vault-tier {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-2);
+}
+
+.vault-tier-index {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+  flex: none;
+}
+
+.vault-guarantee {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  font-size: 0.78rem;
+  color: var(--status-ok);
+  border: 1px solid color-mix(in srgb, var(--status-ok) 40%, transparent);
+  background: var(--status-ok-soft);
+  border-radius: var(--radius-sm);
+  padding: 0.25rem 0.6rem;
+  width: fit-content;
+}
+
+/* --- Control rail (Memory Centre search/filter) ---------------------------- */
+.control-rail-row {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* --- Ask vs. note action distinction ----------------------------------------
+   "Save as note" and "Send to Jarvis" must never look like two equally-
+   weighted primary actions — only sending to Jarvis reaches the model. */
+button.action-note {
+  background: transparent;
+  border: 1px solid var(--border-default);
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+  padding: 0.55rem 1rem;
+  cursor: pointer;
+  transition: border-color var(--motion-control) var(--ease-hud), color var(--motion-control) var(--ease-hud),
+    transform var(--motion-control) var(--ease-hud);
+}
+
+button.action-note:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+  transform: translateY(-1px);
+}
+
+button.action-note:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+button.action-note:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* =========================================================================
+   Phase 12A — Home situational briefing ("mission strip"). Deliberately not
+   another large rounded card of bullet points: a slim, dense list of real,
+   source-backed items sitting quietly below the orbit, in the same near-
+   black/matte/thin-violet-border language as the console interior (D75),
+   kept small enough on Home that it never competes with the core/orbit for
+   attention. Tone is never colour-only — every item also carries an
+   explicit NOW/NEXT/WATCH text badge.
+   ========================================================================= */
+
+.briefing-strip {
+  width: min(720px, 92vw);
+  margin-top: var(--space-4);
+  background: var(--bg-panel-sunken);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--space-3) var(--space-4);
+}
+
+.briefing-strip-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-2);
+}
+
+.briefing-strip-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.briefing-strip-actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+button.briefing-strip-button {
+  background: transparent;
+  border: 1px solid var(--border-default);
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+  padding: 0.35rem 0.75rem;
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: border-color var(--motion-control) var(--ease-hud), color var(--motion-control) var(--ease-hud);
+}
+
+button.briefing-strip-button:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+
+button.briefing-strip-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.briefing-strip-empty,
+.briefing-strip-error {
+  font-size: 0.85rem;
+  color: var(--text-tertiary);
+  margin: var(--space-2) 0;
+}
+
+.briefing-strip-error {
+  color: var(--status-error);
+}
+
+.briefing-strip-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.briefing-item-row {
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-2);
+}
+
+.briefing-item {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  text-align: left;
+  background: var(--bg-panel-raised);
+  border: 1px solid var(--border-subtle);
+  border-left: 3px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
+  color: var(--text-primary);
+  transition: border-color var(--motion-control) var(--ease-hud), transform var(--motion-control) var(--ease-hud);
+}
+
+.briefing-item:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  transform: translateY(-1px);
+}
+
+.briefing-item:disabled {
+  cursor: default;
+}
+
+.briefing-item.tone-attention {
+  border-left-color: var(--status-warn);
+}
+
+.briefing-item.tone-failure {
+  border-left-color: var(--status-error);
+}
+
+.briefing-item.tone-neutral {
+  border-left-color: var(--accent-cyan);
+}
+
+.briefing-item-category {
+  flex-shrink: 0;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 0.1rem 0.4rem;
+  border-radius: var(--radius-sm);
+  color: var(--text-tertiary);
+  border: 1px solid var(--border-subtle);
+}
+
+.briefing-item-category.cat-now {
+  color: var(--status-warn);
+  border-color: var(--status-warn);
+}
+
+.briefing-item-category.cat-next {
+  color: var(--accent-cyan-strong);
+  border-color: var(--accent-cyan);
+}
+
+.briefing-item-category.cat-watch {
+  color: var(--text-secondary);
+}
+
+.briefing-item-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.briefing-item-title {
+  font-size: 0.88rem;
+  overflow-wrap: anywhere;
+}
+
+.briefing-item-subtitle {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+}
+
+.briefing-item-freshness {
+  flex-shrink: 0;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-tertiary);
+}
+
+/* Phase 12C: a restrained indicator that this exact briefing item also
+   corresponds to an active Mission Focus pin — violet (Jarvis/ongoing
+   context), deliberately unobtrusive since the Mission Focus rail itself
+   is where a pin's full detail belongs, not the unified feed. */
+.pinned-badge {
+  flex-shrink: 0;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 0.1rem 0.35rem;
+  border-radius: var(--radius-sm);
+  color: var(--accent-violet-strong);
+  border: 1px solid var(--accent-violet-soft);
+}
+
+/* --- Phase 12B: change-state badges ----------------------------------------
+   A second, independent badge dimension from the NOW/NEXT/WATCH category
+   above — never colour alone: every state also carries its own short text
+   label. "ongoing" is deliberately the quietest (no fill, no border) since
+   most items settle there after the first pass and it must never compete
+   for attention with a genuinely new or changed one. */
+.change-badge {
+  flex-shrink: 0;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 0.1rem 0.35rem;
+  border-radius: var(--radius-sm);
+}
+
+.change-badge.state-new,
+.change-badge.state-resolved {
+  color: var(--accent-cyan-strong);
+  background: var(--accent-cyan-soft);
+}
+
+.change-badge.state-changed,
+.change-badge.state-reopened {
+  color: var(--status-warn);
+  background: var(--status-warn-soft);
+}
+
+.change-badge.state-ongoing {
+  color: var(--text-tertiary);
+}
+
+.briefing-item-controls {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+button.briefing-item-control {
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  color: var(--text-tertiary);
+  border-radius: var(--radius-sm);
+  padding: 0.3rem 0.55rem;
+  font-size: 0.72rem;
+  cursor: pointer;
+  transition: border-color var(--motion-control) var(--ease-hud), color var(--motion-control) var(--ease-hud);
+}
+
+button.briefing-item-control:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+
+button.briefing-item-control:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* A native <details> used as an accessible disclosure for the snooze
+   duration list — no custom ARIA menu logic needed. */
+.snooze-menu {
+  position: relative;
+}
+
+.snooze-menu > summary {
+  list-style: none;
+}
+
+.snooze-menu > summary::-webkit-details-marker {
+  display: none;
+}
+
+.snooze-menu-options {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--bg-panel-sunken);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  padding: 0.3rem;
+  box-shadow: var(--shadow-lg);
+  min-width: 180px;
+}
+
+.snooze-menu-options button {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  text-align: left;
+  padding: 0.35rem 0.5rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.snooze-menu-options button:hover:not(:disabled) {
+  background: var(--bg-panel-raised);
+  color: var(--text-primary);
+}
+
+.snooze-menu-options button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* --- Acknowledged & snoozed history ----------------------------------------
+   An unobtrusive disclosure, closed by default, so it never competes with
+   the live briefing above it. */
+.briefing-history {
+  margin-top: var(--space-3);
+  border-top: 1px solid var(--border-subtle);
+  padding-top: var(--space-2);
+}
+
+.briefing-history > summary {
+  cursor: pointer;
+  font-size: 0.78rem;
+  color: var(--text-tertiary);
+}
+
+.briefing-history-list {
+  list-style: none;
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.briefing-history-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0.4rem 0.6rem;
+  background: var(--bg-panel-sunken);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+}
+
+.briefing-history-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.briefing-strip-note,
+.briefing-strip-reply {
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+  margin: var(--space-2) 0 0;
+  overflow-wrap: anywhere;
+}
+
+.briefing-strip-reply strong {
+  color: var(--text-secondary);
+}
+
+@media (max-width: 640px) {
+  .briefing-strip {
+    width: 100%;
+  }
+
+  .briefing-item-row {
+    flex-wrap: wrap;
+  }
+
+  .snooze-menu-options {
+    right: auto;
+    left: 0;
+  }
+}
+
+/* =========================================================================
+   Phase 12C — Mission Focus rail. A compact, dense ledger sitting beside
+   the situational briefing — deliberately not a second grid of large
+   cards. Rank is the primary visual anchor (a small numbered badge, not a
+   drag handle or a decorative icon); tone/urgency is communicated only
+   through the shared change-state badge, never a new colour language.
+   ========================================================================= */
+
+.mission-focus-rail {
+  width: min(720px, 92vw);
+  margin-top: var(--space-3);
+  background: var(--bg-panel-sunken);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--space-3) var(--space-4);
+}
+
+.mission-focus-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.mission-focus-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  background: var(--bg-panel-raised);
+  border: 1px solid var(--border-subtle);
+  border-left: 3px solid var(--accent-violet-soft);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.75rem;
+}
+
+.mission-focus-rank {
+  flex-shrink: 0;
+  font-weight: 700;
+  font-size: 0.8rem;
+  color: var(--accent-violet-strong);
+  min-width: 1.6rem;
+}
+
+.mission-focus-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.mission-focus-title-line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.mission-focus-title {
+  font-size: 0.88rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.mission-focus-next-action {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.mission-focus-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+}
+
+.mission-focus-domain {
+  letter-spacing: 0.06em;
+}
+
+.mission-focus-blocker {
+  color: var(--status-warn);
+}
+
+.mission-focus-unavailable,
+.mission-focus-resolved {
+  color: var(--status-error);
+}
+
+.mission-focus-actions {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+@media (max-width: 640px) {
+  .mission-focus-rail {
+    width: 100%;
+  }
+
+  .mission-focus-row {
+    flex-wrap: wrap;
+  }
+
+  .mission-focus-actions {
+    flex-direction: row;
+  }
+}
+
+/* --- Phase 12C: "Add to Mission Focus" on eligible source screens --------- */
+
+.mission-focus-pin-state {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.mission-focus-add-form {
+  display: inline-flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-panel-sunken);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  max-width: 320px;
+}
+
+.mission-focus-add-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.78rem;
+  color: var(--text-tertiary);
+}
+
+.mission-focus-add-actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+/* =========================================================================
+   Mission Control / Current Focus — reuses .briefing-strip/.briefing-item
+   structure verbatim for its candidate list; these rules cover only the
+   parts genuinely unique to it (the domain glyph chip, the duration/domain
+   pickers, and the active-session timer panel). Cyan/teal marks the
+   active-focus state per the doctrine (focus/active/confirmed); amber
+   marks paused (waiting/attention); no new color scale is introduced.
+   ========================================================================= */
+
+.mc-candidate-glyph {
+  flex-shrink: 0;
+  width: 1.15rem;
+  height: 1.15rem;
+  display: inline-flex;
+  color: var(--text-tertiary);
+}
+
+.mc-candidate-glyph .domain-glyph {
+  width: 100%;
+  height: 100%;
+}
+
+.briefing-item.mc-candidate-recommended {
+  border-left-color: var(--accent-cyan);
+}
+
+.mc-duration-picker {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin: var(--space-2) 0;
+}
+
+button.mc-duration-selected {
+  border-color: var(--accent-cyan);
+  color: var(--accent-cyan-strong);
+}
+
+.mc-duration-custom {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.78rem;
+  color: var(--text-tertiary);
+}
+
+.mc-duration-custom input {
+  width: 4rem;
+}
+
+.mc-domain-picker {
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+
+.mc-domain-picker legend {
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 0;
+}
+
+.mc-domain-picker [role="radiogroup"] {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin-top: var(--space-2);
+}
+
+.mc-domain-picker button[role="radio"] {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.mc-domain-picker button[role="radio"] svg {
+  width: 0.85rem;
+  height: 0.85rem;
+}
+
+.mc-start-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-panel-sunken);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+}
+
+.mc-active {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--bg-panel-raised);
+  border: 1px solid var(--border-subtle);
+  border-left: 3px solid var(--accent-cyan);
+  border-radius: var(--radius-sm);
+}
+
+.mc-active.mc-active-paused {
+  border-left-color: var(--status-warn);
+}
+
+.mc-active-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.mc-active-timer {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.mc-timer-elapsed {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--accent-cyan-strong);
+}
+
+.mc-active.mc-active-paused .mc-timer-elapsed {
+  color: var(--status-warn);
+}
+
+.mc-timer-sep {
+  color: var(--text-tertiary);
+}
+
+/* =========================================================================
+   Phase 12F: Decision Room — a stacked-field form layout for the multi-label
+   forms this Centre needs (details, decide, add-option, add-factor, outcome
+   review) that no earlier Centre required, since every prior Centre's forms
+   were either a single field or used .message-form-actions' flex row.
+   ========================================================================= */
+
+.decision-details-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-width: 560px;
+}
+
+.decision-details-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.decision-details-form input,
+.decision-details-form select,
+.decision-details-form textarea {
+  width: 100%;
+}
+
+.decision-details-form > button {
+  align-self: flex-start;
+}
+
+.mc-timer-target,
+.mc-timer-remaining {
+  font-size: 0.78rem;
+  color: var(--text-tertiary);
+}

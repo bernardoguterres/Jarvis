@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Project-owned LaunchAgent TEMPLATE (Phase 7). This file is never installed
+  as-is: scripts/jarvisctl.sh's `install-startup` command substitutes this
+  machine's actual repository path, log directory, and label into the
+  placeholders below, and writes the result to
+  ~/Library/LaunchAgents/<label>.plist — never committed, never exported.
+
+  What this does once installed: runs `scripts/jarvisctl.sh open` once at
+  login (RunAtLoad), which starts the Jarvis backend (if not already
+  running) and opens/focuses the browser window. It does NOT keep the
+  process alive if it exits later (KeepAlive is false) — this is a login
+  launcher, not a supervisor.
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>__JARVIS_LABEL__</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>__JARVIS_ROOT__/scripts/jarvisctl.sh</string>
+    <string>open</string>
+  </array>
+
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <false/>
+
+  <key>StandardOutPath</key>
+  <string>__JARVIS_LOG_DIR__/launch-agent.log</string>
+  <key>StandardErrorPath</key>
+  <string>__JARVIS_LOG_DIR__/launch-agent.log</string>
+</dict>
+</plist>

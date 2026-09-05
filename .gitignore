@@ -44,3 +44,6 @@ backend/packaging/build/
 
 .devcontainer/
 .claude/settings.local.json
+
+# Excluded from the public repo pending separate review
+CLAUDE.md

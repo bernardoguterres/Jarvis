@@ -1,64 +1,218 @@
 # Jarvis
 
-A private, local-first, voice-controlled personal assistant for daily use,
-divided into six life domains, running primarily on Bernardo's own Mac.
-Personal data stays local. The reasoning model is a swappable,
-model-independent component, not something baked into the app.
+A native, local-first macOS personal intelligence system whose FastAPI
+controller owns persistent memory, deterministic retrieval, structured
+workflows, and guarded actions, independent of the configured reasoning
+model.
 
-**Status: V1 is feature-complete and frozen.** Jarvis is packaged as a
-native macOS app, backed by a FastAPI backend and a React frontend, with
-local voice, local memory, and a handful of deterministic tools built on
-top of a local search index. Two items remain outstanding: a full
-VoiceOver pass and a real-viewport visual inspection, both blocked on
-manual acceptance rather than code. See `docs/ROADMAP.md` for the
-complete phase-by-phase history and current status, and `docs/DECISIONS.md`
-for every non-obvious decision and bug fix made along the way.
+Jarvis divides one personal assistant into six life domains (Body, Mind,
+People, Path, Build, Life), each with its own conversation history,
+structured records, and long-term memory, all stored in a local SQLite
+database under a data directory the app owns — not inside the reasoning
+model, and not in any Jarvis-run cloud service.
 
-## What it does
+Jarvis is local-first, not fully offline. It keeps authoritative
+persistent state locally and doesn't delegate memory ownership to the
+reasoning provider, but features needing model inference, spoken replies,
+or Google sync still cross the network through explicit integrations:
+bounded context and recent messages go to the local Hermes gateway, which
+may forward them to whichever provider is configured; Edge TTS sends
+reply text to Microsoft's network service to synthesize speech; Google
+Calendar/Health sync talks to Google's own APIs. Raw microphone audio
+never leaves the machine — it's transcribed locally by `faster-whisper`
+and deleted immediately after.
 
-* **Six life domains** (Body, Mind, People, Path, Build, Life), each with
-  its own conversation history, structured records, and long-term memory,
-  stored in Jarvis's own SQLite database.
-* **Explicit push-to-talk voice.** Hold Space (or a button) to record,
-  local `faster-whisper` transcribes it, the transcript goes through the
-  normal turn flow, and the reply is spoken back via Edge TTS. No
-  continuous listening, no raw audio kept after transcription.
-* **Model-independent memory.** Jarvis never sends a model string to
-  Hermes and never depends on which model is configured. Switching
-  providers needs zero Jarvis code changes, and memory survives it
-  untouched.
-* **Controller-owned permissions.** A default-deny capability registry
-  and an auditable propose-then-approve-then-execute lifecycle for every
-  mutation Jarvis proposes on its own, never for actions you take directly
-  through the UI.
-* **Google Calendar and Google Health integrations**, read-only except for
-  limited owned-calendar writes, all through that same approval lifecycle.
-  Credentials live only in the macOS Keychain.
-* **Recall**: deterministic local full-text search across every domain.
-  No embeddings, no similarity model, never a model call.
-* **Research**: collect evidence from Recall into a named workspace and
-  generate a versioned, cited brief.
-* **Decision Room**: weigh a real decision with a transparent, inspectable
-  score. Jarvis supports the decision; it never makes it.
-* **Mission Control**: a single persisted, timed focus session, and a
-  small Mission Focus watchlist of things you've deliberately chosen to
-  prioritize.
-* **A current situational briefing** on the home screen, assembled
-  entirely locally with no model call.
+## Current status
+
+**V1 is feature-complete and frozen.** Every planned phase (local
+persistence, export/import/backup, Hermes integration, memory and context,
+push-to-talk voice, the animated HUD, permissions and guarded actions,
+Google Calendar/Health integrations, Recall/Research/Decision Room, and
+native macOS packaging) is implemented and tested. Two manual acceptance
+items remain against the installed native app, not the code: a full
+VoiceOver pass, and real-viewport inspection at a few fixed window sizes.
+Neither blocks normal use. See `docs/ROADMAP.md` for phase history and
+`docs/DECISIONS.md` for every non-obvious decision and fix.
+
+Jarvis is packaged as a self-signed macOS app for local use on its own
+machine — not notarized, not distributed through the App Store or a
+public installer, and not intended for other users.
+
+## What Jarvis demonstrates
+
+This project demonstrates a few things that are easy to claim and harder
+to build:
+
+* A persistence layer that survives the AI vendor underneath it: memory,
+  records, and conversation history are owned by the controller's own
+  database, so switching models needs zero storage or retrieval changes.
+* Deterministic retrieval where it matters: search (Recall) is SQLite
+  FTS5, not embeddings — a documented, reproducible ranking pipeline
+  instead of an unauditable similarity score.
+* A real permission boundary between "the user did this" and "the
+  assistant proposed this," enforced by an auditable propose-approve-
+  execute lifecycle with cryptographic confirmation.
+* A dependency-inverted integration to an agent runtime (Hermes): the
+  backend never names a model in its own requests — that's Hermes-side
+  profile configuration Jarvis's code never touches.
+
+## System architecture
+
+```mermaid
+flowchart TB
+    subgraph shell["Native macOS shell (Tauri 2)"]
+        SUP["Process, window & menu control"]
+        UI["React / TypeScript interface"]
+    end
+
+    SIDECAR["FastAPI sidecar (PyInstaller)"]
+
+    subgraph backend["FastAPI controller (loopback-only)"]
+        API["API routes (incl. voice)"]
+        SVC["Services: context builder,\nmemory & Recall, Research/\nDecision Room, guarded actions"]
+        API --> SVC
+    end
+
+    subgraph data["JARVIS_DATA_DIR (authoritative local data)"]
+        DB[("SQLite + FTS5")]
+        DOCS["documents/ backups/ exports/"]
+    end
+
+    STT["faster-whisper (local)"]
+    TTS["Edge TTS (external service)"]
+
+    subgraph gateway["Local Hermes gateway"]
+        HERMES["Hermes Agent API"]
+    end
+
+    PROVIDER["Reasoning provider\n(Hermes-side, potentially remote)"]
+
+    KEYCHAIN[("macOS Keychain")]
+
+    subgraph integrations["Google APIs"]
+        CAL["Google Calendar\n(sync; owned-write is guarded)"]
+        HEALTH["Google Health (read-only)"]
+    end
+
+    SUP -->|owns lifecycle| SIDECAR
+    SIDECAR --- API
+    SUP -->|native menu commands| API
+    UI -->|HTTP, same origin| API
+    SVC --> DB
+    SVC --> DOCS
+    API -->|transcribe| STT
+    API -->|synthesize| TTS
+    SVC -->|bounded context and messages;\nno model selection| HERMES
+    HERMES --> PROVIDER
+    SVC -->|reads/writes credentials| KEYCHAIN
+    SVC -->|scoped OAuth, sync + guarded write| CAL
+    SVC -->|scoped OAuth, read-only sync| HEALTH
+```
+
+Notes on what the diagram asserts, not just shows:
+
+* React only ever talks to the FastAPI controller over loopback HTTP. It
+  never calls Hermes, Google, faster-whisper, or Edge TTS directly; both
+  voice endpoints are FastAPI routes.
+* Tauri owns native process supervision, window visibility, and menu
+  behavior. Native menu commands call FastAPI endpoints; persistent state
+  and application logic stay controller-owned, never in Rust.
+* The controller assembles context locally, then sends that already-built,
+  bounded package to Hermes, which never reaches into Jarvis's database
+  and is never given a model name to choose.
+* SQLite is authoritative; the FTS5 index is rebuildable from it, never
+  the reverse. It's not the only system that ever receives data — Hermes,
+  the configured provider, Edge TTS, and Google all see data the
+  controller explicitly sends them. Integration services read/write OAuth
+  credentials through the Keychain, then call Google's APIs themselves;
+  Google never reads the Keychain. Health is read-only; Calendar's limited
+  owned-write goes through the guarded action lifecycle below, not sync
+  itself.
+
+## Core capabilities
+
+* **Six life domains**, each with its own conversation history, records,
+  and long-term memory, plus a domain-less general conversation.
+* **Explicit push-to-talk voice.** Hold Space (or a button) to record;
+  local `faster-whisper` transcribes on-device, the transcript runs
+  through the normal turn flow, and the reply is spoken back through Edge
+  TTS, an external service that receives only the reply text. No
+  continuous listening, and no raw audio kept after transcription.
+* **Model-independent memory.** The controller never sends a model name to
+  Hermes and never depends on which model is configured. Every edit
+  creates a new version rather than overwriting history; deletion requires
+  typing the memory's exact title and always makes a rollback.
+* **Structured records** for things that shouldn't live as prose: body
+  weights, symptoms, mind check-ins, people interactions, path deadlines,
+  build checkpoints, and life tasks, each with its own validated schema.
+* **Recall**: deterministic full-text search (SQLite FTS5) across
+  conversations, memories, records, summaries, documents, and calendar
+  events. No embeddings, no similarity model, no model call at all; domain
+  scoping is enforced server-side.
+* **Research**: collect evidence found through Recall into a named
+  workspace, classify it, and generate a versioned, cited brief. A
+  deterministic outline always works with no model call; an optional
+  "Draft with Jarvis" pass makes one bounded, tool-free request with every
+  citation validated server-side.
+* **Decision Room**: weigh a decision against weighted criteria with a
+  transparent, auditable score. Jarvis supports the decision; only
+  Bernardo's own explicit action marks it decided.
+* **Mission Control**: one persisted, timed focus session at a time, plus
+  a small watchlist of things pinned by hand, timed from persisted
+  timestamps rather than a client-side countdown.
+* **A current situational briefing** (NOW/NEXT/WATCH), assembled locally
+  with no model call and no mutation, tracking its own state across
+  visits so a failed source is reported as failed, not dropped.
+* **Google Calendar and Google Health integrations**, using scoped OAuth
+  credentials and controller-owned sync. Health is read-only; Calendar
+  sync is read/cache, and the limited owned-calendar write goes through
+  the guarded action lifecycle below. Credentials live only in Keychain.
 
 See `docs/PRODUCT_SPEC.md` for the full product spec and
 `docs/ARCHITECTURE.md` for the technical design behind all of the above.
 
-## Tech stack
+## Guarded action lifecycle
 
-Backend: Python, FastAPI, SQLAlchemy, Alembic migrations, SQLite.
-Frontend: React, TypeScript, Vite. Native shell: Tauri 2, with the backend
-packaged as a self-contained PyInstaller sidecar. Reasoning model:
-whatever is configured through a dedicated local Hermes Agent profile,
-currently GPT-5.6 Terra via OpenAI Codex OAuth. Voice: local
-`faster-whisper` for transcription, Edge TTS for speech.
+Anything Jarvis proposes on its own, as opposed to something done directly
+through the UI, goes through one auditable lifecycle rather than
+executing immediately:
 
-## Where your data lives
+```mermaid
+stateDiagram-v2
+    [*] --> proposed
+    proposed --> approved: approve (payload digest must match)
+    proposed --> denied: deny
+    approved --> denied: deny
+    approved --> executing: execute (valid confirmation token)
+    approved --> expired: next access after confirmation window
+    executing --> succeeded
+    executing --> failed
+    denied --> [*]
+    expired --> [*]
+    succeeded --> [*]
+    failed --> [*]
+```
+
+Approval binds to the exact proposal by checking a recomputed SHA-256
+digest of its payload, then mints a single-use, five-minute confirmation
+token; execution requires that token, consumed on the attempt rather than
+on success, scoped to exactly one proposal. The five-minute window is
+checked lazily: an approved proposal moves to `expired` the next time it's
+read or acted on after the window passes, not via a background timer.
+Every transition writes an immutable audit event, and Jarvis never
+exposes its own action-execution capabilities to model response text, so
+generated text is never treated as authorization.
+
+A proposal left in `executing` by a backend crash is swept at startup and
+marked `failed`, never fabricated as `succeeded` — but that status
+describes the engine's recovered state, not a confirmed real-world
+outcome: an external action such as a Calendar write may already have
+completed before the process stopped, so the actual effect is unknown.
+The recorded reason says so explicitly, and the user must verify the
+external system before retrying, not trust `failed` as proof nothing
+happened.
+
+## Local data and the privacy boundary
 
 Application source code lives in this Git repository. **Personal data
 never does.** It lives under `JARVIS_DATA_DIR`, which defaults to
@@ -75,195 +229,120 @@ never does.** It lives under `JARVIS_DATA_DIR`, which defaults to
   exports/
 ```
 
-**Deleting this repository (or your clone of it) must never delete
-`~/JarvisData`.** They are intentionally separate. Set `JARVIS_DATA_DIR`
-in your environment (or in `backend/.env`, see `.env.example`) to use a
-different location.
+* **Deleting this repository must never delete `~/JarvisData`.** They are
+  intentionally separate; reinstalling or rebuilding the app never
+  overwrites or reinitializes existing data.
+* **Export, backup, and restore** are a first-class capability: a portable
+  export includes the database, documents, summaries, skills, and
+  non-secret configuration, with a manifest and checksums. Restoring
+  always validates the archive in isolation first, refuses to overwrite an
+  existing installation without explicit confirmation, and takes an
+  automatic rollback copy so a failed restore leaves the target unchanged.
+  It also forces every integration connection to disconnected and every
+  pending action proposal to expired, since credentials and in-flight
+  state should never silently reappear elsewhere.
+* **API keys and OAuth credentials never enter the export.** They live
+  only in the macOS Keychain (Google integrations) or Hermes's own
+  profile-scoped secret storage (the reasoning provider), never in SQLite,
+  logs, or an unencrypted archive.
+* **MIND and PEOPLE data is structurally excluded** from the home
+  briefing and Recall's default search scope, regardless of any settings
+  flag, because the code paths that would read those tables simply don't
+  exist.
 
-## Running the native app
+## Native application behavior
 
-Jarvis is packaged as a real native macOS app at `/Applications/Jarvis.app`.
-This is the normal way to use it day to day; the `jarvisctl.sh`/browser
-workflow below remains available for development and as a recovery
-fallback.
+Jarvis ships as a real native macOS app (Tauri 2 shell around the same
+React frontend, loading it same-origin from the local FastAPI backend).
+The shell owns process supervision plus native window and menu behavior.
+Menu actions delegate to FastAPI rather than implementing data or
+integration logic in Rust. On launch it probes the backend's health
+endpoint, reuses an already-running backend if one responds, and
+otherwise spawns and owns one, draining its output so the child never
+deadlocks. Quitting sends SIGTERM to a backend it started itself (SIGKILL
+only if needed) and never touches one it didn't spawn. Closing the window
+hides the app instead of quitting it, so scheduled syncs keep running;
+the Dock icon or menu bar brings it back.
 
-* **Open it** from Finder, Spotlight, or the Dock like any other app. No
-  Chrome, no terminal, no manually-entered URL. It starts (or reuses an
-  already-running) backend silently in the background and waits for it to
-  become healthy before showing anything.
-* **Menu-bar icon**: Open Jarvis, Hide Jarvis, System Status, Sync
-  Integrations, Export Portable Jarvis Backup, Restore from Jarvis
-  Export, Reveal Jarvis Data Folder, Launch Jarvis at Login (off by
-  default), Quit Jarvis.
-* **Closing the window** hides Jarvis rather than quitting it, so
-  scheduled integration syncs and routines keep running. Click the Dock
-  icon, or "Open Jarvis" from the menu bar, to bring it back.
-* **Quit Jarvis** (menu bar, or Cmd+Q) stops only the backend process
-  this app itself started. It never touches a `jarvisctl.sh`-started
-  backend it didn't spawn, and never leaves an orphaned process behind.
-* **Moving to a new Mac**: install `Jarvis.app` there (it starts with an
-  empty `~/JarvisData`), use Export Portable Jarvis Backup on this Mac,
-  copy the resulting `.zip` over, then use Restore from Jarvis Export in
-  Data Management on the new Mac. The app bundle is application code
-  only; your real data always stays in `JARVIS_DATA_DIR`.
-* **Code signing**: signed with a self-signed certificate that exists
-  only on this Mac, never notarized, never distributed.
-* **Building it yourself**:
-  ```bash
-  cd backend && uv run pyinstaller packaging/jarvis_backend.spec --distpath packaging/dist
-  cp packaging/dist/jarvis-backend frontend/src-tauri/binaries/jarvis-backend-aarch64-apple-darwin
-  cd frontend && npx @tauri-apps/cli@2 build
-  ```
+The app bundle is application code only, never a second source of truth
+for where personal data lives. It's signed with a self-signed certificate
+that exists only on the build machine, for trust continuity across
+rebuilds, not for distribution.
 
-## Development setup
+## Quick Start
 
 **Prerequisites**: Python 3.12+, [uv](https://docs.astral.sh/uv/)
 (`brew install uv`), Node.js 20+ and npm.
 
 ```bash
-# Backend
+# From the repository root
 cd backend
 uv sync --group dev
 uv run alembic upgrade head
 uv run uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
-uv run pytest   # run the backend test suite
+```
 
-# Frontend, in a separate terminal
+In a second terminal, from the repository root:
+
+```bash
 cd frontend
 npm install
-npm run dev         # dev server at http://localhost:5173
-npm run test         # Vitest + React Testing Library
-npm run typecheck    # tsc project-reference type-checking
-npm run build        # production build, output to frontend/dist
-
-# Or run both together
-scripts/dev.sh
+npm run dev   # http://localhost:5173
 ```
 
-### Day-to-day / recovery fallback
+Run the verification commands from the repository root:
 
 ```bash
-scripts/jarvisctl.sh open     # start Jarvis if needed, then open/focus it
-scripts/jarvisctl.sh status   # Hermes gateway + backend health
-scripts/jarvisctl.sh stop     # stop the Jarvis-owned backend only
+(cd backend && uv run pytest)
+(cd frontend && npm run test)
+(cd frontend && npm run typecheck && npm run build)
 ```
 
-This is fully idempotent and applies pending migrations and builds the
-frontend automatically. Test it safely at any time with
-`bash scripts/test_jarvisctl.sh`. See `docs/ARCHITECTURE.md` §10 for how
-this relates to the native app above.
-
-## Export, backup, and restore
+For combined development or day-to-day launch/recovery:
 
 ```bash
-cd backend
-
-uv run jarvis-cli export                                  # create a portable export archive
-uv run jarvis-cli validate path/to/export.zip              # check an archive without restoring
-uv run jarvis-cli restore path/to/export.zip --target ~/JarvisData          # restore into a clean install
-uv run jarvis-cli restore path/to/export.zip --target ~/JarvisData --confirm  # restore over an existing one
-
-uv run jarvis-cli backup                    # manual backup (daily by default)
-uv run jarvis-cli backup --category weekly
-uv run jarvis-cli list-backups
+./scripts/dev.sh
+./scripts/jarvisctl.sh open
+./scripts/jarvisctl.sh status
+./scripts/jarvisctl.sh stop
 ```
 
-Restoration always validates the archive first in an isolated temporary
-directory before touching any real data. Restoring over an existing
-installation requires `--confirm` and makes a rollback copy first,
-automatically. A lightweight due-check runs on backend startup, so an
-overdue daily, weekly, or monthly backup gets created automatically.
+Jarvis talks to whatever model a dedicated local Hermes Agent profile is
+configured for; the backend never names a model in its own requests.
+Hermes setup, hardening, and Google OAuth configuration are kept out of
+this README on purpose; see `docs/ARCHITECTURE.md` §§7-8, §14, and §24
+(native `.app` build/install), plus `docs/DECISIONS.md`.
 
-**Backups on this laptop do not protect you from losing the laptop.**
-Periodically copy files from `JARVIS_DATA_DIR/exports/` to an encrypted
-external drive or an encrypted Time Machine backup.
+## Verification and current limitations
 
-## Hermes and model setup
-
-Jarvis talks to whatever model is configured through a dedicated local
-Hermes Agent profile named `jarvis`, never a shared or default profile.
-Hermes owns the model/provider connection entirely. The FastAPI backend
-never sees, stores, or names a specific model in its own requests.
-
-**Currently configured**: GPT-5.6 Terra via OpenAI Codex OAuth,
-authenticated against Bernardo's own ChatGPT subscription. No Anthropic
-key, no OpenAI API key, and no model credential of any kind exists
-anywhere in this project.
-
-```bash
-# 1. Install Hermes
-curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash
-
-# 2. Create the dedicated profile (one-time)
-hermes profile create jarvis --no-skills --description "Bernardo's personal Jarvis assistant profile"
-
-# 3. Choose a provider and authenticate yourself, in your own terminal
-jarvis setup model
-
-# 4. Generate the Hermes API server's bearer token (a separate secret
-# from whatever model credential you just configured)
-openssl rand -hex 32 >> ~/.hermes/profiles/jarvis/.env   # prefix with API_SERVER_KEY=
-chmod 600 ~/.hermes/profiles/jarvis/.env
-# then copy the same value into backend/.env as HERMES_API_BEARER_TOKEN=...
-
-# 5. Lock down the profile's tool surface to conversation-only
-jarvis tools disable web browser terminal file code_execution vision image_gen delegation cronjob session_search todo --platform api_server
-jarvis config set memory.write_approval true
-jarvis config set skills.write_approval true
-jarvis config set gateway.api_server.max_concurrent_runs 1
-jarvis config set curator.enabled false
-
-# Verify what's actually enabled
-jarvis tools list --platform api_server
-
-# Start / stop / check the gateway
-scripts/hermes-gateway.sh start-background
-scripts/hermes-gateway.sh health
-scripts/hermes-gateway.sh stop
-```
-
-Nothing in step 3 should ever be pasted into or read back by an AI
-session; that is by design. Update `HERMES_MODEL` in `backend/.env` to
-match whatever you configure (a display label only, see `.env.example`).
-If Hermes is down or misconfigured, local conversation storage, notes,
-domains, and export/backup all keep working; only real Jarvis responses
-are unavailable, and the HUD says so.
-
-### Connecting Google Calendar and Google Health
-
-Use two separate Google OAuth Web application clients, one for Calendar
-and one for Health, ideally in separate Cloud projects. Google associates
-OAuth consent with the (user, Cloud project) pair, not (user, client_id),
-so sharing a client or project can let one integration's consent screen
-return the other's scopes. Jarvis defensively filters each callback's
-scopes to only what that provider actually uses, but two separate clients
-avoids the confusion entirely. Full Google Cloud Console setup
-instructions live outside this repo, per the rule that Jarvis never asks
-you to paste credentials into a chat session.
-
-```bash
-cd backend
-uv run jarvis-cli configure-integration google_calendar
-uv run jarvis-cli configure-integration google_health
-```
-
-Then use the Integrations Centre's "Connect" button for each provider.
-This opens the real OAuth consent screen in your own browser.
+* Backend/frontend test suites, type-checking, and a production frontend
+  build all pass as part of the phase-completion process in
+  `docs/ROADMAP.md`.
+* A full axe-core (WCAG2 A/AA) accessibility sweep reports zero known
+  violations across every screen and diagnostic state.
+* A live restoration drill (two isolated data directories, data populated
+  across every subsystem reachable without Hermes/OAuth) confirmed a real
+  export/validate/restore round trip preserves data correctly.
+* Switching the reasoning provider needs no Jarvis code changes, by
+  construction; exercised once (Claude to GPT-5.6 Terra via Hermes), not
+  against every provider.
+* Outstanding: a full VoiceOver pass and real-viewport inspection at a
+  few fixed sizes, blocked on manual acceptance, not any known code issue.
 
 ## Explicitly out of scope
 
-Automatic memory extraction from conversation, semantic/embedding-based
-retrieval, a custom wake word or any always-listening microphone mode,
-autonomous Hermes tools or sub-agents, email/Telegram/Discord/other
-messaging, smart-home control, arbitrary filesystem access, browser
-automation, terminal/code execution, and any Google Health write
-capability. See `docs/ROADMAP.md` for what's deferred and why.
+Automatic memory extraction from conversation, embedding-based retrieval,
+a custom wake word or always-listening microphone mode, autonomous
+sub-agents, email/Telegram/Discord messaging, smart-home control,
+arbitrary filesystem access, browser automation, terminal/code execution,
+and any Google Health write capability. See `docs/ROADMAP.md` for what's
+deferred and why.
 
 ## Further documentation
 
-* `CLAUDE.md`: the full project profile and durable engineering rules.
+* `CLAUDE.md`: full project profile and durable engineering rules.
 * `docs/PRODUCT_SPEC.md`: the product spec.
-* `docs/ARCHITECTURE.md`: how the current implementation actually works.
-* `docs/ROADMAP.md`: phase-by-phase status, complete and outstanding.
-* `docs/DECISIONS.md`: an append-only log of every decision and bug fix.
+* `docs/ARCHITECTURE.md`: how the implementation actually works.
+* `docs/ROADMAP.md`: phase-by-phase status.
+* `docs/DECISIONS.md`: an append-only decision and bug-fix log.
 * `docs/DESIGN_DIRECTION.md`: the visual design brief.

@@ -145,7 +145,7 @@ def _callback_page(
     ring = _diagnostic_ring_svg(accent, gapped=not ok, animation_class=ring_animation_class)
 
     try_again_link = (
-        f'<a href="/?open=integrations" class="secondary">Try connection again</a>' if show_try_again and not ok else ""
+        '<a href="/?open=integrations" class="secondary">Try connection again</a>' if show_try_again and not ok else ""
     )
 
     return HTMLResponse(

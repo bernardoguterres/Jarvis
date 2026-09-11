@@ -75,6 +75,10 @@ function DomainNode({
         <span className="domain-kbd" aria-hidden="true">
           {domainNumber(domain.slug) ?? ""}
         </span>
+        {/* "lg": Home's own responsive `--node-size`-relative sizing (see
+            `.domain-button .domain-node-glyph` in index.css), not one of
+            DomainGlyph's fixed `sm`/`md` rem sizes — it must keep scaling
+            continuously with the orbit's own responsive layout. */}
         <DomainGlyph slug={domain.slug} className="domain-node-glyph" />
         <span className="domain-name">{domain.name}</span>
         <span className="domain-subtitle">{DOMAIN_SUBTITLES[domain.slug] ?? ""}</span>

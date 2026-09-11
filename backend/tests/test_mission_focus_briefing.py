@@ -38,14 +38,18 @@ def _life_task(db_session: Session, title: str = "Renew passport", due_date: str
 
 def _build_checkpoint(db_session: Session, project: str = "Alpha", summary: str = "old news") -> StructuredRecord:
     record = StructuredRecord(
-        domain_id=_domain_id(db_session, "build"), record_type="build_checkpoint", occurred_at=datetime.now(timezone.utc),
+        domain_id=_domain_id(db_session, "build"), record_type="build_checkpoint", occurred_at=NOW,
         payload_json=json.dumps({"project": project, "summary": summary}),
     )
     db_session.add(record)
     db_session.commit()
-    # Backdate so it falls outside the normal 2-day "recent checkpoint" window —
-    # pinning must still surface it (that's the point of pinning).
-    record.created_at = datetime.now(timezone.utc) - timedelta(days=10)
+    # Backdate relative to the fixed fictional clock (NOW), not real wall
+    # time, so it falls outside the normal 2-day "recent checkpoint" window
+    # regardless of when the test actually runs — pinning must still
+    # surface it (that's the point of pinning). Using datetime.now() here
+    # previously made this test date-dependent: once real time passed NOW,
+    # `now - created` went negative and the checkpoint looked "recent".
+    record.created_at = NOW - timedelta(days=10)
     db_session.commit()
     return record
 

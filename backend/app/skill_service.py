@@ -11,7 +11,6 @@ already in the fixed registry (app/capabilities.py).
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session

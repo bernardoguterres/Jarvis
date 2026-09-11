@@ -88,13 +88,15 @@ function MemoryItemCard({ memory, onChanged }: MemoryItemCardProps) {
   return (
     <li className="memory-card">
       <div className="memory-card-header">
-        <span className="memory-kind">{memory.kind}</span>
-        <strong>{memory.title}</strong>
-        {memory.sensitivity === "sensitive" && <span className="sensitive-tag">sensitive</span>}
+        <span className="memory-card-header-start">
+          <span className="memory-kind">{memory.kind}</span>
+          {memory.sensitivity === "sensitive" && <span className="sensitive-tag">sensitive</span>}
+        </span>
         <span className="memory-status">
           <StatusChip label={memory.status} tone={MEMORY_STATUS_TONE[memory.status]} />
         </span>
       </div>
+      <strong className="memory-card-title">{memory.title}</strong>
 
       {error && (
         <p className="error-banner" role="alert">

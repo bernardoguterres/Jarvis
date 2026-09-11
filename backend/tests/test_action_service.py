@@ -69,7 +69,11 @@ def test_interrupted_execution_is_recovered_at_startup_not_left_stuck_forever(db
     re-execute or otherwise resolve an 'executing' row. Simulates that
     interruption directly (never actually crashing a process) and asserts
     the startup recovery sweep resolves it to a truthful 'failed' state
-    rather than leaving it stuck or fabricating 'succeeded'."""
+    rather than leaving it stuck or fabricating 'succeeded'. memory.create
+    is purely local, so its mutation lives in the same DB transaction as
+    the terminal commit — an interrupted one genuinely never happened,
+    which is why 'failed' (not 'needs_review') is the honest outcome here;
+    see test_action_calendar_recovery.py for the external-effect case."""
     proposal = action_service.propose_action(
         db_session,
         capability_id="memory.create",
@@ -92,7 +96,7 @@ def test_interrupted_execution_is_recovered_at_startup_not_left_stuck_forever(db
 
     recovered = action_service.get_proposal_or_404(db_session, proposal.id)
     assert recovered.status == "failed"
-    assert "unknown" in recovered.error_summary.lower()
+    assert "did not happen" in recovered.error_summary.lower()
     event_types = [e.event_type for e in recovered.audit_events]
     assert event_types == ["proposed", "approved", "failed"]
 

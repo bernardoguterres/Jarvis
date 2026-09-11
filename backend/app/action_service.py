@@ -22,6 +22,7 @@ from sqlalchemy.orm import Session
 
 from app import hooks
 from app.capabilities import get_capability, validate_domain_for_capability
+from app.capability_errors import CapabilityNeedsReviewError
 from app.models_actions import ActionAuditEvent, ActionProposal
 from app.recall_index_service import sync_recall
 
@@ -115,7 +116,248 @@ def _expire_if_needed(session: Session, proposal: ActionProposal) -> None:
         session.refresh(proposal)
 
 
-def expire_interrupted_executions(session: Session) -> int:
+def _reenable_for_retry(session: Session, proposal: ActionProposal, *, detail: str) -> None:
+    """Puts a proposal back into `approved` with a fresh single-use
+    confirmation token, so it can be retried through the ordinary
+    execute_action path — used only when the external system's absence of
+    effect has been positively confirmed (never merely assumed)."""
+    proposal.status = "approved"
+    proposal.confirmation_token = secrets.token_hex(32)
+    proposal.confirmation_expires_at = datetime.now(timezone.utc) + CONFIRMATION_TTL
+    proposal.confirmation_used_at = None
+    proposal.error_summary = None
+    session.flush()
+    _record_event(session, proposal, "approved", detail=detail)
+
+
+def _mark_needs_review(session: Session, proposal: ActionProposal, *, detail: str) -> None:
+    proposal.status = "needs_review"
+    proposal.error_summary = detail[:500]
+    session.flush()
+    _record_event(session, proposal, "needs_review", detail=detail)
+
+
+def _mark_confirmed_succeeded(
+    session: Session, proposal: ActionProposal, *, result: dict, detail: str
+) -> None:
+    proposal.status = "succeeded"
+    proposal.result_json = json.dumps(result)
+    proposal.error_summary = None
+    session.flush()
+    _record_event(session, proposal, "succeeded", detail=detail)
+
+
+def _cache_event_if_missing(session: Session, calendar, external_id: str, arguments: dict) -> None:
+    from app.models_integrations import CalendarEventCache
+
+    existing_cache = session.execute(
+        select(CalendarEventCache).where(
+            CalendarEventCache.calendar_id == calendar.id, CalendarEventCache.external_event_id == external_id
+        )
+    ).scalar_one_or_none()
+    if existing_cache is None:
+        session.add(
+            CalendarEventCache(
+                calendar_id=calendar.id,
+                external_event_id=external_id,
+                title=arguments.get("title", "(untitled)"),
+                description=arguments.get("description"),
+                location=arguments.get("location"),
+                all_day=bool(arguments.get("all_day", False)),
+            )
+        )
+        session.flush()
+
+
+def _reconcile_calendar_create(
+    session: Session, proposal: ActionProposal, arguments: dict, http_client, credential_store
+) -> None:
+    from app import integration_service
+    from app.models_integrations import CalendarCalendar
+    from app.providers import google_calendar as gcal_provider
+
+    calendar = session.get(CalendarCalendar, arguments.get("calendar_id"))
+    if calendar is None:
+        _mark_needs_review(session, proposal, detail="Recovery could not find the target calendar locally.")
+        return
+
+    deterministic_id = gcal_provider.deterministic_event_id(proposal.id)
+    try:
+        access_token = integration_service.ensure_fresh_access_token(
+            session, credential_store, http_client, "google_calendar"
+        )
+        # Prefer a direct lookup by this action's own deterministic event
+        # ID — the exact ID the interrupted create attempt would have sent,
+        # so this is a precise single-event fetch rather than a search.
+        live = gcal_provider.get_event(
+            client=http_client,
+            access_token=access_token,
+            calendar_id=calendar.external_calendar_id,
+            event_id=deterministic_id,
+        )
+    except Exception as exc:
+        _mark_needs_review(
+            session,
+            proposal,
+            detail=(
+                "Interrupted while creating a Google Calendar event, and recovery could not reach "
+                f"Google to confirm the outcome: {exc}. Verify the calendar directly before retrying."
+            ),
+        )
+        return
+
+    if live is not None:
+        tagged_id = ((live.get("extendedProperties") or {}).get("private", {})).get("jarvis_action_id")
+        if tagged_id != proposal.id:
+            # An event occupies this action's deterministic ID but its own
+            # metadata doesn't confirm it belongs to this action — never
+            # guess either way.
+            _mark_needs_review(
+                session,
+                proposal,
+                detail=(
+                    "Recovered at startup: an event exists at this action's deterministic ID, but its "
+                    "metadata does not confirm it belongs to this action. Verify the calendar directly."
+                ),
+            )
+            return
+        _cache_event_if_missing(session, calendar, deterministic_id, arguments)
+        _mark_confirmed_succeeded(
+            session,
+            proposal,
+            result={"external_event_id": deterministic_id, "calendar_id": calendar.id},
+            detail=(
+                "Recovered at startup: Google Calendar confirmed an event at this action's own "
+                "deterministic ID, tagged with this action's ID — the interrupted create had actually "
+                "succeeded."
+            ),
+        )
+        return
+
+    # Not found at the deterministic ID — either the create never took
+    # effect, or (an event created before this deterministic-ID scheme
+    # existed) it was tagged only via the private extended property, never
+    # given this ID. Fall back to that legacy lookup path before concluding
+    # absence, preserving compatibility with events created before this
+    # change.
+    try:
+        matches = gcal_provider.find_events_by_private_property(
+            client=http_client,
+            access_token=access_token,
+            calendar_id=calendar.external_calendar_id,
+            key="jarvis_action_id",
+            value=proposal.id,
+        )
+    except Exception as exc:
+        _mark_needs_review(
+            session,
+            proposal,
+            detail=(
+                "Interrupted while creating a Google Calendar event, and recovery could not reach "
+                f"Google to confirm the outcome: {exc}. Verify the calendar directly before retrying."
+            ),
+        )
+        return
+
+    if matches:
+        external_id = matches[0]
+        _cache_event_if_missing(session, calendar, external_id, arguments)
+        _mark_confirmed_succeeded(
+            session,
+            proposal,
+            result={"external_event_id": external_id, "calendar_id": calendar.id},
+            detail=(
+                "Recovered at startup: Google Calendar confirmed a (legacy, private-property-tagged) "
+                "event for this action already exists — the interrupted create had actually succeeded."
+            ),
+        )
+    else:
+        _reenable_for_retry(
+            session,
+            proposal,
+            detail=(
+                "Recovered at startup: Google Calendar confirmed no event for this action exists — "
+                "the interrupted create never took effect. Safe to retry."
+            ),
+        )
+
+
+def _reconcile_calendar_mutation(
+    session: Session, proposal: ActionProposal, arguments: dict, http_client, credential_store, *, is_delete: bool
+) -> None:
+    from app import integration_service
+    from app.models_integrations import CalendarCalendar, CalendarEventCache
+    from app.providers import google_calendar as gcal_provider
+
+    calendar = session.get(CalendarCalendar, arguments.get("calendar_id"))
+    cached_event = session.get(CalendarEventCache, arguments.get("event_id"))
+    if calendar is None or cached_event is None:
+        _mark_needs_review(
+            session, proposal, detail="Recovery could not find the target calendar/event locally."
+        )
+        return
+    try:
+        access_token = integration_service.ensure_fresh_access_token(
+            session, credential_store, http_client, "google_calendar"
+        )
+        live = gcal_provider.get_event(
+            client=http_client,
+            access_token=access_token,
+            calendar_id=calendar.external_calendar_id,
+            event_id=cached_event.external_event_id,
+        )
+    except Exception as exc:
+        _mark_needs_review(
+            session,
+            proposal,
+            detail=(
+                f"Interrupted while modifying a Google Calendar event, and recovery could not reach "
+                f"Google to confirm the outcome: {exc}. Verify the calendar directly before retrying."
+            ),
+        )
+        return
+
+    if is_delete:
+        if live is None:
+            session.delete(cached_event)
+            session.flush()
+            _mark_confirmed_succeeded(
+                session,
+                proposal,
+                result={"deleted_event_id": arguments.get("event_id")},
+                detail="Recovered at startup: Google confirmed the event no longer exists.",
+            )
+        else:
+            # A delete is naturally idempotent (repeat DELETE calls are
+            # harmless — the provider already treats a 410 as success), so
+            # retrying carries no duplication risk once we know the event
+            # is still present.
+            _reenable_for_retry(
+                session,
+                proposal,
+                detail="Recovered at startup: Google confirmed the event still exists. Safe to retry.",
+            )
+        return
+
+    # Update: a PATCH is naturally idempotent (reapplying the same field
+    # values twice never creates a duplicate), so as long as the event
+    # still exists it is always safe to retry — whether or not the earlier
+    # attempt's patch had already landed.
+    if live is None:
+        _mark_needs_review(
+            session,
+            proposal,
+            detail="Recovered at startup: the target event no longer exists on Google Calendar.",
+        )
+    else:
+        _reenable_for_retry(
+            session,
+            proposal,
+            detail="Recovered at startup: the target event still exists on Google Calendar. Safe to retry.",
+        )
+
+
+def expire_interrupted_executions(session: Session, *, http_client=None, credential_store=None) -> int:
     """Recovers any proposal left stuck in `executing` by a backend crash or
     kill (power loss, OOM, `kill -9`, a laptop sleep interrupting a network
     call) between the two commits inside `execute_action` — the window where
@@ -126,30 +368,69 @@ def expire_interrupted_executions(session: Session) -> int:
     `import_service._expire_stale_action_proposals`, but an ordinary backend
     restart (no restore involved) previously left such a row permanently
     stuck — `list_proposals`'s lazy `_expire_if_needed` only ever resolves a
-    time-based `approved`-window expiry, never an `executing` row, and
-    `_recursion_guard_hook` correctly refuses to ever re-execute or
-    otherwise resolve one.
+    time-based `approved`-window expiry, never an `executing` row.
 
-    Marked `failed`, not a fabricated `succeeded` — but the error summary is
-    explicit that the underlying capability's real-world effect is unknown
-    (it may have already completed, e.g. a Google Calendar event may already
-    exist) rather than implying a normal, understood failure. Called once at
-    backend startup, before anything else can observe these proposals."""
+    A purely-local capability (memory.create, structured_record.create,
+    domain_summary.update) has no external effect: its mutation lives in
+    the very same database transaction as the `executing` -> `succeeded`
+    commit, so an interrupted one genuinely never took effect and `failed`
+    is accurate, not merely convenient.
+
+    A Google Calendar capability's real effect lives in a system outside
+    that transaction, so its outcome is instead *reconciled* against
+    Google itself: confirmed-succeeded (an event tagged with this action's
+    ID, or the target already reflects the intended end state), safely
+    retryable (confirmed absent, or the mutation is naturally idempotent),
+    or `needs_review` when Google cannot be reached to tell which. An
+    unknown outcome is never reported as a definite failure. Called once
+    at backend startup, before anything else can observe these proposals;
+    when `http_client`/`credential_store` are unavailable (or reconciliation
+    itself raises), every stuck Calendar proposal is conservatively marked
+    `needs_review` rather than guessed at."""
     stuck = session.execute(select(ActionProposal).where(ActionProposal.status == "executing")).scalars().all()
     for proposal in stuck:
-        proposal.status = "failed"
-        proposal.error_summary = (
-            "Interrupted by a backend restart while executing — the real-world outcome is "
-            "unknown. If this proposed an external change (e.g. a Google Calendar write), "
-            "verify the target system directly before retrying."
-        )
-        session.flush()
-        _record_event(
-            session,
-            proposal,
-            "failed",
-            detail="Recovered at startup: proposal was left in 'executing' by an interrupted backend process.",
-        )
+        if proposal.capability_id.startswith("google_calendar.event."):
+            if http_client is None or credential_store is None:
+                _mark_needs_review(
+                    session,
+                    proposal,
+                    detail=(
+                        "Interrupted while executing a Google Calendar write, and recovery had no "
+                        "way to reach Google to confirm the outcome. Verify the calendar directly."
+                    ),
+                )
+                continue
+            arguments = json.loads(proposal.arguments_json)
+            try:
+                if proposal.capability_id == "google_calendar.event.create":
+                    _reconcile_calendar_create(session, proposal, arguments, http_client, credential_store)
+                elif proposal.capability_id == "google_calendar.event.delete":
+                    _reconcile_calendar_mutation(
+                        session, proposal, arguments, http_client, credential_store, is_delete=True
+                    )
+                else:
+                    _reconcile_calendar_mutation(
+                        session, proposal, arguments, http_client, credential_store, is_delete=False
+                    )
+            except Exception as exc:
+                session.rollback()
+                session.refresh(proposal)
+                _mark_needs_review(
+                    session, proposal, detail=f"Recovery failed unexpectedly and made no changes: {exc}"
+                )
+        else:
+            proposal.status = "failed"
+            proposal.error_summary = (
+                "Interrupted by a backend restart while executing a local-only capability with no "
+                "external effect — the database transaction never committed, so it did not happen."
+            )
+            session.flush()
+            _record_event(
+                session,
+                proposal,
+                "failed",
+                detail="Recovered at startup: proposal was left in 'executing' by an interrupted backend process.",
+            )
     if stuck:
         session.commit()
     return len(stuck)
@@ -242,8 +523,28 @@ def execute_action(
         spec = get_capability(proposal.capability_id)
         arguments = json.loads(proposal.arguments_json)
         result = spec.execute(
-            session, proposal.domain_id, arguments, http_client=http_client, credential_store=credential_store
+            session,
+            proposal.domain_id,
+            arguments,
+            http_client=http_client,
+            credential_store=credential_store,
+            action_proposal_id=proposal.id,
         )
+    except CapabilityNeedsReviewError as exc:
+        # A capability determined its own real-world outcome is genuinely
+        # unverifiable (e.g. a Google Calendar create conflicted with an
+        # existing event whose metadata didn't match this action) — never
+        # collapse that honest uncertainty into a false "failed".
+        session.rollback()
+        session.refresh(proposal)
+        proposal.status = "needs_review"
+        proposal.error_summary = str(exc.detail)[:500]
+        session.flush()
+        sync_recall(session, "action_proposal", proposal.id)
+        _record_event(session, proposal, "needs_review", detail=proposal.error_summary)
+        session.commit()
+        session.refresh(proposal)
+        return proposal
     except Exception as exc:
         session.rollback()
         session.refresh(proposal)

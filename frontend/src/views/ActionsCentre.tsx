@@ -30,6 +30,7 @@ const STATUS_TONE: Record<ActionStatus, ChipTone> = {
   denied: "neutral",
   expired: "neutral",
   failed: "error",
+  needs_review: "warn",
 };
 
 const TIMELINE_TONE: Record<string, string> = {
@@ -40,9 +41,13 @@ const TIMELINE_TONE: Record<string, string> = {
   denied: "neutral",
   expired: "neutral",
   failed: "error",
+  needs_review: "warn",
 };
 
-const PENDING_STATUSES: ActionStatus[] = ["proposed", "approved", "executing"];
+// needs_review means an interrupted external write's outcome could not be
+// confirmed either way — it is never a settled/historical state, it still
+// needs Bernardo's attention (verify the target system directly).
+const PENDING_STATUSES: ActionStatus[] = ["proposed", "approved", "executing", "needs_review"];
 
 interface ActionsCentreProps {
   onBack: () => void;
@@ -57,6 +62,7 @@ const STATUS_FILTERS: Array<ActionStatus | "all"> = [
   "denied",
   "expired",
   "failed",
+  "needs_review",
 ];
 
 function ActionsCentre({ onBack }: ActionsCentreProps) {
@@ -151,7 +157,11 @@ function ActionsCentre({ onBack }: ActionsCentreProps) {
 
   function renderProposal(proposal: ActionProposal) {
     const rowTone =
-      proposal.status === "proposed" ? "is-pending" : proposal.status === "approved" ? "is-approved" : "is-settled";
+      proposal.status === "proposed" || proposal.status === "needs_review"
+        ? "is-pending"
+        : proposal.status === "approved"
+          ? "is-approved"
+          : "is-settled";
     return (
       <li key={proposal.id} className={`memory-card queue-item ${rowTone}`}>
         <p>

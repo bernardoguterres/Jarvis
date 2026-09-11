@@ -34,6 +34,7 @@ import { splitOnCitations } from "../citationText";
 import { DOMAIN_SLUG_ORDER } from "../domainOrder";
 import { SENSITIVE_SLUGS } from "../sensitiveDomains";
 import { formatDateTime } from "../formatDateTime";
+import { decodeHtmlEntities } from "../decodeEntities";
 import DomainGlyph from "../components/DomainGlyph";
 import { ConsoleHeader, ConsoleModule, MiniCoreIndicator } from "../components/console/Console";
 
@@ -181,7 +182,7 @@ function ResearchCentre({ onBack, onNavigate }: ResearchCentreProps) {
                 className={`briefing-item-control${createDomains.includes(slug) ? " mc-duration-selected" : ""}`}
                 onClick={() => toggleCreateDomain(slug)}
               >
-                <DomainGlyph slug={slug} />
+                <DomainGlyph slug={slug} size="md" />
                 {slug.toUpperCase()}
               </button>
             ))}
@@ -375,7 +376,7 @@ function ResearchWorkspaceDetail({ workspaceId, onBackToList, onNavigate }: Rese
                   onClick={() => toggleWorkspaceDomain(slug)}
                   disabled={isArchived}
                 >
-                  <DomainGlyph slug={slug} />
+                  <DomainGlyph slug={slug} size="md" />
                   {slug.toUpperCase()}
                   {SENSITIVE_SLUGS.has(slug) && <span className="sr-only"> (sensitive)</span>}
                 </button>
@@ -547,7 +548,7 @@ function EvidenceTab({ workspace, evidence, onEvidenceChanged, onNavigate }: Evi
                   <div className="briefing-item tone-neutral">
                     {result.domain_slug && (
                       <span className="mc-candidate-glyph" aria-hidden="true">
-                        <DomainGlyph slug={result.domain_slug} />
+                        <DomainGlyph slug={result.domain_slug} size="sm" />
                       </span>
                     )}
                     <span className="briefing-item-body">
@@ -586,7 +587,7 @@ function EvidenceTab({ workspace, evidence, onEvidenceChanged, onNavigate }: Evi
                   </span>
                 </div>
                 <p className="message-content" style={{ margin: "0.3rem 0" }}>
-                  {item.snippet_snapshot}
+                  {decodeHtmlEntities(item.snippet_snapshot)}
                 </p>
                 <span className="ledger-row-meta">
                   {item.domain_slug ? item.domain_slug.toUpperCase() : "Global"}
@@ -932,7 +933,7 @@ function BriefDetail({ version, onNavigate }: { version: ResearchBriefVersion; o
               <ul>
                 {items.map((item, itemIdx) => (
                   <li key={itemIdx} className="message-content">
-                    [{String(item.citation_number)}] {String(item.title)} — {String(item.excerpt)}
+                    [{String(item.citation_number)}] {String(item.title)} — {decodeHtmlEntities(String(item.excerpt))}
                   </li>
                 ))}
               </ul>

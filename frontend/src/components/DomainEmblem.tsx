@@ -24,7 +24,7 @@ function DomainEmblem({ slug, name }: DomainEmblemProps) {
   return (
     <span className="domain-emblem" data-domain-transition-slug={slug} title={name} aria-hidden="true">
       <span className="domain-emblem-kbd">{number ?? ""}</span>
-      <DomainGlyph slug={slug} />
+      <DomainGlyph slug={slug} size="md" />
     </span>
   );
 }

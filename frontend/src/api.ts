@@ -567,7 +567,13 @@ export async function synthesizeSpeech(text: string): Promise<Blob> {
 
 // --- Phase 8: permissions, actions, hooks, skills -----------------------
 
-export type CapabilityId = "memory.create" | "structured_record.create" | "domain_summary.update";
+export type CapabilityId =
+  | "memory.create"
+  | "structured_record.create"
+  | "domain_summary.update"
+  | "google_calendar.event.create"
+  | "google_calendar.event.update"
+  | "google_calendar.event.delete";
 
 export interface Capability {
   capability_id: CapabilityId;
@@ -581,7 +587,8 @@ export type ActionStatus =
   | "expired"
   | "executing"
   | "succeeded"
-  | "failed";
+  | "failed"
+  | "needs_review";
 
 export interface ActionProposal {
   id: string;

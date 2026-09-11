@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
   archiveStructuredRecord,
   createConversation,
@@ -105,6 +105,19 @@ function DomainView({ slug, onBack, onSystemCommand, onSearchThisDomain }: Domai
   const [selectedExtraDomains, setSelectedExtraDomains] = useState<string[]>([]);
   const [sensitiveWarningAcknowledged, setSensitiveWarningAcknowledged] = useState(false);
 
+  // Guards every async continuation below against setState after unmount —
+  // DomainView remounts on every domain switch, and refreshMemoryData in
+  // particular is both effect-triggered and called from several click
+  // handlers, so its in-flight Promise.all can easily still be pending when
+  // the user has already navigated away.
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
   async function refreshMemoryData(domainId: string) {
     try {
       const [summaryData, memories, recordList] = await Promise.all([
@@ -112,19 +125,21 @@ function DomainView({ slug, onBack, onSystemCommand, onSearchThisDomain }: Domai
         listMemories({ scope: "domain", domain_id: domainId }),
         listStructuredRecords(slug),
       ]);
-      setSummaryState(summaryData);
-      setDomainMemories(memories);
-      setRecords(recordList);
+      if (mountedRef.current) {
+        setSummaryState(summaryData);
+        setDomainMemories(memories);
+        setRecords(recordList);
+      }
     } catch {
-      setError("Could not load domain memory data.");
+      if (mountedRef.current) setError("Could not load domain memory data.");
     }
     // A separate, isolated try/catch: Mission Focus being unavailable must
     // never block the rest of the domain view from loading.
     try {
       const state = await fetchMissionFocus();
-      setMissionFocusPins(state.active_pins ?? []);
+      if (mountedRef.current) setMissionFocusPins(state.active_pins ?? []);
     } catch {
-      setMissionFocusPins([]);
+      if (mountedRef.current) setMissionFocusPins([]);
     }
   }
 

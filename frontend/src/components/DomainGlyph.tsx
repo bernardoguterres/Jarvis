@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import { Activity, Boxes, Brain, CalendarDays, Compass, UsersRound, type LucideIcon } from "lucide-react";
 import { DOMAIN_SLUG_ORDER, type DomainSlug } from "../domainOrder";
 
@@ -31,8 +32,43 @@ const ICONS: Record<DomainSlug, LucideIcon> = {
  * explicit guarantee independent of how the element ends up sized. */
 const STROKE_WIDTH = 1.75;
 
+/** Every Lucide icon shares one 24×24 viewBox, but each icon's own drawn
+ * content fills a different fraction of that square (a thin diagonal
+ * "Activity" line versus a wide, near-edge-to-edge "UsersRound"
+ * silhouette) — so identical CSS width/height do not read as identical
+ * optical size. This is a small, deliberately narrow correction applied
+ * uniformly across every context (Home orbit, header emblem, selector
+ * chips) via a single `transform: scale()` on the glyph itself, never a
+ * per-page override. It changes paint only — the element's layout box
+ * (and therefore any surrounding badge/count-bubble position) is
+ * unaffected, and `transform-origin: 50% 50%` keeps the icon centered in
+ * place at every size and on every color/selection-state change. Revisit
+ * these only alongside a deliberate, visually-verified icon audit — never
+ * tune a single value in isolation from the other five. */
+const OPTICAL_SCALE: Record<DomainSlug, number> = {
+  body: 1.06,
+  build: 0.97,
+  life: 1,
+  mind: 1,
+  path: 1.05,
+  people: 0.87,
+};
+
+/** The fixed set of semantic sizes every call site chooses from, rather
+ * than an arbitrary per-page pixel/rem value:
+ *  - "sm": compact metadata/inline contexts (a Recall/Mission Control
+ *    result row's leading glyph).
+ *  - "md": selectors, chips, and a domain view's own header emblem.
+ *  - "lg" (the default, no extra class): Home's orbital nodes, which stay
+ *    on their existing responsive `--node-size`-relative sizing rather
+ *    than a fixed rem value, since they must scale continuously with the
+ *    orbit's own responsive layout — but still resolve to one shared
+ *    class (`domain-node-glyph`) so all six render at the same size. */
+type DomainGlyphSize = "sm" | "md";
+
 interface DomainGlyphProps {
   slug: string;
+  size?: DomainGlyphSize;
   className?: string;
 }
 
@@ -51,12 +87,14 @@ interface DomainGlyphProps {
  * domain header, since both call sites render this exact same component.
  * Falls back to rendering nothing for an unrecognized slug rather than
  * guessing. */
-function DomainGlyph({ slug, className }: DomainGlyphProps) {
+function DomainGlyph({ slug, size, className }: DomainGlyphProps) {
   if (!isDomainGlyphSlug(slug)) return null;
   const Icon = ICONS[slug];
+  const sizeClass = size ? ` domain-glyph--${size}` : "";
   return (
     <Icon
-      className={`domain-glyph${className ? ` ${className}` : ""}`}
+      className={`domain-glyph${sizeClass}${className ? ` ${className}` : ""}`}
+      style={{ "--domain-glyph-scale": OPTICAL_SCALE[slug] } as CSSProperties}
       strokeWidth={STROKE_WIDTH}
       absoluteStrokeWidth
       aria-hidden="true"

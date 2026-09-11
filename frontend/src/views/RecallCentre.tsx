@@ -236,7 +236,7 @@ function RecallCentre({ onBack, onNavigate, seed }: RecallCentreProps) {
                 className={`briefing-item-control${domains.includes(slug) ? " mc-duration-selected" : ""}`}
                 onClick={() => toggleDomain(slug)}
               >
-                <DomainGlyph slug={slug} />
+                <DomainGlyph slug={slug} size="md" />
                 {slug.toUpperCase()}
               </button>
             ))}
@@ -299,7 +299,7 @@ function RecallCentre({ onBack, onNavigate, seed }: RecallCentreProps) {
                   <div className="briefing-item tone-neutral">
                     {result.domain_slug && (
                       <span className="mc-candidate-glyph" aria-hidden="true">
-                        <DomainGlyph slug={result.domain_slug} />
+                        <DomainGlyph slug={result.domain_slug} size="sm" />
                       </span>
                     )}
                     <span className="briefing-item-body">

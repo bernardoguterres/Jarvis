@@ -175,7 +175,7 @@ function Home({
   const [missionActionError, setMissionActionError] = useState<string | null>(null);
 
   const loadCurrentMission = useCallback(() => {
-    setCurrentMissionError(null);
+    if (mountedRef.current) setCurrentMissionError(null);
     return fetchCurrentMission()
       .then((data) => {
         if (!mountedRef.current) return data.session;
@@ -192,8 +192,10 @@ function Home({
   }, []);
 
   const loadMissionCandidates = useCallback(() => {
-    setMissionCandidatesLoading(true);
-    setMissionCandidatesError(null);
+    if (mountedRef.current) {
+      setMissionCandidatesLoading(true);
+      setMissionCandidatesError(null);
+    }
     fetchMissionCandidates()
       .then((data) => {
         if (mountedRef.current) setMissionCandidates(data);
@@ -247,11 +249,11 @@ function Home({
         source_id: candidate.source_ids[0] ?? null,
         target_duration_minutes: minutes,
       });
-      setCurrentMission(session);
+      if (mountedRef.current) setCurrentMission(session);
     } catch {
-      setMissionActionError("Could not start this focus session.");
+      if (mountedRef.current) setMissionActionError("Could not start this focus session.");
     } finally {
-      setMissionActionBusy(false);
+      if (mountedRef.current) setMissionActionBusy(false);
     }
   }
 
@@ -265,11 +267,11 @@ function Home({
         domain_slug: domainSlug,
         target_duration_minutes: minutes,
       });
-      setCurrentMission(session);
+      if (mountedRef.current) setCurrentMission(session);
     } catch {
-      setMissionActionError("Could not start this focus session.");
+      if (mountedRef.current) setMissionActionError("Could not start this focus session.");
     } finally {
-      setMissionActionBusy(false);
+      if (mountedRef.current) setMissionActionBusy(false);
     }
   }
 
@@ -278,11 +280,12 @@ function Home({
     setMissionActionBusy(true);
     setMissionActionError(null);
     try {
-      setCurrentMission(await pauseMission(currentMission.id));
+      const session = await pauseMission(currentMission.id);
+      if (mountedRef.current) setCurrentMission(session);
     } catch {
-      setMissionActionError("Could not pause this focus session.");
+      if (mountedRef.current) setMissionActionError("Could not pause this focus session.");
     } finally {
-      setMissionActionBusy(false);
+      if (mountedRef.current) setMissionActionBusy(false);
     }
   }
 
@@ -291,11 +294,12 @@ function Home({
     setMissionActionBusy(true);
     setMissionActionError(null);
     try {
-      setCurrentMission(await resumeMission(currentMission.id));
+      const session = await resumeMission(currentMission.id);
+      if (mountedRef.current) setCurrentMission(session);
     } catch {
-      setMissionActionError("Could not resume this focus session.");
+      if (mountedRef.current) setMissionActionError("Could not resume this focus session.");
     } finally {
-      setMissionActionBusy(false);
+      if (mountedRef.current) setMissionActionBusy(false);
     }
   }
 
@@ -305,12 +309,14 @@ function Home({
     setMissionActionError(null);
     try {
       await completeMission(currentMission.id, { completion_note: completionNote, what_changed_note: whatChangedNote });
-      setCurrentMission(null);
-      loadMissionCandidates();
+      if (mountedRef.current) {
+        setCurrentMission(null);
+        loadMissionCandidates();
+      }
     } catch {
-      setMissionActionError("Could not complete this focus session.");
+      if (mountedRef.current) setMissionActionError("Could not complete this focus session.");
     } finally {
-      setMissionActionBusy(false);
+      if (mountedRef.current) setMissionActionBusy(false);
     }
   }
 
@@ -320,12 +326,14 @@ function Home({
     setMissionActionError(null);
     try {
       await abandonMission(currentMission.id);
-      setCurrentMission(null);
-      loadMissionCandidates();
+      if (mountedRef.current) {
+        setCurrentMission(null);
+        loadMissionCandidates();
+      }
     } catch {
-      setMissionActionError("Could not abandon this focus session.");
+      if (mountedRef.current) setMissionActionError("Could not abandon this focus session.");
     } finally {
-      setMissionActionBusy(false);
+      if (mountedRef.current) setMissionActionBusy(false);
     }
   }
 
@@ -417,11 +425,11 @@ function Home({
         `briefing-discuss-${conversation.id}`,
         [],
       );
-      setDiscussReply(result.assistant_message?.content ?? "(no reply)");
+      if (mountedRef.current) setDiscussReply(result.assistant_message?.content ?? "(no reply)");
     } catch {
-      setDiscussError("Could not send this briefing to Jarvis for discussion.");
+      if (mountedRef.current) setDiscussError("Could not send this briefing to Jarvis for discussion.");
     } finally {
-      setDiscussing(false);
+      if (mountedRef.current) setDiscussing(false);
     }
   }
 
@@ -430,11 +438,11 @@ function Home({
     setBriefingActionError(null);
     try {
       await acknowledgeBriefingItem(stableKey);
-      loadBriefing();
+      if (mountedRef.current) loadBriefing();
     } catch {
-      setBriefingActionError("Could not acknowledge this item.");
+      if (mountedRef.current) setBriefingActionError("Could not acknowledge this item.");
     } finally {
-      setBriefingActionBusyKey(null);
+      if (mountedRef.current) setBriefingActionBusyKey(null);
     }
   }
 
@@ -443,11 +451,11 @@ function Home({
     setBriefingActionError(null);
     try {
       await snoozeBriefingItem(stableKey, duration);
-      loadBriefing();
+      if (mountedRef.current) loadBriefing();
     } catch {
-      setBriefingActionError("Could not snooze this item.");
+      if (mountedRef.current) setBriefingActionError("Could not snooze this item.");
     } finally {
-      setBriefingActionBusyKey(null);
+      if (mountedRef.current) setBriefingActionBusyKey(null);
     }
   }
 
@@ -456,11 +464,11 @@ function Home({
     setBriefingActionError(null);
     try {
       await restoreBriefingItem(stableKey);
-      loadBriefing();
+      if (mountedRef.current) loadBriefing();
     } catch {
-      setBriefingActionError("Could not restore this item.");
+      if (mountedRef.current) setBriefingActionError("Could not restore this item.");
     } finally {
-      setBriefingActionBusyKey(null);
+      if (mountedRef.current) setBriefingActionBusyKey(null);
     }
   }
 
@@ -477,11 +485,11 @@ function Home({
     setMissionFocusActionError(null);
     try {
       await unpinMissionFocusPin(pinId);
-      loadBriefing();
+      if (mountedRef.current) loadBriefing();
     } catch {
-      setMissionFocusActionError("Could not remove this pin.");
+      if (mountedRef.current) setMissionFocusActionError("Could not remove this pin.");
     } finally {
-      setMissionFocusBusyPinId(null);
+      if (mountedRef.current) setMissionFocusBusyPinId(null);
     }
   }
 
@@ -509,11 +517,11 @@ function Home({
         `mission-focus-discuss-${conversation.id}`,
         [],
       );
-      setMissionFocusDiscussReply(result.assistant_message?.content ?? "(no reply)");
+      if (mountedRef.current) setMissionFocusDiscussReply(result.assistant_message?.content ?? "(no reply)");
     } catch {
-      setMissionFocusDiscussError("Could not send Mission Focus to Jarvis for discussion.");
+      if (mountedRef.current) setMissionFocusDiscussError("Could not send Mission Focus to Jarvis for discussion.");
     } finally {
-      setMissionFocusDiscussing(false);
+      if (mountedRef.current) setMissionFocusDiscussing(false);
     }
   }
 
@@ -526,6 +534,10 @@ function Home({
       const text = briefing.items.map((item) => `${item.category}: ${item.title}.`).join(" ");
       const audioBlob = await synthesizeSpeech(text);
       const audioUrl = URL.createObjectURL(audioBlob);
+      if (!mountedRef.current) {
+        URL.revokeObjectURL(audioUrl);
+        return;
+      }
       audioEl.src = audioUrl;
       audioEl.onended = () => {
         URL.revokeObjectURL(audioUrl);
@@ -533,7 +545,7 @@ function Home({
       };
       await audioEl.play();
     } catch {
-      setReading(false);
+      if (mountedRef.current) setReading(false);
     }
   }
 
@@ -564,7 +576,7 @@ function Home({
     if (!onRetryModel || retryingModel) return;
     setRetryingModel(true);
     await onRetryModel();
-    setRetryingModel(false);
+    if (mountedRef.current) setRetryingModel(false);
   }
 
   // Pointer hover: gated behind HOVER_INTENT_MS so a pointer merely passing

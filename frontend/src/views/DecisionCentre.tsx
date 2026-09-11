@@ -61,6 +61,7 @@ import { DOMAIN_SLUG_ORDER } from "../domainOrder";
 import DomainGlyph from "../components/DomainGlyph";
 import { ConsoleHeader, ConsoleModule, MiniCoreIndicator } from "../components/console/Console";
 import { formatDateTime } from "../formatDateTime";
+import { decodeHtmlEntities } from "../decodeEntities";
 
 interface DecisionCentreProps {
   onBack: () => void;
@@ -203,7 +204,7 @@ function DecisionCentre({ onBack, onNavigate }: DecisionCentreProps) {
                 className={`briefing-item-control${createDomains.includes(slug) ? " mc-duration-selected" : ""}`}
                 onClick={() => toggleCreateDomain(slug)}
               >
-                <DomainGlyph slug={slug} />
+                <DomainGlyph slug={slug} size="md" />
                 {slug.toUpperCase()}
               </button>
             ))}
@@ -1118,7 +1119,7 @@ function EvidenceTab({
                   <div className="briefing-item tone-neutral">
                     {result.domain_slug && (
                       <span className="mc-candidate-glyph" aria-hidden="true">
-                        <DomainGlyph slug={result.domain_slug} />
+                        <DomainGlyph slug={result.domain_slug} size="sm" />
                       </span>
                     )}
                     <span className="briefing-item-body">
@@ -1147,7 +1148,7 @@ function EvidenceTab({
                   <span className="ledger-row-main">{item.title_snapshot}</span>
                   <span className={`status-chip ${STANCE_TONE[item.stance]}`}>{STANCE_LABEL[item.stance]}</span>
                 </div>
-                <p className="message-content">{item.snippet_snapshot}</p>
+                <p className="message-content">{decodeHtmlEntities(item.snippet_snapshot)}</p>
                 <span className="ledger-row-meta">
                   {item.domain_slug ? item.domain_slug.toUpperCase() : "Global"}
                   {item.occurred_at_snapshot ? ` · ${formatDate(item.occurred_at_snapshot)}` : ""}

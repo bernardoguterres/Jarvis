@@ -40,6 +40,7 @@ ACTION_STATUSES = (
     "executing",
     "succeeded",
     "failed",
+    "needs_review",
 )
 
 HOOK_PHASES = ("before_context", "before_action", "after_action", "on_failure")

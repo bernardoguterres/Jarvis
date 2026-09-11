@@ -91,6 +91,33 @@ describe("ActionsCentre", () => {
     expect(await screen.findByText(byExactText("memory.create · denied"))).toBeInTheDocument();
   });
 
+  it("shows a needs_review proposal with its explanation and no execute/retry control", async () => {
+    const proposal = makeProposal({
+      capability_id: "google_calendar.event.create",
+      status: "needs_review",
+      confirmation_token: null,
+      error_summary:
+        "Interrupted while creating a Google Calendar event, and recovery could not reach Google to confirm the outcome. Verify the calendar directly before retrying.",
+    });
+    vi.spyOn(api, "listActionProposals").mockResolvedValue([proposal]);
+
+    render(<ActionsCentre onBack={() => {}} />);
+
+    expect(await screen.findByText(byExactText("google_calendar.event.create · needs_review"))).toBeInTheDocument();
+    // The explanatory detail must be visible, not merely a status label —
+    // it's what tells Bernardo the real-world Calendar result needs
+    // manual verification.
+    expect(await screen.findByText(/verify the calendar directly/i)).toBeInTheDocument();
+    // needs_review must never offer an execute/retry path — it is not a
+    // settled 'failed' that's simply done, and not an 'approved' that's
+    // safe to run again.
+    expect(screen.queryByRole("button", { name: /^execute$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^approve$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^deny$/i })).not.toBeInTheDocument();
+    // Still surfaced as needing attention, not buried in settled history.
+    expect(screen.getByText(/1 pending/i)).toBeInTheDocument();
+  });
+
   it("shows audit history on request", async () => {
     const user = userEvent.setup();
     const proposal = makeProposal({ status: "succeeded" });

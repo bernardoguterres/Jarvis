@@ -110,7 +110,7 @@ def test_a_proposal_stuck_executing_by_a_crash_is_recovered_on_the_next_real_sta
     client2 = restart_client_factory()
     detail = client2.get(f"/api/actions/{proposal_id}").json()
     assert detail["proposal"]["status"] == "failed"
-    assert "unknown" in detail["proposal"]["error_summary"].lower()
+    assert "did not happen" in detail["proposal"]["error_summary"].lower()
     assert [e["event_type"] for e in detail["audit_events"]] == ["proposed", "approved", "failed"]
 
     # Genuinely terminal — the now-unused confirmation token cannot revive it.

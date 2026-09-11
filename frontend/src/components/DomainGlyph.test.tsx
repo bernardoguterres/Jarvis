@@ -83,4 +83,57 @@ describe("DomainGlyph — the canonical lucide-react icon per domain (D94)", () 
     });
     expect(new Set(widths).size).toBe(1);
   });
+
+  describe("semantic sizes and optical-scale correction", () => {
+    it("adds the matching fixed-canvas class for each semantic size, and none for the default (Home orbit) size", () => {
+      for (const size of ["sm", "md"] as const) {
+        const { container } = render(<DomainGlyph slug="path" size={size} />);
+        const svg = container.querySelector("svg")!;
+        expect(svg.classList.contains(`domain-glyph--${size}`)).toBe(true);
+      }
+      const { container } = render(<DomainGlyph slug="path" />);
+      const svg = container.querySelector("svg")!;
+      expect(svg.classList.contains("domain-glyph--sm")).toBe(false);
+      expect(svg.classList.contains("domain-glyph--md")).toBe(false);
+    });
+
+    it("every domain at the same semantic size shares the exact same size class — one fixed square canvas per size, not six different ones", () => {
+      for (const size of ["sm", "md"] as const) {
+        const classes = DOMAIN_SLUG_ORDER.map((slug) => {
+          const { container } = render(<DomainGlyph slug={slug} size={size} />);
+          const svg = container.querySelector("svg")!;
+          return Array.from(svg.classList).find((c) => c.startsWith("domain-glyph--"));
+        });
+        expect(new Set(classes).size).toBe(1);
+      }
+    });
+
+    it("sets a per-icon optical-scale CSS variable, so identically-sized icons can still be painted at perceptually consistent sizes", () => {
+      for (const slug of DOMAIN_SLUG_ORDER) {
+        const { container } = render(<DomainGlyph slug={slug} />);
+        const svg = container.querySelector("svg")!;
+        const scale = svg.style.getPropertyValue("--domain-glyph-scale");
+        expect(scale).not.toBe("");
+        expect(Number.isNaN(Number(scale))).toBe(false);
+      }
+    });
+
+    it("does not apply a uniform scale — PEOPLE is corrected down and BODY/PATH are corrected up, matching the reported optical mismatch", () => {
+      const scaleOf = (slug: string) => {
+        const { container } = render(<DomainGlyph slug={slug} />);
+        return Number(container.querySelector("svg")!.style.getPropertyValue("--domain-glyph-scale"));
+      };
+      expect(scaleOf("people")).toBeLessThan(1);
+      expect(scaleOf("body")).toBeGreaterThan(1);
+      expect(scaleOf("path")).toBeGreaterThan(1);
+    });
+
+    it("the optical-scale correction never changes the icon's own geometry (viewBox, stroke width) — paint-only, so no layout shift", () => {
+      const { container } = render(<DomainGlyph slug="people" size="md" />);
+      const svg = container.querySelector("svg")!;
+      expect(svg.getAttribute("stroke-width")).toBe(
+        render(<DomainGlyph slug="body" size="sm" />).container.querySelector("svg")!.getAttribute("stroke-width"),
+      );
+    });
+  });
 });

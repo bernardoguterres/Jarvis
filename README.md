@@ -187,10 +187,12 @@ stateDiagram-v2
     approved --> expired: next access after confirmation window
     executing --> succeeded
     executing --> failed
+    executing --> needs_review: crash recovery, outcome unconfirmed
     denied --> [*]
     expired --> [*]
     succeeded --> [*]
     failed --> [*]
+    needs_review --> [*]
 ```
 
 Approval binds to the exact proposal by checking a recomputed SHA-256
@@ -198,19 +200,47 @@ digest of its payload, then mints a single-use, five-minute confirmation
 token; execution requires that token, consumed on the attempt rather than
 on success, scoped to exactly one proposal. The five-minute window is
 checked lazily: an approved proposal moves to `expired` the next time it's
-read or acted on after the window passes, not via a background timer.
-Every transition writes an immutable audit event, and Jarvis never
-exposes its own action-execution capabilities to model response text, so
-generated text is never treated as authorization.
+read or acted on after the window passes, not via a background timer —
+and only ever an `approved` row, never one left `executing`.
 
-A proposal left in `executing` by a backend crash is swept at startup and
-marked `failed`, never fabricated as `succeeded` — but that status
-describes the engine's recovered state, not a confirmed real-world
-outcome: an external action such as a Calendar write may already have
-completed before the process stopped, so the actual effect is unknown.
-The recorded reason says so explicitly, and the user must verify the
-external system before retrying, not trust `failed` as proof nothing
-happened.
+A proposal left in `executing` by a backend crash is reconciled at
+startup, not blindly marked `failed`. A purely local capability (memory,
+structured records, domain summaries) has no effect outside Jarvis's own
+database transaction, so an interrupted one genuinely never happened and
+`failed` is accurate. A Google Calendar write is different: its effect
+lives in Google, outside that transaction, so recovery instead asks
+Google directly.
+
+Every Calendar create derives a deterministic, Google-compatible event ID
+(a SHA-256 hash of the proposal's own persisted ID) and sends it as the
+event's `id` in the original insert request — Google's own documented
+mechanism for preventing a duplicate create after a successful write
+whose response never made it back: retrying the identical insert reuses
+the identical ID, and Google itself rejects the repeat with an
+already-exists conflict instead of creating a second event. On that
+conflict, Jarvis fetches the existing event and confirms it carries this
+same proposal's ID as a private extended-property tag before ever
+treating it as success; a mismatch (an astronomically unlikely hash
+collision, or some unrelated event) is left `needs_review`, never guessed
+at either way. The private extended-property tag is retained on every
+create as secondary metadata, and is also the sole reconciliation path
+for an event created before this deterministic-ID scheme existed: if a
+lookup by the deterministic ID comes back empty, recovery falls back to
+a private-property search before concluding the create never happened.
+If confirmed absent there too, the proposal is put back to `approved`
+with a fresh confirmation token so it can be retried; a delete or update
+is reconciled by checking the target event's current state, and is
+always safe to retry since neither can create a duplicate. When Google
+itself cannot be reached to tell which happened, the proposal is left
+`needs_review` and stays that way until Bernardo checks the calendar
+directly; nothing auto-retries it, and the Actions Centre shows it
+plainly with its own explanation, offering no execute or retry control.
+
+This mechanism is duplicate-resistant within Google Calendar's own
+documented event-ID semantics — it is not a claim of mathematically
+perfect exactly-once execution, and it has only been exercised against
+mocked/faked Google Calendar responses in automated tests, never a live
+Google account.
 
 ## Local data and the privacy boundary
 

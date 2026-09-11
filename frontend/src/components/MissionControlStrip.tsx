@@ -52,7 +52,7 @@ function CandidateRow({
       <button type="button" className={`briefing-item tone-neutral${emphasized ? " mc-candidate-recommended" : ""}`} onClick={() => onStart(candidate)}>
         {candidate.domain_slug && (
           <span className="mc-candidate-glyph" aria-hidden="true">
-            <DomainGlyph slug={candidate.domain_slug} />
+            <DomainGlyph slug={candidate.domain_slug} size="sm" />
           </span>
         )}
         <span className="briefing-item-body">
@@ -168,7 +168,7 @@ function ManualStartForm({
               className={`briefing-item-control${domainSlug === slug ? " mc-duration-selected" : ""}`}
               onClick={() => setDomainSlug(domainSlug === slug ? "" : slug)}
             >
-              <DomainGlyph slug={slug} />
+              <DomainGlyph slug={slug} size="md" />
               {slug.toUpperCase()}
             </button>
           ))}
@@ -329,7 +329,7 @@ function ActiveMission({
       <div className="mc-active-head">
         {session.domain_slug && (
           <span className="mc-candidate-glyph" aria-hidden="true">
-            <DomainGlyph slug={session.domain_slug} />
+            <DomainGlyph slug={session.domain_slug} size="sm" />
           </span>
         )}
         <span className="briefing-item-title" ref={headingRef} tabIndex={-1}>

@@ -115,7 +115,11 @@ async def lifespan(app: FastAPI):
     # ordinary restart. Must never block or fail startup.
     try:
         with session_factory() as session:
-            recovered = expire_interrupted_executions(session)
+            recovered = expire_interrupted_executions(
+                session,
+                http_client=app.state.integration_http_client,
+                credential_store=app.state.credential_store,
+            )
             if recovered:
                 logger.warning(
                     "Recovered %d action proposal(s) left stuck in 'executing' by a prior interrupted process.",

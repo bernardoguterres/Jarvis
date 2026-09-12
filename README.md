@@ -1,60 +1,70 @@
 # Jarvis
 
-A native, local-first macOS personal intelligence system whose FastAPI
-controller owns persistent memory, deterministic retrieval, structured
-workflows, and guarded actions, independent of the configured reasoning
-model.
+Jarvis is a local-first personal intelligence system for macOS. It is
+built on a Python (FastAPI and SQLite) controller, a React/TypeScript
+interface, and a Tauri 2 native shell. It organizes one assistant into
+six life domains (Body, Mind, People, Path, Build, Life), and its
+controller, not the configured AI provider, owns memory, structured
+records, retrieval, and workflow state.
 
-Jarvis divides one personal assistant into six life domains (Body, Mind,
-People, Path, Build, Life), each with its own conversation history,
-structured records, and long-term memory, all stored in a local SQLite
-database under a data directory the app owns — not inside the reasoning
-model, and not in any Jarvis-run cloud service.
-
-Jarvis is local-first, not fully offline. It keeps authoritative
-persistent state locally and doesn't delegate memory ownership to the
-reasoning provider, but features needing model inference, spoken replies,
-or Google sync still cross the network through explicit integrations:
-bounded context and recent messages go to the local Hermes gateway, which
-may forward them to whichever provider is configured; Edge TTS sends
-reply text to Microsoft's network service to synthesize speech; Google
-Calendar/Health sync talks to Google's own APIs. Raw microphone audio
-never leaves the machine — it's transcribed locally by `faster-whisper`
-and deleted immediately after.
+Jarvis is local-first, not fully offline. Persistent memory and
+application state stay in a local SQLite database under a data directory
+the app owns. Raw microphone audio is transcribed locally with
+`faster-whisper` and deleted right after. Bounded conversation context can
+still cross the network for a few explicit purposes: it passes through a
+local Hermes gateway to whichever reasoning provider is configured, reply
+text goes to Edge TTS for speech synthesis, and Google Calendar/Health
+integrations call Google's own APIs. Credentials for all of that live in
+macOS Keychain or Hermes-managed secret storage, never in the repository
+or an export.
 
 ## Current status
 
-**V1 is feature-complete and frozen.** Every planned phase (local
-persistence, export/import/backup, Hermes integration, memory and context,
-push-to-talk voice, the animated HUD, permissions and guarded actions,
-Google Calendar/Health integrations, Recall/Research/Decision Room, and
-native macOS packaging) is implemented and tested. Two manual acceptance
-items remain against the installed native app, not the code: a full
-VoiceOver pass, and real-viewport inspection at a few fixed window sizes.
-Neither blocks normal use. See `docs/ROADMAP.md` for phase history and
-`docs/DECISIONS.md` for every non-obvious decision and fix.
+V1 is feature-complete; additional product scope is intentionally
+deferred. Every planned phase (local persistence, export/import/backup,
+Hermes integration, memory and context, push-to-talk voice, the animated
+HUD, permissions and guarded actions, Google Calendar/Health
+integrations, Recall/Research/Decision Room, and native macOS packaging)
+is implemented and tested:
+
+* **981 backend tests passing**, **469 frontend tests passing**.
+* TypeScript type-check clean and the production frontend build succeeds.
+* Backend Ruff is clean for the files touched during hardening work (not
+  asserted repository-wide).
+* Frontend lint has only pre-existing, documented warnings, not new
+  failures.
+* Google Calendar crash-recovery behavior is verified with mocks and
+  fakes (including `httpx.MockTransport`), never against a live Google
+  account.
+
+Two manual acceptance items remain against the installed native app, not
+the code: a full VoiceOver pass, and real-viewport inspection at a few
+fixed window sizes. Neither blocks normal use. See `docs/ROADMAP.md` for
+phase history and `docs/DECISIONS.md` for every non-obvious decision and
+fix.
 
 Jarvis is packaged as a self-signed macOS app for local use on its own
-machine — not notarized, not distributed through the App Store or a
-public installer, and not intended for other users.
+machine, not notarized, not distributed through the App Store or a public
+installer, and not intended for other users.
 
-## What Jarvis demonstrates
+## Engineering highlights
 
-This project demonstrates a few things that are easy to claim and harder
-to build:
-
-* A persistence layer that survives the AI vendor underneath it: memory,
-  records, and conversation history are owned by the controller's own
-  database, so switching models needs zero storage or retrieval changes.
-* Deterministic retrieval where it matters: search (Recall) is SQLite
-  FTS5, not embeddings — a documented, reproducible ranking pipeline
-  instead of an unauditable similarity score.
-* A real permission boundary between "the user did this" and "the
-  assistant proposed this," enforced by an auditable propose-approve-
-  execute lifecycle with cryptographic confirmation.
-* A dependency-inverted integration to an agent runtime (Hermes): the
-  backend never names a model in its own requests — that's Hermes-side
-  profile configuration Jarvis's code never touches.
+* **Controller-owned, provider-decoupled persistence**: memory, records,
+  and conversation history live in the controller's own SQLite database,
+  so switching the configured reasoning model needs zero storage or
+  retrieval changes.
+* **Deterministic retrieval**: Recall search runs on SQLite FTS5, not
+  embeddings, a documented and reproducible ranking pipeline instead of
+  an unauditable similarity score.
+* **Structured, versioned workflows**: domain records, memories, and
+  Research/Decision Room briefs are typed and versioned, never
+  overwritten prose.
+* **Guarded propose/approve/execute actions**: anything Jarvis proposes on
+  its own is bound to a payload digest and a single-use confirmation
+  token before it ever executes.
+* **Crash-safe Calendar recovery**: an interrupted Google Calendar write
+  is reconciled against Google's own state using a deterministic event ID
+  rather than guessed at.
 
 ## System architecture
 
@@ -112,48 +122,41 @@ flowchart TB
 Notes on what the diagram asserts, not just shows:
 
 * React only ever talks to the FastAPI controller over loopback HTTP. It
-  never calls Hermes, Google, faster-whisper, or Edge TTS directly; both
-  voice endpoints are FastAPI routes.
+  never calls Hermes, Google, faster-whisper, or Edge TTS directly.
 * Tauri owns native process supervision, window visibility, and menu
-  behavior. Native menu commands call FastAPI endpoints; persistent state
-  and application logic stay controller-owned, never in Rust.
-* The controller assembles context locally, then sends that already-built,
-  bounded package to Hermes, which never reaches into Jarvis's database
-  and is never given a model name to choose.
+  behavior; persistent state and application logic stay
+  controller-owned, never in Rust.
+* The controller assembles context locally, then sends only that already
+  built, bounded package to Hermes, which never reaches into Jarvis's
+  database and is never given a model name to choose.
 * SQLite is authoritative; the FTS5 index is rebuildable from it, never
-  the reverse. It's not the only system that ever receives data — Hermes,
-  the configured provider, Edge TTS, and Google all see data the
-  controller explicitly sends them. Integration services read/write OAuth
-  credentials through the Keychain, then call Google's APIs themselves;
-  Google never reads the Keychain. Health is read-only; Calendar's limited
-  owned-write goes through the guarded action lifecycle below, not sync
-  itself.
+  the reverse. Integration services read OAuth credentials from the
+  Keychain, then call Google's APIs themselves; Google never reads the
+  Keychain. Health is read-only; Calendar's limited owned-write goes
+  through the guarded action lifecycle below, not sync itself.
 
 ## Core capabilities
 
 * **Six life domains**, each with its own conversation history, records,
   and long-term memory, plus a domain-less general conversation.
-* **Explicit push-to-talk voice.** Hold Space (or a button) to record;
-  local `faster-whisper` transcribes on-device, the transcript runs
-  through the normal turn flow, and the reply is spoken back through Edge
-  TTS, an external service that receives only the reply text. No
-  continuous listening, and no raw audio kept after transcription.
-* **Model-independent memory.** The controller never sends a model name to
-  Hermes and never depends on which model is configured. Every edit
-  creates a new version rather than overwriting history; deletion requires
-  typing the memory's exact title and always makes a rollback.
+* **Push-to-talk voice**, not continuous listening: hold Space to record,
+  local `faster-whisper` transcribes on-device, and the reply is spoken
+  back through Edge TTS. No raw audio is kept after transcription.
+* **Versioned memory**: edits create a new version rather than
+  overwriting history; deletion requires typing the memory's exact title
+  and always leaves a rollback.
 * **Structured records** for things that shouldn't live as prose: body
   weights, symptoms, mind check-ins, people interactions, path deadlines,
   build checkpoints, and life tasks, each with its own validated schema.
-* **Recall**: deterministic full-text search (SQLite FTS5) across
-  conversations, memories, records, summaries, documents, and calendar
-  events. No embeddings, no similarity model, no model call at all; domain
-  scoping is enforced server-side.
+* **Recall**: deterministic full-text search (SQLite FTS5), not
+  embeddings, across conversations, memories, records, summaries,
+  documents, and calendar events, with domain scoping enforced
+  server-side.
 * **Research**: collect evidence found through Recall into a named
-  workspace, classify it, and generate a versioned, cited brief. A
-  deterministic outline always works with no model call; an optional
-  "Draft with Jarvis" pass makes one bounded, tool-free request with every
-  citation validated server-side.
+  workspace and generate a versioned, cited brief. A deterministic
+  outline needs no model call; an optional "Draft with Jarvis" pass makes
+  one bounded, tool-free request with every citation validated
+  server-side.
 * **Decision Room**: weigh a decision against weighted criteria with a
   transparent, auditable score. Jarvis supports the decision; only
   Bernardo's own explicit action marks it decided.
@@ -164,9 +167,8 @@ Notes on what the diagram asserts, not just shows:
   with no model call and no mutation, tracking its own state across
   visits so a failed source is reported as failed, not dropped.
 * **Google Calendar and Google Health integrations**, using scoped OAuth
-  credentials and controller-owned sync. Health is read-only; Calendar
-  sync is read/cache, and the limited owned-calendar write goes through
-  the guarded action lifecycle below. Credentials live only in Keychain.
+  credentials. Health is read-only; Calendar's limited owned-write goes
+  through the guarded action lifecycle below.
 
 See `docs/PRODUCT_SPEC.md` for the full product spec and
 `docs/ARCHITECTURE.md` for the technical design behind all of the above.
@@ -195,52 +197,38 @@ stateDiagram-v2
     needs_review --> [*]
 ```
 
-Approval binds to the exact proposal by checking a recomputed SHA-256
-digest of its payload, then mints a single-use, five-minute confirmation
-token; execution requires that token, consumed on the attempt rather than
-on success, scoped to exactly one proposal. The five-minute window is
-checked lazily: an approved proposal moves to `expired` the next time it's
-read or acted on after the window passes, not via a background timer —
-and only ever an `approved` row, never one left `executing`.
+Approval is bound to the exact proposal payload: approving recomputes a
+SHA-256 digest of the payload and checks it matches, then mints a
+single-use, five-minute confirmation token. Execution requires that
+token and consumes it on the attempt, not on success. This is
+payload-bound confirmation, not cryptographic identity authentication.
+The five-minute window is checked lazily, on the next read or action
+after it passes, rather than by a background timer.
 
-A proposal left in `executing` by a backend crash is reconciled at
-startup, not blindly marked `failed`. A purely local capability (memory,
+A proposal left `executing` by a backend crash is reconciled at startup
+rather than blindly marked `failed`. A purely local action (memory,
 structured records, domain summaries) has no effect outside Jarvis's own
 database transaction, so an interrupted one genuinely never happened and
 `failed` is accurate. A Google Calendar write is different: its effect
-lives in Google, outside that transaction, so recovery instead asks
-Google directly.
+lives in Google, outside that transaction, so recovery asks Google
+directly instead of guessing.
 
-Every Calendar create derives a deterministic, Google-compatible event ID
-(a SHA-256 hash of the proposal's own persisted ID) and sends it as the
-event's `id` in the original insert request — Google's own documented
-mechanism for preventing a duplicate create after a successful write
-whose response never made it back: retrying the identical insert reuses
-the identical ID, and Google itself rejects the repeat with an
-already-exists conflict instead of creating a second event. On that
-conflict, Jarvis fetches the existing event and confirms it carries this
-same proposal's ID as a private extended-property tag before ever
-treating it as success; a mismatch (an astronomically unlikely hash
-collision, or some unrelated event) is left `needs_review`, never guessed
-at either way. The private extended-property tag is retained on every
-create as secondary metadata, and is also the sole reconciliation path
-for an event created before this deterministic-ID scheme existed: if a
-lookup by the deterministic ID comes back empty, recovery falls back to
-a private-property search before concluding the create never happened.
-If confirmed absent there too, the proposal is put back to `approved`
-with a fresh confirmation token so it can be retried; a delete or update
-is reconciled by checking the target event's current state, and is
-always safe to retry since neither can create a duplicate. When Google
-itself cannot be reached to tell which happened, the proposal is left
-`needs_review` and stays that way until Bernardo checks the calendar
-directly; nothing auto-retries it, and the Actions Centre shows it
-plainly with its own explanation, offering no execute or retry control.
-
-This mechanism is duplicate-resistant within Google Calendar's own
-documented event-ID semantics — it is not a claim of mathematically
-perfect exactly-once execution, and it has only been exercised against
-mocked/faked Google Calendar responses in automated tests, never a live
-Google account.
+Every Calendar create sends a deterministic, Google-compatible event ID
+derived from the proposal's own persisted ID, plus an
+`extendedProperties.private.jarvis_action_id` tag, so a repeated create
+after an unconfirmed write gets an already-exists conflict from Google
+rather than a duplicate event. On that conflict Jarvis fetches the
+existing event and verifies it belongs to the same proposal (via the ID
+or, for events created before this scheme existed, the private-property
+tag) before treating the action as successful. If Google confirms the
+event genuinely does not exist, the proposal returns to `approved` with a
+fresh token so it can be retried. When the outcome cannot be determined,
+the proposal is left `needs_review`: it appears in the Actions Centre
+with a plain explanation, offers no approve, deny, execute, or retry
+control, and stays that way until the calendar is checked directly. This
+is duplicate-resistant within Google Calendar's supported semantics, not
+a guarantee of exactly-once execution, and has been tested only against
+mocked and faked Google responses, never a live account.
 
 ## Local data and the privacy boundary
 
@@ -265,16 +253,14 @@ never does.** It lives under `JARVIS_DATA_DIR`, which defaults to
 * **Export, backup, and restore** are a first-class capability: a portable
   export includes the database, documents, summaries, skills, and
   non-secret configuration, with a manifest and checksums. Restoring
-  always validates the archive in isolation first, refuses to overwrite an
-  existing installation without explicit confirmation, and takes an
-  automatic rollback copy so a failed restore leaves the target unchanged.
-  It also forces every integration connection to disconnected and every
-  pending action proposal to expired, since credentials and in-flight
-  state should never silently reappear elsewhere.
-* **API keys and OAuth credentials never enter the export.** They live
-  only in the macOS Keychain (Google integrations) or Hermes's own
-  profile-scoped secret storage (the reasoning provider), never in SQLite,
-  logs, or an unencrypted archive.
+  always validates the archive first, refuses to overwrite an existing
+  installation without explicit confirmation, and takes an automatic
+  rollback copy so a failed restore leaves the target unchanged. It also
+  forces every integration to disconnected and every pending action
+  proposal to expired, since credentials and in-flight state should never
+  silently reappear elsewhere.
+* **Credentials never enter the export**; they stay in Keychain or
+  Hermes-managed secret storage, as described above.
 * **MIND and PEOPLE data is structurally excluded** from the home
   briefing and Recall's default search scope, regardless of any settings
   flag, because the code paths that would read those tables simply don't
@@ -284,15 +270,13 @@ never does.** It lives under `JARVIS_DATA_DIR`, which defaults to
 
 Jarvis ships as a real native macOS app (Tauri 2 shell around the same
 React frontend, loading it same-origin from the local FastAPI backend).
-The shell owns process supervision plus native window and menu behavior.
-Menu actions delegate to FastAPI rather than implementing data or
-integration logic in Rust. On launch it probes the backend's health
-endpoint, reuses an already-running backend if one responds, and
-otherwise spawns and owns one, draining its output so the child never
-deadlocks. Quitting sends SIGTERM to a backend it started itself (SIGKILL
-only if needed) and never touches one it didn't spawn. Closing the window
-hides the app instead of quitting it, so scheduled syncs keep running;
-the Dock icon or menu bar brings it back.
+The shell owns process supervision plus native window, Dock, and menu
+behavior; application state and business logic stay in FastAPI and
+SQLite, never in Rust. On launch it reuses an already-healthy backend if
+one responds, or spawns and owns one otherwise, and it only ever
+terminates a backend process it started itself. Closing the window hides
+the app instead of quitting it, so scheduled syncs keep running; the Dock
+icon or menu bar brings it back.
 
 The app bundle is application code only, never a second source of truth
 for where personal data lives. It's signed with a self-signed certificate
@@ -349,7 +333,9 @@ this README on purpose; see `docs/ARCHITECTURE.md` §§7-8, §14, and §24
   build all pass as part of the phase-completion process in
   `docs/ROADMAP.md`.
 * A full axe-core (WCAG2 A/AA) accessibility sweep reports zero known
-  violations across every screen and diagnostic state.
+  violations across every screen and diagnostic state. This is automated
+  scanning, not a substitute for a manual VoiceOver pass, keyboard-only
+  inspection, or real-viewport visual review.
 * A live restoration drill (two isolated data directories, data populated
   across every subsystem reachable without Hermes/OAuth) confirmed a real
   export/validate/restore round trip preserves data correctly.

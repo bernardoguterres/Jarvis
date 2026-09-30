@@ -116,12 +116,20 @@ def search_memory_fts(
     if not safe_query:
         return []
 
-    # No domain filter at all means "search everything" (every domain plus
-    # global) — include_global only matters once a domain filter narrows the
-    # scope, where it decides whether global memories are added back in.
+    # `domain_ids=None` means "no domain filter at all" (search everything —
+    # every domain plus global), the direct search API's default. An
+    # explicit `[]` is a deliberate "zero domains in scope" request (e.g. a
+    # general conversation, or a Research/Decision policy narrowed to
+    # nothing) and must never be silently widened back to "no filter" —
+    # it matches only global memories when include_global is true, and
+    # nothing at all otherwise.
     scope_clauses = []
     params: dict = {"query": safe_query, "limit": limit}
-    if domain_ids:
+    if domain_ids is not None and len(domain_ids) == 0:
+        if not include_global:
+            return []
+        scope_clauses.append("scope = 'global'")
+    elif domain_ids:
         placeholders = ", ".join(f":domain_{i}" for i in range(len(domain_ids)))
         for i, domain_id in enumerate(domain_ids):
             params[f"domain_{i}"] = domain_id

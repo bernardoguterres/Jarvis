@@ -402,8 +402,13 @@ def search(
     if "memory_item" in allowed_types:
         try:
             domain_ids = _domain_ids_for_slugs_safe(session, allowed_domains)
+            # allowed_domains is always an explicit scope here (default
+            # LIFE/PATH/BUILD, or a caller-narrowed set) — even when it
+            # resolves to zero domain ids, that must mean zero domains, never
+            # be coerced to "no filter at all" (which would search every
+            # domain, MIND/PEOPLE included).
             memory_hits = search_memory_fts(
-                session, query, domain_ids=domain_ids or None, include_global=include_global, limit=fetch_cap
+                session, query, domain_ids=domain_ids, include_global=include_global, limit=fetch_cap
             )
             for memory_item_id, score in memory_hits:
                 item = session.get(MemoryItem, memory_item_id)
@@ -432,7 +437,9 @@ def search(
     if "document_chunk" in allowed_types:
         try:
             domain_ids = _domain_ids_for_slugs_safe(session, allowed_domains)
-            doc_hits = search_document_fts(session, query, domain_ids=domain_ids or None, limit=fetch_cap)
+            # Same scoping guarantee as above — never coerce an explicit
+            # zero-domain scope back to "no filter."
+            doc_hits = search_document_fts(session, query, domain_ids=domain_ids, limit=fetch_cap)
             for document_id, chunk_id, score in doc_hits:
                 chunk = session.get(DocumentChunk, chunk_id)
                 document = session.get(Document, document_id)

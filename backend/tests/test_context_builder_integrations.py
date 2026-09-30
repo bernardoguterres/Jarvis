@@ -150,3 +150,67 @@ def test_disconnected_integrations_produce_no_context(db_session: Session) -> No
         db_session, conversation=_conversation(db_session, body), domain=body, additional_domain_ids=[], query_text="q", max_recent_messages=5
     )
     assert "Google Health" not in package.system_prompt
+
+
+def test_general_conversation_never_leaks_sensitive_domain_documents(
+    db_session: Session, memory_settings: Settings
+) -> None:
+    """Regression for a real leak: a general (domain=None) conversation's
+    in-scope domain list resolves to [], and document search must treat an
+    explicit empty scope as "zero domains," never silently fall back to
+    "no filter" (which would surface MIND/PEOPLE document content in an
+    unrelated conversation)."""
+    mind = db_session.query(Domain).filter_by(slug="mind").one()
+    document_service.import_document(
+        db_session,
+        memory_settings,
+        domain_id=mind.id,
+        original_filename="diary.txt",
+        data=b"Feeling anxious about the relationship and therapy session notes.",
+    )
+    conv = Conversation(domain_id=None, title="general")
+    db_session.add(conv)
+    db_session.commit()
+
+    package = context_builder.build_context(
+        db_session,
+        conversation=conv,
+        domain=None,
+        additional_domain_ids=[],
+        query_text="anxious therapy session",
+        max_recent_messages=5,
+    )
+    assert "Cited document excerpts" not in package.system_prompt
+    assert "anxious" not in package.system_prompt
+    assert package.snapshot.document_chunk_ids == []
+
+
+def test_general_conversation_document_leak_fixed_but_explicit_domain_still_works(
+    db_session: Session, memory_settings: Settings
+) -> None:
+    """Sanity check alongside the regression above: explicitly adding MIND
+    as an additional domain still surfaces its documents as intended —
+    the fix must narrow an implicit empty scope, not break explicit scope."""
+    mind = db_session.query(Domain).filter_by(slug="mind").one()
+    life = db_session.query(Domain).filter_by(slug="life").one()
+    document_service.import_document(
+        db_session,
+        memory_settings,
+        domain_id=mind.id,
+        original_filename="diary.txt",
+        data=b"Feeling anxious about the relationship and therapy session notes.",
+    )
+    conv = Conversation(domain_id=life.id, title="life convo")
+    db_session.add(conv)
+    db_session.commit()
+
+    package = context_builder.build_context(
+        db_session,
+        conversation=conv,
+        domain=life,
+        additional_domain_ids=[mind.id],
+        query_text="anxious therapy session",
+        max_recent_messages=5,
+    )
+    assert len(package.snapshot.document_chunk_ids) >= 1
+    assert "Cited document excerpts" in package.system_prompt

@@ -58,6 +58,15 @@ def search_document_fts(
     if not safe_query:
         return []
 
+    # `None` means "no domain filter" (search every domain) — the direct
+    # search API's default. An explicit `[]` is a deliberate "zero domains
+    # in scope" request (e.g. a general conversation, or a Research/Decision
+    # policy narrowed to nothing) and must match nothing, never be silently
+    # widened back to "no filter" — every document belongs to exactly one
+    # domain, so there is no "global" document to fall back to.
+    if domain_ids is not None and len(domain_ids) == 0:
+        return []
+
     params: dict = {"query": safe_query, "limit": limit}
     where_scope = ""
     if domain_ids:

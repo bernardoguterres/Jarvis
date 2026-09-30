@@ -104,3 +104,37 @@ def test_no_match_returns_empty_list_for_fallback(db_session: Session) -> None:
     )
     hits = search_memory_fts(db_session, "zzzznonexistentword", domain_ids=[body_id])
     assert hits == []
+
+
+def test_none_domain_ids_searches_every_domain_by_default(db_session: Session) -> None:
+    mind_id = db_session.query(Domain).filter_by(slug="mind").one().id
+    item = memory_service.create_memory(
+        db_session, scope="domain", domain_id=mind_id, kind="fact",
+        title="Anxious note", content="Feeling anxious about the relationship.",
+    )
+    hits = search_memory_fts(db_session, "anxious", domain_ids=None)
+    assert item.id in [h[0] for h in hits]
+
+
+def test_explicit_empty_domain_ids_matches_only_global_memories(db_session: Session) -> None:
+    """Regression: an explicit empty domain scope (e.g. a general
+    conversation, or a Research/Decision policy narrowed to nothing) must
+    never silently fall back to "no filter" — that would leak MIND/PEOPLE
+    memories into an unrelated context."""
+    mind_id = db_session.query(Domain).filter_by(slug="mind").one().id
+    domain_item = memory_service.create_memory(
+        db_session, scope="domain", domain_id=mind_id, kind="fact",
+        title="Anxious note", content="Feeling anxious about the relationship.",
+    )
+    global_item = memory_service.create_memory(
+        db_session, scope="global", domain_id=None, kind="preference",
+        title="Anxious global note", content="Feeling anxious is a global preference note.",
+    )
+
+    hits_with_global = search_memory_fts(db_session, "anxious", domain_ids=[], include_global=True)
+    hit_ids = [h[0] for h in hits_with_global]
+    assert domain_item.id not in hit_ids
+    assert global_item.id in hit_ids
+
+    hits_without_global = search_memory_fts(db_session, "anxious", domain_ids=[], include_global=False)
+    assert hits_without_global == []

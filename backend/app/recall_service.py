@@ -392,8 +392,12 @@ def search(
         return RecallSearchResult(query=query, results=[], total_considered=0, limit=limit, offset=offset, has_more=False)
 
     allowed_domains = _resolve_domain_slugs(domain_slugs)
-    allowed_types = set(source_types) if source_types else set(ALL_RECALL_SOURCE_TYPES)
+    # Same contract as domain_slugs: None means the default (every source
+    # type), while an explicit [] means no source types and matches nothing.
+    allowed_types = set(ALL_RECALL_SOURCE_TYPES) if source_types is None else set(source_types)
     allowed_types &= set(ALL_RECALL_SOURCE_TYPES)
+    if not allowed_types:
+        return RecallSearchResult(query=query, results=[], total_considered=0, limit=limit, offset=offset, has_more=False)
     fetch_cap = min(_FAMILY_FETCH_CAP, offset + limit + 50)
 
     hits: list[RecallHit] = []

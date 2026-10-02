@@ -14,13 +14,13 @@ interface SystemsMenuProps {
 /** A single "Systems" control that opens a compact menu of the six
  * management centres, replacing six equally-weighted pill buttons in the
  * top bar. Every destination/route this previously exposed is still
- * reachable — nothing lost, just no longer six identical rectangles.
+ * reachable: nothing lost, just no longer six identical rectangles.
  *
  * The panel is rendered through a portal into document.body rather than
  * as a normal absolutely-positioned child of the trigger: the top bar
  * needs `overflow-x: auto` for its own narrow-width horizontal scroll
- * (see .top-bar in index.css), which — per the same CSS quirk that once
- * broke page-level scrolling (see docs/DECISIONS.md D72) — silently gives
+ * (see .top-bar in index.css), which (per the same CSS quirk that once
+ * broke page-level scrolling, see docs/DECISIONS.md D72) silently gives
  * it `overflow-y: auto` too, clipping any ordinary absolutely-positioned
  * dropdown to the bar's own ~52px height. Portaling out from under that
  * ancestor is the general, correct fix for a dropdown in a scrollable

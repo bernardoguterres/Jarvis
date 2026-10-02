@@ -1,8 +1,8 @@
-"""Phase 12F: export/restore/restart safety. Decisions, options, criteria,
+"""Export/restore/restart safety. Decisions, options, criteria,
 assessments, evidence links, factors, brief versions, final versions, and
 outcome reviews all survive an ordinary restart and a full export/restore
 round trip via the whole-database SQLite backup mechanism (no per-table
-export/import code was added — nothing new is required there). Restore
+export/import code was added; nothing new is required there). Restore
 must never trigger regeneration or a model call, must preserve historical
 brief/final versions, and must mark a missing source reference
 unavailable rather than erasing its citation."""

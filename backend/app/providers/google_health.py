@@ -1,46 +1,18 @@
-"""Phase 9 (corrected, breadth-extended): read-only Google Health API
-integration. Reads reconciled, consented data through Google Health —
-which can originate from Fitbit, Pixel Watch, Health Connect, Google Fit,
-or other sources the account has connected — not a Fitbit-specific API.
+"""Read-only Google Health API integration. Data may come from Fitbit,
+Pixel Watch, Health Connect or other connected sources; this is not a
+Fitbit-specific API.
 
-Verified live against the real, connected Google Health API (not just the
-discovery document) during Phase 9 acceptance — see docs/DECISIONS.md
-D64. Three distinct fetch mechanisms are used, per official operation
-support, never sending every data type through the same one:
+Three fetch methods, each verified against the live API:
+  - `dailyRollUp` for summable daily metrics (steps, distance, calories,
+    heart rate). Rollups are already deduplicated across devices.
+  - `list` without a filter, truncated client-side, for the "daily-*"
+    singleton types and point samples (weight, body fat). The server-side
+    filter rejected every field name tried for these types.
+  - `list` with a filter for sessions. Sleep filters on UTC end time,
+    exercise on civil start time.
 
-  - `dailyRollUp` (POST .../dataPoints:dailyRollUp): pre-aggregated daily
-    totals for interval-summable metrics (steps, distance, floors, active
-    zone minutes, active calories, total calories, heart rate). Rollups
-    are reconciled-by-default (deduped across phone/watch), so no separate
-    `reconcile` call is needed for these. Range limit: 14 days for
-    heart-rate/total-calories, 90 days for the rest (confirmed exact
-    values, not assumed).
-  - `list` with no filter, page-size bounded, client-side truncated to the
-    needed date range (GET .../dataPoints?pageSize=): for the "daily-*"
-    precomputed singleton types (daily-resting-heart-rate,
-    daily-heart-rate-variability, daily-oxygen-saturation,
-    daily-respiratory-rate, daily-vo2-max) and for point-sample types
-    (weight, body-fat, blood-glucose). A server-side `filter` query
-    parameter exists for other list-fetched types but consistently
-    returned INVALID_DATA_POINT_FILTER for every field-name variant tried
-    against these specific "daily-*" types with a real connected account;
-    a no-filter fetch with client-side date truncation is a safe, correct
-    fallback within Phase 9's small (7-31 day) sync windows.
-  - `list` with a real, live-verified `filter` (GET
-    .../dataPoints?filter=...): for session types. Confirmed exact filter
-    field names differ per type and were NOT interchangeable — sleep uses
-    `sleep.interval.end_time` with UTC `...Z` timestamps; exercise uses
-    `exercise.interval.civil_start_time` with civil (no `Z`) timestamps.
-
-Response field names were also verified live and differ from what the
-Phase 9 original implementation assumed — e.g. distance is
-`distance.millimetersSum` (millimeters, not `distanceMeters`), and
-`sleep` is a session type fetched via `list`, never `dailyRollUp`.
-
-Daily Readiness Score, Sleep Score, Stress Management Score, and Cardio
-Load/Target Load are not exposed by any Google Health data type — shown
-as explicitly unsupported, never estimated or relabeled from another
-metric.
+Readiness, Sleep Score, Stress and Cardio Load are not exposed by any
+Google Health data type, so they are reported as unsupported.
 """
 
 from __future__ import annotations
@@ -64,7 +36,7 @@ SCOPE_SLEEP = "https://www.googleapis.com/auth/googlehealth.sleep.readonly"
 READ_SCOPES = (SCOPE_ACTIVITY, SCOPE_HEALTH_METRICS, SCOPE_SLEEP)
 
 # Metrics Bernardo might reasonably expect that are not exposed by any
-# documented Google Health data type — shown as "unsupported" in the UI,
+# documented Google Health data type. Shown as "unsupported" in the UI,
 # never estimated or relabeled from another metric. These are proprietary
 # Fitbit-app scores, not Google Health data types.
 UNSUPPORTED_METRICS = (
@@ -92,17 +64,17 @@ class TokenResult:
 
 
 # --------------------------------------------------------------------------
-# Typed metric registry — the single source of truth for which Google
+# Typed metric registry: the single source of truth for which Google
 # Health data types Jarvis reads, which scope governs each, which REST
 # operation fetches it, how it's synced locally, and its BODY-only context
 # eligibility. Used by the sync service, the Integrations Centre API, and
-# tests — never duplicated ad hoc elsewhere.
+# tests. Never duplicated ad hoc elsewhere.
 # --------------------------------------------------------------------------
 
 
 @dataclass(frozen=True)
 class RollupMetricDef:
-    """A metric fetched via `dailyRollUp` — one aggregated value per day."""
+    """A metric fetched via `dailyRollUp`: one aggregated value per day."""
 
     key: str
     data_type: str
@@ -116,7 +88,7 @@ class RollupMetricDef:
 
 @dataclass(frozen=True)
 class DailyListMetricDef:
-    """A metric fetched via `list` (no server-side date filter — that
+    """A metric fetched via `list` (no server-side date filter: that
     filter syntax was live-verified to reject every field-name variant
     tried for these singleton/point types), bounded by page size and
     truncated client-side to the sync window."""
@@ -134,7 +106,7 @@ class DailyListMetricDef:
 
 @dataclass(frozen=True)
 class SessionMetricDef:
-    """A metric fetched via `list` with a real, live-verified filter —
+    """A metric fetched via `list` with a real, live-verified filter:
     session/event-shaped data (sleep, exercise), never collapsed into a
     single daily rollup number."""
 
@@ -152,7 +124,7 @@ def _as_int(v: Any) -> int | None:
     """Several Google Health fields are declared `type: string, format:
     int64` in the discovery doc (a common protobuf-JSON convention for
     64-bit integers) and are confirmed live to arrive as JSON strings, not
-    numbers — e.g. `steps.countSum: "4321"`. Cast defensively regardless of
+    numbers, e.g. `steps.countSum: "4321"`. Cast defensively regardless of
     whether the API sends a string or a number."""
     if v is None:
         return None
@@ -367,7 +339,7 @@ DAILY_LIST_METRICS: tuple[DailyListMetricDef, ...] = (
 
 def _sleep_filter(start_date: date_type, end_date: date_type) -> str:
     # Live-verified: sleep is filtered by *end* time, in UTC with a "Z"
-    # suffix — NOT civil time, unlike exercise below.
+    # suffix, NOT civil time, unlike exercise below.
     start = datetime(start_date.year, start_date.month, start_date.day, tzinfo=timezone.utc)
     end = datetime(end_date.year, end_date.month, end_date.day, tzinfo=timezone.utc)
     return (
@@ -377,7 +349,7 @@ def _sleep_filter(start_date: date_type, end_date: date_type) -> str:
 
 
 def _exercise_filter(start_date: date_type, end_date: date_type) -> str:
-    # Live-verified: exercise is filtered by *civil* start time (no "Z") —
+    # Live-verified: exercise is filtered by *civil* start time (no "Z"),
     # the opposite convention from sleep above. Confirmed by direct testing
     # against the real API, not assumed from the discovery document alone.
     return (
@@ -450,9 +422,9 @@ def build_authorization_url(*, client_id: str, redirect_uri: str, state: str, co
     # No `include_granted_scopes` here, deliberately: Google Health requests
     # a fixed set of three read-only scopes and never uses incremental
     # authorization (unlike Google Calendar, which adds a write scope
-    # later). Live Phase 9 acceptance found that this flag causes Google to
+    # later). Live acceptance testing found that this flag causes Google to
     # return the union of every scope ever granted to the Cloud project for
-    # this user — not just this client — so a Health token ended up also
+    # this user, not just this client, so a Health token ended up also
     # carrying Calendar's scopes. Omitting the parameter (never `"false"`)
     # is the provider-correct way to request only what's asked for here.
     # See docs/DECISIONS.md D63.
@@ -507,7 +479,7 @@ def refresh_access_token(*, client: httpx.Client, client_id: str, client_secret:
         },
     )
     if response.status_code != 200:
-        # See google_calendar.py's identical fix — Google's OAuth error
+        # See google_calendar.py's identical fix. Google's OAuth error
         # body is a standard, non-secret {"error", "error_description"}
         # pair, never a credential value.
         try:
@@ -534,7 +506,7 @@ def revoke_token(*, client: httpx.Client, token: str) -> bool:
 
 def _civil_date(d: date_type) -> dict:
     """CivilDateTime per the real API's discovery doc: {date: {year, month,
-    day}, time?: TimeOfDay} — NOT a plain ISO date/datetime string. Omitting
+    day}, time?: TimeOfDay}, NOT a plain ISO date/datetime string. Omitting
     `time` defaults to midnight, which is what a daily rollup boundary needs."""
     return {"date": {"year": d.year, "month": d.month, "day": d.day}}
 
@@ -567,7 +539,7 @@ def _daily_roll_up(
             json=body,
         )
         if response.status_code == 404:
-            return points  # no data for this type/range — not an error
+            return points  # no data for this type/range, not an error
         _raise_for_status(response, context=f"dailyRollUp:{data_type}")
 
         payload = response.json()
@@ -582,7 +554,7 @@ def _chunk_date_range(start_date: date_type, end_date: date_type, max_days: int)
     """Splits [start_date, end_date) into consecutive, non-overlapping,
     gap-free chunks of at most `max_days` civil days each (the last chunk
     may be shorter). Each chunk's end is the next chunk's start, so every
-    day in the requested range is covered by exactly one chunk — never
+    day in the requested range is covered by exactly one chunk, never
     duplicated, never skipped."""
     chunks: list[tuple[date_type, date_type]] = []
     cursor = start_date
@@ -600,7 +572,7 @@ def _daily_roll_up_chunked(
     range limit by issuing sequential, non-overlapping `dailyRollUp` calls
     of at most `max_range_days` each and combining the results. A failure
     in one chunk is recorded and does not discard points already fetched
-    from other, successful chunks for this same metric — no immediate
+    from other, successful chunks for this same metric. No immediate
     retry is attempted. Never called with overlapping chunks, so no
     deduplication step is needed: each day is fetched by exactly one
     chunk."""
@@ -618,7 +590,7 @@ def _list_unfiltered(client: httpx.Client, access_token: str, data_type: str, pa
     """Fetches recent data points for a type with no server-side date
     filter (that filter syntax was live-verified to reject every field-name
     variant tried for these types), following pagination up to `page_size`
-    total points. Bounded and safe for Phase 9's small sync windows."""
+    total points. Bounded and safe for the small sync windows."""
     points: list[dict] = []
     page_token: str | None = None
     while len(points) < page_size:
@@ -742,7 +714,7 @@ def fetch_health_data(
     """Fetches and normalizes Google Health data for [start_date, end_date)
     across all registered metrics. A failure fetching one metric is
     recorded in `partial_failures` and does not abort the rest of the
-    sync — missing/unsupported data for a given account is normal."""
+    sync. Missing/unsupported data for a given account is normal."""
     summaries: dict[date_type, DailySummary] = {}
     sessions: list[SessionRecord] = []
     partial_failures: dict[str, str] = {}
@@ -754,7 +726,7 @@ def fetch_health_data(
 
     def _parse_day(point: dict) -> date_type | None:
         # civilStartTime is a structured CivilDateTime object
-        # ({date: {year, month, day}, time: {}}), NOT a plain ISO string —
+        # ({date: {year, month, day}, time: {}}), NOT a plain ISO string,
         # confirmed live against the real API (docs/DECISIONS.md D64).
         return _date_from_google_date(point.get("civilStartTime", {}).get("date"))
 
@@ -770,11 +742,11 @@ def fetch_health_data(
                 continue
             # The metric's value sits directly on the rollup point (keyed
             # by the data type's camelCase field name, e.g. `point["steps"]`
-            # `.countSum`) — there is no `"value"` wrapper, contrary to the
+            # `.countSum`). There is no `"value"` wrapper, contrary to the
             # original (unverified) assumption. Confirmed live (D64).
             #
             # `extract()` indexes into an external, untrusted response
-            # shape — a single point that doesn't match the expected shape
+            # shape. A single point that doesn't match the expected shape
             # (a genuinely novel API variant, a transient malformed
             # response) must only cost this one metric, never crash the
             # whole sync and silently discard every other metric's already-
@@ -832,7 +804,7 @@ def fetch_health_data(
                     _get_or_create(record.end_time.date()).source_platforms.add(record.source_platform)
 
     # Fold each night's sleep session into that night's daily summary as a
-    # compact rollup (dashboard/context use) — the full stage detail stays
+    # compact rollup (dashboard/context use). The full stage detail stays
     # in the session record, never duplicated into the daily summary.
     for record in sessions:
         if record.session_type != "sleep":

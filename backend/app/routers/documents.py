@@ -1,4 +1,4 @@
-"""Phase 9: explicit browser upload/import of local documents only."""
+"""Explicit browser upload/import of local documents only."""
 
 from __future__ import annotations
 

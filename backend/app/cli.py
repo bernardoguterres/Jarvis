@@ -122,7 +122,7 @@ def cmd_list_backups(args: argparse.Namespace) -> int:
 
 
 def cmd_configure_integration(args: argparse.Namespace) -> int:
-    """Enters an OAuth client id/secret directly into the macOS Keychain —
+    """Enters an OAuth client id/secret directly into the macOS Keychain.
     run this yourself, in your own terminal. Nothing here is ever printed,
     logged, or sent anywhere by Jarvis; it is stored only via `keyring`."""
     client_id = input(f"{args.provider} OAuth client ID: ").strip()

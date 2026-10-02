@@ -5,7 +5,7 @@ and skills; installation B imports the export and must recover everything,
 remain writable, and produce its own verifiable export. A simulated failed
 restore must leave the existing target installation intact.
 
-Uses two isolated temporary directories only — never ~/JarvisData.
+Uses two isolated temporary directories only, never ~/JarvisData.
 """
 
 from __future__ import annotations

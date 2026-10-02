@@ -1,6 +1,6 @@
-"""Phase 12C: Mission Focus pins survive export/restore, remain writable
-afterward, and — since a pin holds no live schedule/connection/proposal
-state — need no restore-time safety-forcing the way routine/integration
+"""Mission Focus pins survive export/restore, remain writable
+afterward, and (since a pin holds no live schedule/connection/proposal
+state) need no restore-time safety-forcing the way routine/integration
 schedules and action proposals do."""
 
 from __future__ import annotations
@@ -62,7 +62,7 @@ def test_mission_focus_pins_survive_export_restore_and_stay_writable(tmp_path: P
         assert pins[0].next_action == "Book slot"
         assert pins[0].domain_slug == "life"
 
-        # A post-restore write succeeds — genuinely usable, not read-only.
+        # A post-restore write succeeds: genuinely usable, not read-only.
         from app import mission_focus_service as mfs
 
         life = session.query(Domain).filter_by(slug="life").one()
@@ -80,7 +80,7 @@ def test_mission_focus_pins_survive_export_restore_and_stay_writable(tmp_path: P
 
 def test_restore_never_reactivates_or_deletes_a_pin(tmp_path: Path) -> None:
     """A restored Mission Focus pin's status must be preserved exactly as
-    exported (no forcing to inactive, no deletion) — unlike a live
+    exported (no forcing to inactive, no deletion), unlike a live
     schedule, a pin carries no external side effect that restoring could
     reactivate."""
     install_a = _make_installation(tmp_path / "installation-a")

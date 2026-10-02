@@ -1,6 +1,6 @@
-"""Phase 12D: the write side of the unified Recall index —
+"""The write side of the unified Recall index:
 sync_recall/remove_recall/rebuild_recall_index, one source type at a
-time. Every test uses fictional fixtures — no real Calendar/Health/
+time. Every test uses fictional fixtures, with no real Calendar/Health/
 Keychain/Hermes contact, matching every other Phase 12 test suite."""
 
 from __future__ import annotations

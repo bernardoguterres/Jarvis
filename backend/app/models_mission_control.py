@@ -1,9 +1,9 @@
-"""Mission Control / Current Focus — a bounded extension of Phase 12A-12C's
+"""Mission Control / Current Focus: a bounded extension of the
 shared briefing/Mission-Focus machinery, not a second task system and not
 a new phase number. Turns the existing deterministic situational
 awareness into one persistent, timed focus session at a time.
 
-Candidates are never computed here — `app/mission_control_service.py`
+Candidates are never computed here; `app/mission_control_service.py`
 reuses `app/briefing_service.py`'s existing `assemble_home_briefing()`
 NOW/NEXT/WATCH assembler directly. This module only owns the focus
 session's own lifecycle state.
@@ -38,28 +38,16 @@ FOCUS_SESSION_MAX_MINUTES = 180
 
 
 class FocusSession(Base):
-    """One focus session. `source_type`/`source_id` are a typed pointer to
-    a real, already-existing source (never a copy of its content) exactly
-    like `MissionFocusPin` — `source_type='manual'` is the one exception,
-    for a freely-typed mission with `source_id=None`. `domain_id` is
-    always resolved server-side from the real source when one exists
-    (never accepted from the client for anything but a manual mission,
-    where Bernardo is explicitly choosing it himself).
+    """One focus session. `source_type`/`source_id` point to a real source
+    like `MissionFocusPin` does; `source_type='manual'` is a free-text
+    mission with `source_id=None`. `domain_id` comes from the real source,
+    or from Bernardo's own choice for a manual mission.
 
-    The timer is derived, never stored as a running countdown:
-    `started_at`, `paused_at` (set only while currently paused),
-    `accumulated_paused_seconds` (total paused time from all *earlier*
-    pause/resume cycles), and `completed_at` are the only facts persisted;
-    `app/mission_control_service.py::elapsed_seconds()` computes elapsed
-    focus time from them at read time, exactly the pattern this project
-    already uses for `IntegrationSyncSchedule.next_due_at` and the routine
-    scheduler — never a decrementing frontend interval as the source of
-    truth, so a restart is always accurate for free.
-
-    Only one row may have `status` in `('active', 'paused')` at a time —
-    enforced by `uq_focus_sessions_one_in_flight` (migration 0015), a
-    partial unique index on a constant expression, not just an
-    application-level check, so a race can never bypass it."""
+    Elapsed time is never stored. It is computed from `started_at`,
+    `paused_at`, `accumulated_paused_seconds` and `completed_at` (see
+    `elapsed_seconds()`), so restarts stay accurate. At most one row can
+    be active or paused, enforced by `uq_focus_sessions_one_in_flight`
+    (migration 0015)."""
 
     __tablename__ = "focus_sessions"
     __table_args__ = (
@@ -88,7 +76,7 @@ class FocusSession(Base):
     completion_note: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     what_changed_note: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     # Set only when this row was force-ended by a restore into a
-    # (possibly different) installation — never by a genuine user abandon.
+    # (possibly different) installation, never by a genuine user abandon.
     abandoned_reason: Mapped[str | None] = mapped_column(String(64), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(

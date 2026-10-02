@@ -12,7 +12,7 @@ from pathlib import Path
 
 from alembic.config import Config
 
-# Registers ResearchWorkspace's table into Base.metadata — Decision's own
+# Registers ResearchWorkspace's table into Base.metadata. Decision's own
 # research_workspace_id FK target must be resolvable when the ORM
 # configures mappers below, even in tests that never construct a
 # ResearchWorkspace row directly (mirrors test_migration_0017.py's own
@@ -61,7 +61,7 @@ def test_migration_0018_preserves_data_created_before_it(data_dir: Path) -> None
     engine.dispose()
 
     command.upgrade(_alembic_config(settings.database_url), "head")
-    # Deliberately never a hardcoded "head is exactly 0018" literal — the
+    # Deliberately never a hardcoded "head is exactly 0018" literal; the
     # next phase's migration would immediately make that stale, exactly
     # the defect class D95/D96 already found and fixed once before.
     assert read_db_revision(settings.database_path) == get_head_revision()

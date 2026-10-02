@@ -4,7 +4,7 @@ import { startMission, type FocusSessionSourceType } from "../api";
 interface FocusOnThisButtonProps {
   sourceType: FocusSessionSourceType;
   sourceId: string;
-  /** Default 25 minutes (the shortest Mission Control preset) — a domain
+  /** Default 25 minutes (the shortest Mission Control preset): a domain
    * page's own "focus on this" is a quick single action, not the full
    * duration picker Home's Mission Control strip offers; a longer
    * session is always still available from Home once this one starts. */
@@ -13,7 +13,7 @@ interface FocusOnThisButtonProps {
 
 /** A lightweight per-record entry point into Mission Control (item 4 of
  * the spec: "starting a mission from ... a domain page"). Deliberately
- * doesn't duplicate Home's own candidate/duration UI — if a session is
+ * doesn't duplicate Home's own candidate/duration UI. If a session is
  * already active or paused elsewhere, the backend's own 400 (see
  * app/mission_control_service.py's MissionControlError) is shown
  * verbatim rather than guessing what to do about it. */

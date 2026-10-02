@@ -4,13 +4,13 @@
  * `dangerouslySetInnerHTML` when a query match needs a `<mark>` wrapper.
  * When that same escaped string is instead rendered as a plain React text
  * child (no highlighting needed), it must never be shown as raw escaped
- * text such as `What&#x27;s` — this is the one, single decode boundary
+ * text such as `What&#x27;s`. This is the one, single decode boundary
  * for that case.
  *
  * Deliberately a small, fixed lookup rather than a general HTML parser:
  * it only ever turns a known HTML entity back into its literal character,
  * so a decoded result can still be rendered safely as a plain React text
- * child afterwards (never via `dangerouslySetInnerHTML`) — React always
+ * child afterwards (never via `dangerouslySetInnerHTML`). React always
  * escapes a text child again before painting it, so even a decoded string
  * that happens to look like a tag (e.g. from a double-escaped `&lt;` or
  * already-literal `<script>`) is displayed as inert text, never parsed as

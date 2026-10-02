@@ -2,7 +2,7 @@
 native macOS packaging).
 
 Mirrors exactly what scripts/jarvisctl.sh already does when starting the
-backend from source: run pending Alembic migrations, then serve the app —
+backend from source: run pending Alembic migrations, then serve the app,
 so this is a packaging-only wrapper, not a second startup implementation.
 Never imported by the running application itself; only ever invoked as the
 frozen binary's own process entrypoint.
@@ -23,7 +23,7 @@ def _bundled_base_dir() -> Path:
     if meipass:
         return Path(meipass)
     # Running unfrozen (e.g. `uv run python packaging/entrypoint.py` during
-    # development of this script itself) — alembic.ini/alembic/ live one
+    # development of this script itself), alembic.ini/alembic/ live one
     # level up, at the backend/ project root.
     return Path(__file__).resolve().parent.parent
 
@@ -91,7 +91,7 @@ if __name__ == "__main__":
     # Required for a frozen (PyInstaller onefile) executable that may use
     # Python's multiprocessing module with the 'spawn' start method (macOS's
     # default since Python 3.8). Spawning a worker re-invokes sys.executable
-    # — this same frozen binary — with a bootstrap marker in argv;
+    # (this same frozen binary) with a bootstrap marker in argv;
     # freeze_support() must run first to intercept that marker and run only
     # the worker bootstrap. Without it, a respawned "worker" instead falls
     # through to this script's own main(), re-running migrations and

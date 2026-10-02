@@ -1,11 +1,11 @@
-"""Phase 10: controller-owned automatic integration resync — the testable
+"""Controller-owned automatic integration resync: the testable
 logic layer. No Hermes cron, no Hermes skill, no sub-agent, no model call:
-this is plain Python or/orchestrating the existing Phase 9 sync services
+this is plain Python orchestrating the existing sync services
 (app/integration_service.py), driven by a background loop
 (app/scheduler_runtime.py) started/stopped by FastAPI's own lifespan.
 
 Every function here takes an injected `clock` (a zero-arg callable
-returning the current `datetime`) so tests are fully deterministic — never
+returning the current `datetime`) so tests are fully deterministic, never
 `datetime.now()` called directly in this module.
 """
 
@@ -34,14 +34,14 @@ from app.models_scheduler import (
 Clock = Callable[[], datetime]
 
 # Bounded exponential backoff: interval * 2^failures, capped at 8x the
-# configured interval and at an absolute 24 hours — a persistently broken
+# configured interval and at an absolute 24 hours. A persistently broken
 # provider must never be retried more often than its base cadence, nor so
 # rarely that it takes days to notice a fix.
 _BACKOFF_MULTIPLIER_CAP = 8
 _BACKOFF_ABSOLUTE_CAP_MINUTES = 24 * 60
 
 # One lock per schedulable provider, shared by manual ("Sync now") and
-# scheduled/catch-up syncs alike — the single-flight mechanism that makes
+# scheduled/catch-up syncs alike. This is the single-flight mechanism that makes
 # "manual and automatic syncs cannot overlap" true regardless of which
 # code path acquires it first.
 _PROVIDER_LOCKS: dict[str, threading.Lock] = {
@@ -91,7 +91,7 @@ def get_or_create_schedule(session: Session, provider: str) -> IntegrationSyncSc
 def set_schedule(
     session: Session, provider: str, *, enabled: bool, interval_minutes: int, clock: Clock
 ) -> IntegrationSyncSchedule:
-    """Explicit local UI action (not a Phase 8 proposal — see
+    """Explicit local UI action (not a proposal; see
     docs/DECISIONS.md): Bernardo directly configuring how Jarvis manages
     its own local schedule metadata, with no external side effect of its
     own. Enabling (from disabled, or re-saving while already enabled)
@@ -109,7 +109,7 @@ def set_schedule(
 
 def _as_aware(dt: datetime | None) -> datetime | None:
     """SQLite silently drops the UTC offset on a `DateTime(timezone=True)`
-    column when read back (docs/DECISIONS.md D51) — every comparison
+    column when read back (docs/DECISIONS.md D51), so every comparison
     against a stored due-time must re-attach it before comparing to an
     aware `clock()` value, or a naive/aware comparison raises TypeError."""
     if dt is None:
@@ -124,11 +124,11 @@ def _backoff_minutes(interval_minutes: int, consecutive_failure_count: int) -> i
 
 def _trim_history(session: Session, provider: str) -> None:
     """Keeps only the most recent SYNC_RUN_RETENTION_PER_PROVIDER runs for
-    this provider — a bounded local audit trail, never an unbounded log.
+    this provider: a bounded local audit trail, never an unbounded log.
     Fetches all ids ordered newest-first and slices in Python rather than
     an SQL OFFSET-without-LIMIT (SQLite's handling of a bare OFFSET is not
     reliably portable across SQLAlchemy versions)."""
-    session.flush()  # this project's sessions have autoflush=False — the
+    session.flush()  # this project's sessions have autoflush=False; the
     # just-added run row must be visible to this query, or trimming lags
     # by exactly one row forever.
     all_ids = list(
@@ -209,10 +209,10 @@ def run_provider_sync(
     *,
     days_back: int | None = None,
 ) -> IntegrationSyncRun:
-    """Runs one sync attempt for `provider`, reusing the existing Phase 9
+    """Runs one sync attempt for `provider`, reusing the existing
     sync services (never duplicating provider logic), guarded by this
     provider's single-flight lock so a manual and a scheduled/catch-up sync
-    can never run concurrently. Never raises — every failure mode is
+    can never run concurrently. Never raises: every failure mode is
     caught and recorded as a sanitized, bounded local audit row."""
     started_at = clock()
     if not try_acquire_provider_lock(provider):
@@ -270,7 +270,7 @@ def run_provider_sync(
 def startup_catchup(
     session: Session, store: CredentialStore, http_client: httpx.Client, clock: Clock
 ) -> list[IntegrationSyncRun]:
-    """At most one catch-up sync per overdue, enabled provider — never a
+    """At most one catch-up sync per overdue, enabled provider, never a
     replay of every missed interval. Safe to call every startup: a
     provider that isn't due yet is simply skipped."""
     now = clock()
@@ -288,7 +288,7 @@ def tick(session: Session, store: CredentialStore, http_client: httpx.Client, cl
     """One scheduler tick: run any enabled, due provider exactly once.
     `next_due_at` always advances from the actual completion time of this
     attempt (success or backoff), never by incrementally replaying missed
-    slots — this is what structurally prevents a catch-up storm after a
+    slots. This is what structurally prevents a catch-up storm after a
     long sleep/downtime."""
     now = clock()
     runs = []

@@ -1,18 +1,10 @@
-"""Phase 9 correction: replace the legacy Fitbit Web API integration with
-the current Google Health API. Forward-only — 0005 is left untouched.
+"""Replace the legacy Fitbit Web API integration with the Google Health API.
 
-Renames fitbit_daily_summaries -> google_health_daily_summaries (data
-preserved), renames context_snapshots.fitbit_summary_ids_json ->
-google_health_summary_ids_json, and updates the integration_connections
-provider CHECK constraint to ('google_calendar', 'google_health').
-
-Any pre-existing legacy 'fitbit' row in integration_connections is removed
-before the constraint is tightened: no real Fitbit account was ever
-connected on this installation, 'fitbit' is not preserved as a selectable
-provider going forward, and no legacy token is ever reused or reinterpreted
-as a Google credential (tokens live only in Keychain, never in this table,
-so there is nothing to migrate there). The cached daily-summary data itself
-is preserved via the table rename below, independent of the connection row.
+Renames fitbit_daily_summaries to google_health_daily_summaries (data
+kept), renames context_snapshots.fitbit_summary_ids_json to
+google_health_summary_ids_json, and limits integration_connections
+providers to google_calendar and google_health. Any leftover 'fitbit'
+connection row is removed first; tokens were never stored in this table.
 
 Revision ID: 0006
 Revises: 0005
@@ -34,7 +26,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     # Remove any legacy 'fitbit' connection row so it cannot violate the
-    # tightened provider CHECK constraint below. No token is read or moved —
+    # tightened provider CHECK constraint below. No token is read or moved;
     # OAuth credentials never lived in this table (Keychain-only).
     op.execute("DELETE FROM integration_connections WHERE provider = 'fitbit'")
 

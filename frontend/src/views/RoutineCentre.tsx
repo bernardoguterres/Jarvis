@@ -33,7 +33,7 @@ const SENSITIVE_DOMAINS = ["body", "mind", "people"];
 const WEEKLY_REVIEW_DOMAINS = ["body", "mind", "people", "path", "build", "life"];
 const WEEKDAY_LABELS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
-// Deliberately distinct from ROUTINE_LABELS — the schedule-overview strip
+// Deliberately distinct from ROUTINE_LABELS: the schedule-overview strip
 // shows a shorter tag for each routine so its text never collides with the
 // full routine-name heading rendered below it (both would otherwise be
 // exact-match ambiguous for anything querying visible text by name).

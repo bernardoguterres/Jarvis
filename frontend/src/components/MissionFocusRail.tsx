@@ -77,13 +77,13 @@ function MissionFocusRow({
   );
 }
 
-/** Mission Focus (Phase 12C) — a small, deliberate, Bernardo-owned
+/** Mission Focus: a small, deliberate, Bernardo-owned
  * watchlist, rendered as a compact ledger beside the situational
  * briefing rather than a generic grid of cards. The default view shows
  * only the top-ranked entries (`defaultVisible`, normally 3); the
  * remainder sit behind a closed-by-default disclosure so Home never
  * feels cluttered even at the full 5-pin limit. Every pin references a
- * real existing source — this component never invents or copies
+ * real existing source. This component never invents or copies
  * content, only displays what the backend already resolved. */
 function MissionFocusRail({
   entries,

@@ -48,7 +48,7 @@ class FakeGoogleCalendar:
 
     def insert_with_id(self, *, event_id: str, jarvis_action_id: str | None) -> str:
         """Simulates Google already holding an event at a specific
-        (deterministic) ID — used to model 'the earlier create actually
+        (deterministic) ID, used to model 'the earlier create actually
         landed on Google, tagged with this exact ID, before the crash/lost
         response'. `jarvis_action_id=None` models a same-ID collision with
         an event that carries no (or different) Jarvis metadata."""
@@ -143,7 +143,7 @@ def _propose_and_approve_create(db_session: Session, calendar: CalendarCalendar)
 def _force_executing(db_session: Session, proposal) -> None:
     """Simulates exactly the state execute_action leaves behind if the
     process is killed after the 'executing' commit but before the final
-    succeeded/failed commit — never actually crashing a process."""
+    succeeded/failed commit, never actually crashing a process."""
     stuck = action_service.get_proposal_or_404(db_session, proposal.id)
     stuck.status = "executing"
     stuck.confirmation_used_at = datetime.now(timezone.utc)
@@ -152,7 +152,7 @@ def _force_executing(db_session: Session, proposal) -> None:
 
 def test_failure_before_external_request_marks_failed_not_stuck(db_session: Session) -> None:
     """No credential store contents at all means ensure_fresh_access_token
-    raises before any HTTP request reaches Google — nothing external ever
+    raises before any HTTP request reaches Google, so nothing external ever
     happened, so a definite 'failed' (not 'needs_review') is the honest
     outcome, and the proposal must not be left stuck in 'executing'."""
     calendar = _calendar(db_session)
@@ -174,7 +174,7 @@ def test_recovery_confirms_succeeded_when_google_already_has_the_tagged_event(db
     """Covers both 'external success followed by a lost response' and
     'interruption after external success but before local success
     persistence': from recovery's point of view these are the same
-    observable state — a stuck 'executing' proposal whose tagged event
+    observable state: a stuck 'executing' proposal whose tagged event
     already exists on Google. Recovery must resolve it to a confirmed
     'succeeded', never a guess."""
     calendar = _calendar(db_session)
@@ -228,7 +228,7 @@ def test_recovery_confirms_absence_and_retry_creates_exactly_one_event(db_sessio
     retryable = action_service.get_proposal_or_404(db_session, approved.id)
     assert retryable.status == "approved"
     assert retryable.confirmation_token is not None
-    # A fresh single-use token — never the one already consumed by the
+    # A fresh single-use token, never the one already consumed by the
     # interrupted attempt (that one must not become replayable).
     assert retryable.confirmation_token != original_token
 
@@ -251,7 +251,7 @@ def test_recovery_confirms_absence_and_retry_creates_exactly_one_event(db_sessio
 def test_recovery_marks_needs_review_when_lookup_unavailable(db_session: Session) -> None:
     """'External lookup temporarily unavailable': Google cannot be reached
     to confirm or deny the outcome, so the proposal must land in
-    'needs_review' — never 'succeeded' (unconfirmed) and never 'failed'
+    'needs_review', never 'succeeded' (unconfirmed) and never 'failed'
     (the effect may well have happened)."""
     calendar = _calendar(db_session)
     _grant_write_scope(db_session)
@@ -271,7 +271,7 @@ def test_recovery_marks_needs_review_when_lookup_unavailable(db_session: Session
     assert reviewed.error_summary
     assert "verify" in reviewed.error_summary.lower() or "confirm" in reviewed.error_summary.lower()
 
-    # needs_review is genuinely terminal until a human resolves it — no
+    # needs_review is genuinely terminal until a human resolves it; no
     # path re-executes it, and it is not silently re-swept into anything
     # else on a later restart.
     with pytest.raises(action_service.ActionError):
@@ -351,7 +351,7 @@ def test_delete_recovery_confirms_still_present_and_is_safely_retryable(db_sessi
 def test_expire_if_needed_never_touches_an_executing_proposal(db_session: Session) -> None:
     """Objective 3: an executing action must not be incorrectly expired by
     the ordinary time-based lazy-expiry path while reconciliation is what
-    it actually needs — expiry only ever resolves a stale 'approved'."""
+    it actually needs. Expiry only ever resolves a stale 'approved'."""
     calendar = _calendar(db_session)
     _grant_write_scope(db_session)
     approved = _propose_and_approve_create(db_session, calendar)
@@ -435,7 +435,7 @@ def test_create_sends_deterministic_id_and_lost_response_retry_gets_conflict_not
     assert len(fake_google.events) == 1
     assert fake_google.events[0]["id"] == expected_id
 
-    # Retry: same action, same derived ID — Google now reports conflict.
+    # Retry: same action, same derived ID. Google now reports conflict.
     with pytest.raises(gcal_provider.GoogleCalendarConflictError) as excinfo:
         gcal_provider.create_event(
             client=_client(fake_google.handler),
@@ -451,15 +451,15 @@ def test_create_sends_deterministic_id_and_lost_response_retry_gets_conflict_not
             idempotency_key=action_id,
         )
     assert excinfo.value.event_id == expected_id
-    # Still exactly one event on the fake calendar — no duplicate.
+    # Still exactly one event on the fake calendar, no duplicate.
     assert len(fake_google.events) == 1
 
 
 def test_execute_confirms_conflicting_event_as_success_when_metadata_matches(db_session: Session) -> None:
     """The capability layer (not just the provider) must treat a 409 whose
     existing event carries this action's own jarvis_action_id as a
-    confirmed success, not a failure — 'recovery fetching and confirming
-    the existing event', exercised through a live execute_action call."""
+    confirmed success, not a failure ('recovery fetching and confirming
+    the existing event'), exercised through a live execute_action call."""
     from app.providers import google_calendar as gcal_provider
 
     calendar = _calendar(db_session)
@@ -469,7 +469,7 @@ def test_execute_confirms_conflicting_event_as_success_when_metadata_matches(db_
     fake_google = FakeGoogleCalendar()
     expected_id = gcal_provider.deterministic_event_id(approved.id)
     # Google already holds the event at this action's deterministic ID,
-    # correctly tagged — as if an earlier attempt's response was lost.
+    # correctly tagged, as if an earlier attempt's response was lost.
     fake_google.insert_with_id(event_id=expected_id, jarvis_action_id=approved.id)
 
     executed = action_service.execute_action(
@@ -481,13 +481,13 @@ def test_execute_confirms_conflicting_event_as_success_when_metadata_matches(db_
     )
     assert executed.status == "succeeded"
     assert json.loads(executed.result_json)["external_event_id"] == expected_id
-    # No second event was created — the conflict was reconciled, not retried.
+    # No second event was created: the conflict was reconciled, not retried.
     assert len(fake_google.events) == 1
 
 
 def test_execute_marks_needs_review_when_conflicting_event_metadata_mismatches(db_session: Session) -> None:
     """A same-ID collision with an event that does NOT carry this action's
-    own metadata must never be treated as success — the honest outcome is
+    own metadata must never be treated as success. The honest outcome is
     needs_review, not a guess in either direction."""
     from app.providers import google_calendar as gcal_provider
 
@@ -498,7 +498,7 @@ def test_execute_marks_needs_review_when_conflicting_event_metadata_mismatches(d
     fake_google = FakeGoogleCalendar()
     expected_id = gcal_provider.deterministic_event_id(approved.id)
     # Some other event occupies this exact ID, tagged with a different
-    # action's ID entirely (or none) — must never be confused for this
+    # action's ID entirely (or none). Must never be confused for this
     # action's own write.
     fake_google.insert_with_id(event_id=expected_id, jarvis_action_id="some-other-action-id")
 
@@ -563,7 +563,7 @@ def test_recovery_marks_needs_review_on_deterministic_id_metadata_mismatch(db_se
 
 def test_recovery_falls_back_to_legacy_private_property_lookup(db_session: Session) -> None:
     """An event created before the deterministic-ID scheme existed carries
-    only the private-property tag, at an arbitrary (non-deterministic) ID —
+    only the private-property tag, at an arbitrary (non-deterministic) ID;
     recovery must still find and confirm it via the legacy search path
     once the direct deterministic-ID lookup comes back empty."""
     calendar = _calendar(db_session)

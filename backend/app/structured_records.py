@@ -1,6 +1,6 @@
 """Validated payload models for each structured-record type.
 
-A discriminated-union-style dispatch keyed on `record_type` — every payload
+A discriminated-union-style dispatch keyed on `record_type`: every payload
 must validate against exactly one of these models before being stored.
 Arbitrary unbounded JSON is never accepted.
 """
@@ -71,7 +71,7 @@ _PAYLOAD_MODELS: dict[str, type[BaseModel]] = {
     "life_task": LifeTaskPayload,
 }
 
-# Which domain slug each record type belongs to — enforced at creation time.
+# Which domain slug each record type belongs to, enforced at creation time.
 RECORD_TYPE_DOMAIN_SLUG: dict[str, str] = {
     "body_weight": "body",
     "body_symptom": "body",

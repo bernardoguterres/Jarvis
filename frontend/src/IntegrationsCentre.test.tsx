@@ -11,8 +11,8 @@ const DOMAINS: Domain[] = [
 
 beforeEach(() => {
   vi.restoreAllMocks();
-  // Phase 12C: Mission Focus's own fetch, not what any of these tests are
-  // about — default it to a harmless empty state.
+  // Mission Focus's own fetch, not what any of these tests are
+  // about, so default it to a harmless empty state.
   vi.spyOn(api, "fetchMissionFocus").mockResolvedValue({ active_pins: [], max_active_pins: 5, default_visible: 3 });
 });
 
@@ -58,7 +58,7 @@ describe("IntegrationsCentre", () => {
     expect(screen.getByText(/no write capability exists/i)).toBeInTheDocument();
 
     // Product language: "Google Health", not a Fitbit-specific integration
-    // name — Fitbit is mentioned only as one of several possible sources.
+    // name. Fitbit is mentioned only as one of several possible sources.
     expect(screen.getByRole("heading", { name: "Google Health" })).toBeInTheDocument();
     expect(screen.getByText(/can include data from Fitbit/i)).toBeInTheDocument();
 
@@ -80,12 +80,12 @@ describe("IntegrationsCentre", () => {
     await user.click(connectButtons[0]);
 
     // The backend's own POST /api/integrations/{provider}/connect opens
-    // the system browser server-side (see app/routers/integrations.py) —
+    // the system browser server-side (see app/routers/integrations.py);
     // this frontend only ever needs to trigger that request. A prior
     // version of this code additionally called window.open()/a Tauri IPC
     // bridge from here, which turned out to silently do nothing in the
     // packaged native app (Tauri's JS bridge is never actually present on
-    // this app's real, non-Tauri-origin content) — removed rather than
+    // this app's real, non-Tauri-origin content), so it was removed rather than
     // left as dead, misleading code.
     await waitFor(() => expect(connectSpy).toHaveBeenCalledWith("google_calendar", false));
     expect(openSpy).not.toHaveBeenCalled();
@@ -330,7 +330,7 @@ describe("IntegrationsCentre", () => {
 
     render(<IntegrationsCentre onBack={() => {}} />);
 
-    // The unrelated, successfully-fetched connection status is untouched —
+    // The unrelated, successfully-fetched connection status is untouched:
     // still genuinely "connected", never demoted by an unrelated failure.
     expect(await screen.findAllByText(/connected/i)).not.toHaveLength(0);
     // The failed module shows a truthful "unavailable" state, not a silent

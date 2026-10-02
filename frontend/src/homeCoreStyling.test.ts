@@ -7,14 +7,14 @@ import { describe, expect, it } from "vitest";
  * acceptance: the Home `JarvisCore` button (`.jarvis-hud-interactive`)
  * carried its own `background: none; border: none;` reset, but a
  * higher-specificity global `button:not(.primary):not(.back-button):
- * not(.domain-button):not(.push-to-talk-button)` base rule — which never
- * listed `.jarvis-hud-interactive` in its exclusion set — still applied a
+ * not(.domain-button):not(.push-to-talk-button)` base rule (which never
+ * listed `.jarvis-hud-interactive` in its exclusion set) still applied a
  * rectangular panel background/border/border-radius on top of it,
  * producing a visible square behind the circular ring assembly (clearest
  * while a domain like BUILD was focused, since the square's own border
  * color follows `--ring-color`). jsdom doesn't apply real cascade/
  * specificity resolution from an external stylesheet, so this asserts
- * directly against the CSS source rather than a computed style — the
+ * directly against the CSS source rather than a computed style. The
  * actual visual fix was confirmed separately via a real browser (see
  * docs/DECISIONS.md). */
 describe("Home JarvisCore — no rectangular panel behind the rings", () => {
@@ -73,7 +73,7 @@ describe("Home↔domain shared View Transition CSS — reduced-motion structural
     );
     const occurrencesInsideGuardedBlock = guardedBlockMatch![1].match(/::view-transition-(group|old|new)\(/g) ?? [];
     // Every occurrence in the whole file must live inside the one guarded
-    // block asserted above — if a future edit adds a ::view-transition-*
+    // block asserted above. If a future edit adds a ::view-transition-*
     // rule outside it, this count stops matching.
     expect(totalOccurrences.length).toBeGreaterThan(0);
     expect(occurrencesInsideGuardedBlock.length).toBe(totalOccurrences.length);

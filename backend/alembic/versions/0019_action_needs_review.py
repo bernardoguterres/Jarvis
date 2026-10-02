@@ -1,9 +1,7 @@
-"""Hardening pass: interrupted external (Google Calendar) writes must never
-be reported as definitively failed when the real-world outcome is unknown.
-Adds a `needs_review` status to action_proposals so startup reconciliation
-can distinguish confirmed-succeeded, safely-retryable, and genuinely
-uncertain outcomes instead of collapsing every crash-interrupted execution
-into `failed`.
+"""Adds a `needs_review` status to action_proposals, so a Calendar write
+interrupted by a crash is never reported as failed when its real outcome
+is unknown. Startup recovery can now tell succeeded, safe to retry, and
+uncertain apart.
 
 Revision ID: 0019
 Revises: 0018
@@ -38,7 +36,7 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     # Any row already recorded as needs_review is reverted to failed rather
-    # than left violating the restored (narrower) constraint — this mirrors
+    # than left violating the restored (narrower) constraint. This mirrors
     # the honest-but-conservative choice startup recovery made before this
     # migration existed.
     op.execute("UPDATE action_proposals SET status = 'failed' WHERE status = 'needs_review'")

@@ -1,8 +1,6 @@
-"""Fix a real bug found live (D66): heart_rate_avg_bpm/min/max were
-declared Integer, but Google's own API types them as `number` (float) —
-`beatsPerMinuteAvg` in particular is routinely fractional. A stored float
-value caused a genuine unhandled 500 when read back through the
-Integer-typed Pydantic schema. Forward-only — 0005-0007 are untouched.
+"""Store heart_rate_avg_bpm/min/max as floats. Google's API types them as
+`number` and the average is often fractional, which made reads through
+the Integer-typed schema fail with a 500.
 
 Revision ID: 0008
 Revises: 0007

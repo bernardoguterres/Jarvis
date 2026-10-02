@@ -96,7 +96,7 @@ def test_activate_then_invoke_creates_proposals(db_session: Session) -> None:
 
 def test_domain_scoped_skill_forces_its_own_domain_ignoring_invocation_input(db_session: Session) -> None:
     """A domain-scoped skill's proposals are always pinned to the skill's
-    own domain — there is no per-invocation override, so a domain-scoped
+    own domain. There is no per-invocation override, so a domain-scoped
     skill structurally cannot retrieve/write an unrelated domain."""
     body = db_session.query(Domain).filter_by(slug="body").one()
     skill = skill_service.create_skill(
@@ -138,7 +138,7 @@ def test_edit_creates_new_immutable_version_and_demotes_to_draft(db_session: Ses
     history = skill_service.get_skill_or_404(db_session, skill.id).versions
     assert len(history) == 2
     assert history[0].workflow_steps_json != history[1].workflow_steps_json
-    # The first version is untouched — immutable history.
+    # The first version is untouched: immutable history.
     assert "step 1" in history[0].workflow_steps_json and "revised" not in history[0].workflow_steps_json
 
 

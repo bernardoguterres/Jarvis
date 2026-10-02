@@ -1,6 +1,6 @@
 """Phase 4 round-trip: export/import must carry memories, versions,
 supersession relationships, domain summaries, structured records, and
-context snapshots — and the FTS index must be rebuildable after restore
+context snapshots, and the FTS index must be rebuildable after restore
 (never trusted as authoritative on its own).
 """
 
@@ -148,7 +148,7 @@ def test_phase4_data_survives_export_and_restore(tmp_path: Path) -> None:
     finally:
         conn.close()
 
-    # FTS must be rebuildable after restore — never trusted as-is.
+    # FTS must be rebuildable after restore, never trusted as-is.
     engine_b = build_engine(install_b.database_url)
     with build_sessionmaker(engine_b)() as session:
         count = rebuild_fts(session)

@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
  * controller offline, unexpected interface failure) and the compact
  * inline states (Hermes degraded, a single failed module) are built from
  * these few pieces, so a fault always reads as "Jarvis diagnosing itself"
- * in one consistent visual language — never a generic broken-website
+ * in one consistent visual language, never a generic broken-website
  * screen, and never the same treatment for genuinely different faults.
  * Color is load-bearing here: `tone="critical"` (red) means something is
  * actually unavailable; `tone="degraded"` (amber) means reduced but
@@ -16,25 +16,25 @@ export type DiagnosticRingVariant = "gap" | "interrupted" | "dual" | "reconnecti
 
 interface DiagnosticCoreProps {
   tone: DiagnosticTone;
-  /** "gap": a static ring with one missing segment (404 — the system
+  /** "gap": a static ring with one missing segment (404: the system
    * itself isn't broken). "interrupted": a slow, stuttering rotation with
    * a connector line that fades before reaching the core (a terminal,
-   * non-retrying fault — the interface crash). "dual": a healthy-looking
+   * non-retrying fault: the interface crash). "dual": a healthy-looking
    * outer ring with only the inner ring gapped (Hermes degraded while the
-   * backend stays up). "reconnecting": Controller Offline's own variant —
+   * backend stays up). "reconnecting": Controller Offline's own variant:
    * a smooth continuous outer rotation, a counter-rotating inner
    * diagnostic trace, a breathing core, and a probe that extends/retracts
    * as if attempting a handshake; visibly accelerates during `scanning`. */
   variant: DiagnosticRingVariant;
-  /** True only while a real retry attempt is in flight — briefly
+  /** True only while a real retry attempt is in flight. Briefly
    * brightens the ring, then decays back. Never a permanent decoration. */
   scanning?: boolean;
   /** True only for the brief one-shot success transition after a retry
-   * has genuinely succeeded — reconnects the missing segment and plays
+   * has genuinely succeeded: reconnects the missing segment and plays
    * one controlled sweep. Never shown before the health check actually
    * resolves true. */
   recovering?: boolean;
-  /** ~10% larger overall — used only where a caller wants this specific
+  /** ~10% larger overall, used only where a caller wants this specific
    * core to read as the primary focus of the page. */
   large?: boolean;
 }
@@ -65,7 +65,7 @@ export function DiagnosticCore({ tone, variant, scanning = false, recovering = f
   );
 }
 
-/** The short monospace status code shown near the core — "404", "OFFLINE",
+/** The short monospace status code shown near the core: "404", "OFFLINE",
  * "DEGRADED". Not printed inside the core itself, so the ring visuals
  * never have to make room for dense text. */
 export function DiagnosticCode({ tone, children }: { tone: DiagnosticTone; children: ReactNode }) {
@@ -81,8 +81,8 @@ interface DiagnosticPageProps {
   scanning?: boolean;
   recovering?: boolean;
   large?: boolean;
-  /** A short, non-secret local reference (e.g. an interface-fault ID) —
-   * omit entirely when there is nothing truthful to show. */
+  /** A short, non-secret local reference (e.g. an interface-fault ID).
+   * Omit entirely when there is nothing truthful to show. */
   meta?: string;
   actions?: ReactNode;
   children?: ReactNode;
@@ -90,7 +90,7 @@ interface DiagnosticPageProps {
 
 /** One full-height diagnostic screen, mounted in place of ordinary page
  * content inside the existing Jarvis shell (top bar stays). Every prop
- * here must come from real state — this component has no fallback
+ * here must come from real state. This component has no fallback
  * copy of its own, so a caller can never accidentally render a fault
  * screen with placeholder text. */
 export function DiagnosticPage({
@@ -123,21 +123,21 @@ export function DiagnosticPage({
   );
 }
 
-/** A row of recovery actions — always real navigable/callable actions,
+/** A row of recovery actions: always real navigable/callable actions,
  * never a decorative button that does nothing. */
 export function RecoveryActions({ children }: { children: ReactNode }) {
   return <div className="recovery-actions">{children}</div>;
 }
 
 interface ModuleErrorStateProps {
-  /** Which module failed — shown verbatim, e.g. "Sync history". */
+  /** Which module failed, shown verbatim, e.g. "Sync history". */
   label: string;
   onRetry?: () => void;
-  /** Sanitized, optional — never a raw exception or stack trace. */
+  /** Sanitized and optional; never a raw exception or stack trace. */
   detail?: string;
 }
 
-/** A single failed supplementary request/panel — must never replace an
+/** A single failed supplementary request/panel. Must never replace an
  * otherwise-healthy page, and must never be mistaken for a truthful empty
  * state ("no records") when the real answer is "unknown, request failed". */
 export function ModuleErrorState({ label, onRetry, detail }: ModuleErrorStateProps) {

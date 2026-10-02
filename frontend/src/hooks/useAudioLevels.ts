@@ -1,23 +1,23 @@
 import { useEffect, useRef, useState, type RefObject } from "react";
 
-/** Real audio-reactive bar levels for the voice waveform (Phase 6). Two
- * genuine sources only — never a randomized/decorative substitute:
+/** Real audio-reactive bar levels for the voice waveform. Two
+ * genuine sources only, never a randomized/decorative substitute:
  *
  * - `{ kind: "stream", stream }`: the exact MediaStream push-to-talk
  *   already acquired via getUserMedia. Never requests permission again;
  *   never routes the microphone to speakers (the analyser tap has no
  *   output connection).
  * - `{ kind: "element", element }`: the exact <audio> element already
- *   playing synthesized speech. Reuses the existing audio element/blob —
+ *   playing synthesized speech. Reuses the existing audio element/blob,
  *   never a second copy, never duplicate playback. A `MediaElementAudioSourceNode`
  *   can only ever be created once per <audio> element for its lifetime
  *   (the browser throws on a second attempt even across a new
- *   AudioContext) — `elementGraphCache` remembers the one already made so
+ *   AudioContext), and `elementGraphCache` remembers the one already made so
  *   repeated calls (one per assistant reply) reuse it instead of erroring.
  *
  * No amplitude/frequency sample is ever retained past the current
  * animation frame, nothing is uploaded, and no additional audio file is
- * ever written — this hook only ever reads live analyser data into DOM
+ * ever written. This hook only ever reads live analyser data into DOM
  * transforms.
  */
 
@@ -25,20 +25,20 @@ export type AudioLevelSource = { kind: "stream"; stream: MediaStream } | { kind:
 
 interface UseAudioLevelsOptions {
   source: AudioLevelSource | null;
-  /** Refs to the bar elements to update directly via scaleY — updated
+  /** Refs to the bar elements to update directly via scaleY, updated
    * imperatively every animation frame, never through React state, so a
    * live waveform never forces a 60fps re-render. */
   barRefs: RefObject<HTMLDivElement | null>[];
   /** Only runs the analyser loop while true (e.g. the "listening" or
-   * "speaking" state specifically) — never a background loop left running
+   * "speaking" state specifically), never a background loop left running
    * through other states. */
   active: boolean;
-  /** Center bars react more strongly than outer ones — one gain multiplier
+  /** Center bars react more strongly than outer ones: one gain multiplier
    * per bar, same length as barRefs. */
   gains: number[];
   reducedMotion: boolean;
   /** Only the listening (violet) waveform gets a restrained cyan
-   * highlight at stronger input levels — the speaking waveform is already
+   * highlight at stronger input levels. The speaking waveform is already
    * cyan throughout, so this stays off there. */
   highlightStrongLevels?: boolean;
 }
@@ -65,7 +65,7 @@ function getOrCreateElementGraph(element: HTMLAudioElement): ElementGraph {
   if (cached) return cached;
   const context = new AudioContext();
   const source = context.createMediaElementSource(element);
-  // Permanent — this is what keeps the element's audio actually audible.
+  // Permanent: this is what keeps the element's audio actually audible.
   // The analyser tap below is a separate fan-out from this same source and
   // never needs its own connection to destination.
   source.connect(context.destination);
@@ -75,7 +75,7 @@ function getOrCreateElementGraph(element: HTMLAudioElement): ElementGraph {
 }
 
 /** Returns whether the Web Audio analyser loop is genuinely active right
- * now — false means the caller should fall back to a restrained CSS
+ * now. False means the caller should fall back to a restrained CSS
  * breathing waveform instead (Web Audio unavailable, or nothing to
  * analyze yet). */
 const STRONG_LEVEL_THRESHOLD = 0.62;
@@ -114,7 +114,7 @@ export function useAudioLevels({
         analyser.fftSize = FFT_SIZE;
         analyser.smoothingTimeConstant = SMOOTHING_TIME_CONSTANT;
         micSource = ownContext.createMediaStreamSource(source.stream);
-        // Analysis only — deliberately never connected onward, so the
+        // Analysis only: deliberately never connected onward, so the
         // microphone is never routed to speakers.
         micSource.connect(analyser);
       } else {
@@ -122,7 +122,7 @@ export function useAudioLevels({
         analyser = graph.context.createAnalyser();
         analyser.fftSize = FFT_SIZE;
         analyser.smoothingTimeConstant = SMOOTHING_TIME_CONSTANT;
-        // A second fan-out from the same permanent source — does not
+        // A second fan-out from the same permanent source. Does not
         // touch the existing source->destination connection, so playback
         // is unaffected either way.
         graph.source.connect(analyser);

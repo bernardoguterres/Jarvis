@@ -1,4 +1,4 @@
-"""Phase 10B: controller-owned proactive routines — the pure logic layer.
+"""Proactive routines: the pure logic layer.
 Every test uses an injected fake clock and fake/locally-seeded data; none
 ever touches Google, the real Keychain, Hermes, or makes a model call."""
 
@@ -107,7 +107,7 @@ def test_lisbon_dst_transition_handled_correctly() -> None:
     due_after_local = due_after.astimezone(ZoneInfo("Europe/Lisbon"))
     assert due_before_local.strftime("%H:%M") == "08:00"
     assert due_after_local.strftime("%H:%M") == "08:00"
-    # The actual UTC offset differs across the transition (summer vs winter time) —
+    # The actual UTC offset differs across the transition (summer vs winter time),
     # confirming the computation genuinely tracked local wall-clock time through DST,
     # not a fixed offset from UTC.
     assert due_before_local.utcoffset() != due_after_local.utcoffset()

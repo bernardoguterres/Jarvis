@@ -1,6 +1,6 @@
-"""Phase 12A: HTTP-level tests for the on-demand Home briefing's endpoints.
+"""HTTP-level tests for the on-demand Home briefing's endpoints.
 Uses the standard `client` fixture (fake Hermes/STT/TTS already wired by
-conftest.py) — no real Google, Keychain, Hermes, or model call."""
+conftest.py), with no real Google, Keychain, Hermes, or model call."""
 
 from __future__ import annotations
 
@@ -58,7 +58,7 @@ def test_home_briefing_reflects_a_life_task_overdue(client: TestClient) -> None:
 def test_home_briefing_never_calls_the_fake_provider(client: TestClient) -> None:
     """The `client` fixture's FakeProvider (conftest.py) would raise if the
     real send-turn code path were ever exercised for something as trivial
-    as assembling a fetch — confirms the endpoint succeeds without ever
+    as assembling a fetch. Confirms the endpoint succeeds without ever
     touching /api/agent/status's underlying provider call count changing."""
     before = client.get("/api/agent/status").json()
     resp = client.get("/api/briefing/home")
@@ -144,7 +144,7 @@ def test_snooze_invalid_duration_rejected_over_http(client: TestClient) -> None:
 
 def test_restore_never_executes_the_phase8_action_lifecycle(client: TestClient) -> None:
     """Acknowledge/snooze/restore must never enter the Phase 8
-    propose->approve->execute lifecycle — confirmed by checking the
+    propose->approve->execute lifecycle, confirmed by checking the
     Actions Centre's own listing stays empty throughout."""
     _create_overdue_life_task(client)
     body = client.get("/api/briefing/home").json()

@@ -1,5 +1,5 @@
-"""Phase 10: the background loop wrapper itself. Uses a fake credential
-store and a mocked httpx client — no real Keychain, Google API, Hermes, or
+"""The background loop wrapper itself. Uses a fake credential
+store and a mocked httpx client, with no real Keychain, Google API, Hermes, or
 model call. Verifies the one-instance/no-duplicate-loop and clean-shutdown
 guarantees; the actual sync logic is covered by test_scheduler_service.py.
 
@@ -120,7 +120,7 @@ def test_rapid_restart_does_not_duplicate_a_sync(tmp_path) -> None:
     run_count_after_first = asyncio.run(_restart_once())
     assert run_count_after_first == 1
 
-    # Second quick "restart" immediately after — next_due_at has already
+    # Second quick "restart" immediately after: next_due_at has already
     # advanced from the first run's real completion time, so no new sync
     # should fire even though the process restarted again right away.
     run_count_after_second = asyncio.run(_restart_once())

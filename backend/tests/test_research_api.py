@@ -1,6 +1,6 @@
-"""Phase 12E: HTTP-level tests for the Research Workspace endpoints. Uses
+"""HTTP-level tests for the Research Workspace endpoints. Uses
 the standard `client` fixture (fake Hermes/STT/TTS already wired by
-conftest.py) — evidence search/CRUD/notes/deterministic-brief routes
+conftest.py): evidence search/CRUD/notes/deterministic-brief routes
 never call a model; only `POST .../briefs/draft` does, and that is
 covered by `client_with_fake_provider` here."""
 

@@ -1,5 +1,5 @@
-"""Phase 12C: Mission Focus pin/unpin/edit/reorder logic. Every test uses
-fictional fixtures and an injected clock — no real Google/Keychain/
+"""Mission Focus pin/unpin/edit/reorder logic. Every test uses
+fictional fixtures and an injected clock, with no real Google/Keychain/
 Hermes/model contact. Pinning/unpinning is a direct, local, presentation-
 only action: every test that mutates a pin also asserts the underlying
 source row is byte-for-byte unchanged."""
@@ -285,7 +285,7 @@ def test_reorder_rejects_a_list_that_is_not_exactly_the_active_set(db_session: S
 def test_concurrent_sixth_pin_attempt_is_rejected_at_the_database_level(db_session: Session, data_dir) -> None:
     """A true race (two processes/threads both reading '4 active' before
     either commits) cannot be reproduced deterministically against one
-    shared SQLAlchemy session — but the real protection is the database
+    shared SQLAlchemy session, but the real protection is the database
     trigger (migration 0014), not the application's count-then-insert
     check. This proves that backstop directly: a second, independent
     connection to the SAME database file, bypassing the service layer

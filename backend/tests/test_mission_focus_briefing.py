@@ -1,5 +1,5 @@
-"""Phase 12C: Mission Focus's integration with the Phase 12A/12B briefing
-assembler — pinned candidates must participate correctly in stable
+"""Mission Focus's integration with the Phase 12A/12B briefing
+assembler: pinned candidates must participate correctly in stable
 identity, fingerprint, new/changed/ongoing/resolved/reopened
 classification, acknowledge/snooze invalidation, false-resolution
 protection, and the deterministic priority/cap/dedup rules. No model
@@ -45,7 +45,7 @@ def _build_checkpoint(db_session: Session, project: str = "Alpha", summary: str 
     db_session.commit()
     # Backdate relative to the fixed fictional clock (NOW), not real wall
     # time, so it falls outside the normal 2-day "recent checkpoint" window
-    # regardless of when the test actually runs — pinning must still
+    # regardless of when the test actually runs. Pinning must still
     # surface it (that's the point of pinning). Using datetime.now() here
     # previously made this test date-dependent: once real time passed NOW,
     # `now - created` went negative and the checkpoint looked "recent".
@@ -83,7 +83,7 @@ def test_pinned_item_carries_stable_identity_and_fingerprint(db_session: Session
 
 def test_a_pin_outside_the_normal_window_still_surfaces(db_session: Session) -> None:
     """A BUILD checkpoint older than the ordinary 2-day inclusion window
-    would never appear on its own — pinning it must still surface it."""
+    would never appear on its own. Pinning it must still surface it."""
     checkpoint = _build_checkpoint(db_session)
     unpinned_briefing = _assemble(db_session)
     assert not any(i.source_type == "build_checkpoint" for i in unpinned_briefing.items)
@@ -174,7 +174,7 @@ def test_source_resolution_reports_truthfully(db_session: Session) -> None:
 
 def test_unpinning_does_not_falsely_resolve_the_natural_item(db_session: Session) -> None:
     """A task that's naturally overdue (NOW) stays visible after being
-    unpinned — unpinning removes pin metadata, never the real concern."""
+    unpinned. Unpinning removes pin metadata, never the real concern."""
     task = _life_task(db_session)
     pin = mfs.create_pin(db_session, source_type="life_task", source_id=task.id, next_action="Book slot", clock=_clock)
     _assemble(db_session)
@@ -199,7 +199,7 @@ def test_acknowledging_a_pinned_item_never_unpins_it(db_session: Session) -> Non
     b2 = _assemble(db_session, now=NOW + timedelta(minutes=1))
     assert not any(i.id == item.id for i in b2.items)  # suppressed from the unified feed
 
-    # But the pin itself is untouched — still active, still in the rail.
+    # But the pin itself is untouched: still active, still in the rail.
     refreshed = db_session.get(type(pin), pin.id)
     assert refreshed.status == "active"
     assert any(e.rank == pin.rank for e in b2.mission_focus)
@@ -230,7 +230,7 @@ def test_acknowledgement_breaks_after_meaningful_pin_change(db_session: Session)
 
     mfs.update_pin_metadata(db_session, pin.id, next_action="Call the embassy today", target_at=None, blocker=None)
     b3 = _assemble(db_session, now=NOW + timedelta(minutes=2))
-    assert any(i.id == item.id for i in b3.items)  # resurfaced — the old ack no longer matches
+    assert any(i.id == item.id for i in b3.items)  # resurfaced, since the old ack no longer matches
 
 
 # --- False-resolution protection --------------------------------------------
@@ -244,11 +244,11 @@ def test_pin_lookup_failure_does_not_crash_or_falsely_resolve(db_session: Sessio
     with mock.patch.object(briefing_service, "resolve_pin_source", side_effect=RuntimeError("boom")):
         b2 = _assemble(db_session, now=NOW + timedelta(minutes=1))
     # No crash; the item is never dropped or marked resolved just because
-    # this pass's *pin-metadata* lookup failed — the underlying life_task
+    # this pass's *pin-metadata* lookup failed. The underlying life_task
     # is still genuinely NOW (overdue) on its own merits, gathered
     # entirely independently of Mission Focus, and still shown as such
     # (just without pin annotations for this one pass, since those could
-    # not be confirmed) — never silently invented, never silently hidden.
+    # not be confirmed), never silently invented, never silently hidden.
     unmerged = next(i for i in b2.items if i.source_ids == (task.id,))
     assert unmerged.category == "now"
     assert unmerged.pinned is False
@@ -303,7 +303,7 @@ def test_urgent_unpinned_item_outranks_a_pinned_non_urgent_item(db_session: Sess
 def test_pinned_watch_item_outranks_ordinary_watch_item(db_session: Session) -> None:
     """An active Mission Focus pin ranks above ordinary non-urgent
     candidates (an old, unpinned build checkpoint outside its own normal
-    window never even appears — use a stale integration instead)."""
+    window never even appears, so use a stale integration instead)."""
     checkpoint = _build_checkpoint(db_session, project="Pinned", summary="")
     mfs.create_pin(db_session, source_type="build_checkpoint", source_id=checkpoint.id, next_action="Ship it", clock=_clock)
 
@@ -318,7 +318,7 @@ def test_pinned_watch_item_outranks_ordinary_watch_item(db_session: Session) -> 
     pinned_idx = next(i for i, item in enumerate(b.items) if item.pinned)
     routine_idx = next(i for i, item in enumerate(b.items) if item.source_type == "routine_run")
     # A genuine failure (routine_run, priority band 15) still outranks a
-    # non-urgent pin (priority band 25+) — matches "safety/failure states
+    # non-urgent pin (priority band 25+). This matches "safety/failure states
     # remain highest priority."
     assert routine_idx < pinned_idx
 
@@ -349,7 +349,7 @@ def test_mission_focus_never_surfaces_mind_or_people_even_if_pinned_bypassed(db_
     """Defense in depth: even if a MIND/PEOPLE-domain pin somehow existed
     in the table (bypassing create_pin's own validation), the assembler
     itself must never read MIND/PEOPLE domain data into the Home
-    briefing — verified by inserting such a row directly."""
+    briefing, verified by inserting such a row directly."""
     from app.models_mission_focus import MissionFocusPin
 
     mind_id = _domain_id(db_session, "mind")
@@ -373,7 +373,7 @@ def test_mission_focus_never_surfaces_mind_or_people_even_if_pinned_bypassed(db_
 
 def test_body_pin_only_surfaces_when_body_included() -> None:
     """BODY is not one of Mission Focus's eligible source types in this
-    phase at all — structurally, not just by convention."""
+    phase at all, structurally, not just by convention."""
     from app.models_mission_focus import MISSION_FOCUS_SOURCE_TYPES
 
     assert "google_health" not in MISSION_FOCUS_SOURCE_TYPES

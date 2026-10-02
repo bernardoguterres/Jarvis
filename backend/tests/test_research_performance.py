@@ -1,6 +1,6 @@
-"""Phase 12E: a realistically large evidence set (hundreds of items) and
+"""A realistically large evidence set (hundreds of items) and
 many brief versions on one workspace, using fictional bulk-generated
-content — never Bernardo's real data. Proves the deterministic outline,
+content, never Bernardo's real data. Proves the deterministic outline,
 evidence listing, and citation-availability recheck all stay fast and
 correct at a scale well beyond ordinary interactive use."""
 

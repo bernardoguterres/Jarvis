@@ -1,6 +1,6 @@
-"""Phase 10: request/response models for per-provider automatic-sync
+"""Request/response models for per-provider automatic-sync
 schedule configuration and the bounded local sync-run history. Never
-includes a credential — schedule configuration has no secret of its own."""
+includes a credential; schedule configuration has no secret of its own."""
 
 from __future__ import annotations
 

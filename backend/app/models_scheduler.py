@@ -1,7 +1,7 @@
-"""Phase 10: controller-owned automatic integration resync — persistent
+"""Automatic integration resync: persistent
 per-provider schedule configuration and a bounded local sync-run history.
 
-Nothing here is a Hermes cron, a Hermes skill, or a sub-agent — this is a
+Nothing here is a Hermes cron, a Hermes skill, or a sub-agent. This is a
 plain in-process background loop (see app/scheduler_service.py and
 app/scheduler_runtime.py) started/stopped by FastAPI's own lifespan.
 Automatic work only ever happens while this backend process is running.
@@ -20,7 +20,7 @@ from app.models import _new_uuid, _utcnow
 SCHEDULABLE_PROVIDERS = ("google_calendar", "google_health")
 
 # Provider-specific selectable cadences (minutes) and the minimum interval
-# enforced server-side — never trust the UI alone to prevent hammering
+# enforced server-side. Never trust the UI alone to prevent hammering
 # either API.
 ALLOWED_INTERVAL_MINUTES = {
     "google_calendar": (15, 30, 60),
@@ -39,13 +39,13 @@ SYNC_STATUSES = ("ok", "partial", "failed", "skipped", "reconnect_required")
 SYNC_TRIGGERS = ("manual", "scheduled", "startup_catchup")
 SYNC_OUTCOMES = ("succeeded", "partial", "failed", "skipped")
 
-# How many recent runs to keep per provider — a bounded local audit trail,
+# How many recent runs to keep per provider: a bounded local audit trail,
 # not an ever-growing log. Enforced by scheduler_service.py on every insert.
 SYNC_RUN_RETENTION_PER_PROVIDER = 50
 
 
 class IntegrationSyncSchedule(Base):
-    """One row per schedulable provider. Disabled by default — Bernardo
+    """One row per schedulable provider. Disabled by default; Bernardo
     must explicitly enable automatic sync per provider through the
     Integrations Centre; nothing here is ever turned on by Jarvis itself."""
 
@@ -74,7 +74,7 @@ class IntegrationSyncSchedule(Base):
 
 
 class IntegrationSyncRun(Base):
-    """Bounded local audit trail of sync attempts — provider, what
+    """Bounded local audit trail of sync attempts: provider, what
     triggered it, timing, outcome, a sanitized reason (never a raw
     provider payload, token, or other secret), and non-sensitive result
     counts only (e.g. {"events": 3}, never event titles/content)."""

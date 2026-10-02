@@ -1,4 +1,4 @@
-// Short, fixed subtitles shown on each resting orbital node — never
+// Short, fixed subtitles shown on each resting orbital node, never
 // fabricated from live data, just a concise label for what each domain
 // covers. The full truthful description (from the API) lives in
 // DomainInfoPanel instead.

@@ -1,12 +1,8 @@
-"""Phase 6: general Jarvis conversation scope. This is NOT a seventh
-domain — the `domains` table is untouched and still seeds exactly six rows
-(BODY, MIND, PEOPLE, PATH, BUILD, LIFE). A conversation's `domain_id`
-becomes nullable; NULL means "general conversation" (no fixed domain
-context). `context_snapshots.active_domain_id` becomes nullable to match,
-so a general turn's audit snapshot can truthfully record "no active
-domain" instead of being forced to name one that was never used.
-
-Forward-only — 0001-0010 are untouched.
+"""General conversations: `conversations.domain_id` becomes nullable, with
+NULL meaning a conversation with no fixed domain (not a seventh domain;
+the six domain rows are unchanged). `context_snapshots.active_domain_id`
+becomes nullable to match, so a general turn's snapshot can record that
+no domain was active.
 
 Revision ID: 0011
 Revises: 0010
@@ -27,7 +23,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # SQLite has no ALTER COLUMN — batch mode recreates the table (create
+    # SQLite has no ALTER COLUMN, so batch mode recreates the table (create
     # new, copy rows, drop old, rename). `app/database.py` forces
     # `PRAGMA foreign_keys=ON` on every connection Alembic included, so
     # without disabling it here, dropping the old `conversations` table
@@ -35,7 +31,7 @@ def upgrade() -> None:
     # row referencing it (and, transitively, every `context_snapshots` row
     # referencing those). This was caught live by the existing
     # test_migration_0002/0003 data-preservation tests before ever
-    # reaching real data — never remove this toggle from a batch operation
+    # reaching real data. Never remove this toggle from a batch operation
     # on a table that other tables reference with ON DELETE CASCADE.
     conn = op.get_bind()
     conn.execute(sa.text("PRAGMA foreign_keys=OFF"))
@@ -51,7 +47,7 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     # Any existing general (domain_id IS NULL) conversation would violate
-    # the restored NOT NULL constraint — refuse rather than silently
+    # the restored NOT NULL constraint, so refuse rather than silently
     # deleting or reassigning real user conversations to a guessed domain.
     conn = op.get_bind()
     orphaned = conn.execute(sa.text("SELECT COUNT(*) FROM conversations WHERE domain_id IS NULL")).scalar()

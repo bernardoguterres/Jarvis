@@ -4,18 +4,18 @@ interface ModelLinkBannerProps {
   onRetry: () => void;
   retrying?: boolean;
   /** Shown only where dismissing genuinely means "keep using Jarvis
-   * without the model right now" — Home. */
+   * without the model right now": Home. */
   onDismiss?: () => void;
   /** Shown only in a conversation composer, where saving a note is a real
    * available action. */
   onSaveAsNote?: () => void;
 }
 
-/** Hermes/model gateway unavailable while the local controller stays up —
+/** Hermes/model gateway unavailable while the local controller stays up,
  * deliberately never a full-page takeover. Amber, not red: local notes,
  * memories, records, and saved data all remain available; only model
  * responses and spoken replies are affected. The outer ring stays a
- * healthy, intact rotation (the controller link is fine) — only the
+ * healthy, intact rotation (the controller link is fine); only the
  * inner "cognitive" ring is shown interrupted. */
 function ModelLinkBanner({ onRetry, retrying = false, onDismiss, onSaveAsNote }: ModelLinkBannerProps) {
   return (

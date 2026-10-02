@@ -1,6 +1,6 @@
-"""Phase 10B: controller-owned proactive routines — a fixed catalogue
-(morning_briefing, evening_checkin, weekly_review), reusing the Phase 10A
-scheduling infrastructure. Forward-only — 0001-0009 are untouched.
+"""Proactive routines: a fixed catalogue
+(morning_briefing, evening_checkin, weekly_review), reusing the
+integration scheduling infrastructure.
 
 Revision ID: 0010
 Revises: 0009
@@ -72,7 +72,7 @@ def upgrade() -> None:
     )
     op.create_index("ix_routine_runs_routine_type", "routine_runs", ["routine_type"])
 
-    # All three routines start disabled — Bernardo must explicitly enable
+    # All three routines start disabled; Bernardo must explicitly enable
     # and configure each one; nothing here is ever turned on automatically.
     op.execute(
         "INSERT INTO routine_schedules "

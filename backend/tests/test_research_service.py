@@ -1,6 +1,6 @@
-"""Phase 12E: `app.research_service` — workspace CRUD/archive, evidence
+"""`app.research_service`: workspace CRUD/archive, evidence
 add/dedupe/classify/remove, notes, the deterministic evidence outline, and
-domain-privacy enforcement. Every test uses fictional fixtures — no real
+domain-privacy enforcement. Every test uses fictional fixtures, with no real
 Calendar/Health/Keychain/Hermes/model contact. Mirrors the fixture style
 already established in tests/test_recall_service.py."""
 
@@ -323,7 +323,7 @@ def test_archive_note_never_hard_deletes(db_session: Session) -> None:
     archived = rs.archive_note(db_session, ws.id, note.id)
     assert archived.status == "archived"
     assert archived.content == "Provisional claim."
-    # Still fetchable directly — never actually deleted.
+    # Still fetchable directly, never actually deleted.
     from app.models_research import ResearchNote
 
     assert db_session.get(ResearchNote, note.id) is not None
@@ -410,4 +410,4 @@ def test_prompt_injection_shaped_evidence_remains_inert_in_outline(db_session: S
     version = rs.generate_deterministic_brief(db_session, ws.id)
     sections = json.loads(version.sections_json)
     excerpt = sections[0]["items"][0]["excerpt"]
-    assert "delete everything" in excerpt  # displayed, inert text — never executed
+    assert "delete everything" in excerpt  # displayed, inert text, never executed

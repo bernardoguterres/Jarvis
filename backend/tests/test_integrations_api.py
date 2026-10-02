@@ -25,7 +25,7 @@ def test_connect_opens_the_system_browser_server_side_with_the_exact_authorizati
     nothing: Tauri's JS/IPC bridge is never actually present on this app's
     real content (it loads from the same plain http://127.0.0.1 origin as
     everything else, not Tauri's own trusted origin). The fix moved the
-    system-browser open here, server-side — this is the regression test
+    system-browser open here, server-side. This is the regression test
     for that fix. `_no_real_browser_open` (conftest.py, autouse) already
     prevents a real browser from opening for every other test; this test
     overrides it locally to inspect exactly what would have been opened."""
@@ -44,7 +44,7 @@ def test_connect_opens_the_system_browser_server_side_with_the_exact_authorizati
 
 def test_open_in_system_browser_swallows_a_failed_spawn(monkeypatch) -> None:
     """A machine with no `open` binary (or any other OSError spawning it)
-    must never break the connect flow — the authorization_url is still
+    must never break the connect flow: the authorization_url is still
     valid and usable (e.g. copied manually), so this is a best-effort
     convenience. A unit test of `_open_in_system_browser` directly (rather
     than through the full HTTP endpoint) since conftest.py's own autouse
@@ -69,7 +69,7 @@ def test_callback_with_missing_code_shows_friendly_page(client_with_fake_integra
 
 def test_callback_error_query_param_is_html_escaped_not_injected(client_with_fake_integrations: TestClient) -> None:
     """The callback page interpolates Google's `error` query parameter
-    (and, elsewhere, `str(exc)`) directly into an HTML string — added
+    (and, elsewhere, `str(exc)`) directly into an HTML string. Added
     during the Phase 6 visual pass along with html.escape(), since this
     page is served straight to the browser that just followed the OAuth
     redirect and previously had no regression coverage at all."""
@@ -97,7 +97,7 @@ def test_callback_with_bad_state_shows_friendly_failure_page(client_with_fake_in
 def test_callback_page_identifies_the_provider_and_offers_a_real_return_link(client_with_fake_integrations: TestClient) -> None:
     """Phase 6 diagnostic pass (D75-series): the callback page must name
     which provider failed/succeeded and link back to a real, reachable
-    destination — `/?open=integrations`, which App.tsx's deep-link
+    destination: `/?open=integrations`, which App.tsx's deep-link
     handling turns into an actual Integrations Centre open, not a bare
     '/' the user has to manually navigate from."""
     resp = client_with_fake_integrations.get("/api/integrations/google_calendar/oauth/callback")
@@ -112,7 +112,7 @@ def test_callback_page_diagnostic_ring_animates_differently_for_success_vs_failu
     """The callback page's diagnostic ring previously never animated at
     all. Success now spins continuously (a real "it's working" signal);
     failure gets one deliberate partial turn that decelerates into a
-    stop — a real, state-driven motion, never a frozen image and never a
+    stop: a real, state-driven motion, never a frozen image and never a
     continuous spin implying "still trying" when it already failed."""
     integration_service.store_client_credentials(fake_credential_store, "google_calendar", client_id="cid", client_secret="csecret")
 
@@ -125,7 +125,7 @@ def test_callback_page_diagnostic_ring_animates_differently_for_success_vs_failu
 
     client_with_fake_integrations.app.state.integration_http_client = httpx.Client(transport=httpx.MockTransport(handler))
 
-    # The <style> block unconditionally defines both animation classes —
+    # The <style> block unconditionally defines both animation classes;
     # only the <svg>'s own class attribute says which one actually
     # applies, so assert on that exact attribute, not a bare substring
     # (which the CSS rule definitions would also match either way).
@@ -154,12 +154,12 @@ def test_callback_page_never_renders_the_oauth_code_or_state_values(client_with_
 def test_cancelled_callback_offers_try_again_but_a_genuine_failure_does_not(
     client_with_fake_integrations: TestClient, fake_credential_store
 ) -> None:
-    # Cancelled (no code/state at all) — retrying is a safe, sensible next
+    # Cancelled (no code/state at all): retrying is a safe, sensible next
     # step, so "Try connection again" is offered.
     cancelled = client_with_fake_integrations.get("/api/integrations/google_calendar/oauth/callback")
     assert "Try connection again" in cancelled.text
 
-    # A genuine exchange failure — blindly retrying the same broken state
+    # A genuine exchange failure: blindly retrying the same broken state
     # isn't offered as if it were a safe distinct action.
     integration_service.store_client_credentials(fake_credential_store, "google_calendar", client_id="cid", client_secret="csecret")
     failed = client_with_fake_integrations.get(
@@ -279,7 +279,7 @@ def test_unknown_provider_schedule_endpoints_404(client_with_fake_integrations: 
 
 
 def test_list_integrations_never_touches_the_credential_store(client_with_fake_integrations: TestClient) -> None:
-    """A pure status read must never access Keychain — confirmed by using
+    """A pure status read must never access Keychain, confirmed by using
     a store that raises on any access; the endpoint must still succeed."""
 
     class _ExplodingStore:

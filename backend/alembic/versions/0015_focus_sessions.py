@@ -1,18 +1,9 @@
-"""Phase 12D... no — Mission Control / Current Focus, a bounded extension of
-Phase 12A-12C's shared briefing/Mission-Focus machinery, not a new phase
-number and not a second task system. Adds one table, `focus_sessions`,
-for a single-active-session focus timer whose candidates are drawn from
-the existing NOW/NEXT/WATCH briefing assembler.
+"""Mission Control: adds `focus_sessions` for a single focus timer whose
+candidates come from the Home briefing.
 
-A partial unique index (`uq_focus_sessions_one_in_flight`, on a constant
-expression, `WHERE status IN ('active', 'paused')`) gives real
-database-level enforcement of "at most one active-or-paused session at a
-time" — for both INSERT and UPDATE — closing the same class of race a
-plain application-level check-then-write cannot fully close alone,
-exactly the reasoning already established for Phase 12C's 5-pin limit
-(migration 0014).
-
-Forward-only — 0001-0014 are untouched.
+A partial unique index (`uq_focus_sessions_one_in_flight`, over rows
+`WHERE status IN ('active', 'paused')`) lets the database itself enforce
+at most one running or paused session, on both INSERT and UPDATE.
 
 Revision ID: 0015
 Revises: 0014
@@ -54,7 +45,7 @@ def upgrade() -> None:
         sa.Column("what_changed_note", sa.String(length=1000), nullable=True),
         # Set only when this row was force-ended by a restore into a
         # (possibly different) installation, never by a genuine user
-        # abandon — see app/import_service.py's _interrupt_active_focus_sessions.
+        # abandon; see app/import_service.py's _interrupt_active_focus_sessions.
         sa.Column("abandoned_reason", sa.String(length=64), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),

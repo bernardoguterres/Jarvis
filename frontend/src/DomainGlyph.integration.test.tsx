@@ -63,7 +63,7 @@ describe("DomainGlyph — shared across Home and the domain header (D94)", () =>
     const svg = mindButton.querySelector("svg.domain-glyph")!;
     expect(svg.getAttribute("aria-hidden")).toBe("true");
     // The button's own accessible name (from its aria-label) already
-    // includes the real domain name/description — computed independent
+    // includes the real domain name/description, computed independent
     // of the hidden glyph's own (nonexistent) label.
     expect(mindButton.getAttribute("aria-label")).toMatch(/^Open MIND:/);
   });
@@ -81,7 +81,7 @@ describe("DomainGlyph — shared across Home and the domain header (D94)", () =>
     render(<App />);
     const lifeButton = await screen.findByRole("button", { name: /open life/i });
     // Still present, still the correct icon, still carrying the domain's
-    // real name — reduced motion is a purely visual/animation concern.
+    // real name. Reduced motion is a purely visual/animation concern.
     expect(lifeButton.querySelector("svg.domain-glyph.lucide-calendar-days")).not.toBeNull();
     expect(screen.getByText("LIFE")).toBeInTheDocument();
 

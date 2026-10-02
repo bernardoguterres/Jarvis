@@ -97,7 +97,7 @@ describe("Home — Mission Focus (Phase 12C)", () => {
     expect(screen.getByText("2 more pinned")).toBeInTheDocument();
 
     // The remaining two are present in the DOM behind the (closed) native
-    // <details> disclosure — matches this project's existing pattern for
+    // <details> disclosure, matching this project's existing pattern for
     // .builder-surface/.snooze-menu (D80/Phase 12B).
     expect(screen.getByText("Item 4")).toBeInTheDocument();
     expect(screen.getByText("Item 5")).toBeInTheDocument();
@@ -201,7 +201,7 @@ describe("Home — Mission Focus (Phase 12C)", () => {
 
   it("never renders a MIND/PEOPLE domain label even if such a pin were somehow present", async () => {
     baseMocks();
-    // Defense-in-depth frontend check — the real boundary is server-side
+    // Defense-in-depth frontend check. The real boundary is server-side
     // (Mission Focus cannot pin MIND/PEOPLE at all), but the rail must
     // never format such a domain_slug into view either.
     vi.spyOn(api, "fetchHomeBriefing").mockResolvedValue(
@@ -210,7 +210,7 @@ describe("Home — Mission Focus (Phase 12C)", () => {
     render(<Home onSelectDomain={() => {}} onOpenGeneral={() => {}} onNavigate={() => {}} health="ok" />);
     await screen.findByText("Safe item");
     // The orbit itself always renders "MIND"/"PEOPLE" as ordinary domain
-    // nodes — the real check is that no *Mission Focus* domain chip ever
+    // nodes. The real check is that no *Mission Focus* domain chip ever
     // names one of them.
     const domainChips = document.querySelectorAll(".mission-focus-domain");
     const chipText = Array.from(domainChips).map((el) => el.textContent);

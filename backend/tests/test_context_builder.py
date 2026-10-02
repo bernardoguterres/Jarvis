@@ -39,8 +39,8 @@ def test_no_implicit_cross_domain_retrieval(db_session: Session) -> None:
 
 def test_a_brand_new_domain_with_nothing_in_it_produces_a_valid_truthful_context(db_session: Session) -> None:
     """Reliability-audit coverage (D83/D84): a domain that has never been
-    used before — zero memories, zero structured records, zero summary,
-    only the message just sent — is a real, common first-use scenario.
+    used before (zero memories, zero structured records, zero summary,
+    only the message just sent) is a real, common first-use scenario.
     Every retrieval section is conditional on non-empty results, so this
     must never crash or silently fabricate a "relevant" section; it must
     produce a valid system prompt (never empty/malformed) with every

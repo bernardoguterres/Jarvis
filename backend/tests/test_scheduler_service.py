@@ -1,4 +1,4 @@
-"""Phase 10: controller-owned automatic integration resync — the pure
+"""Automatic integration resync: the pure
 logic layer. Every test uses an injected fake clock and FakeCredentialStore;
 none ever touches the real Keychain, a real Google API, Hermes, or makes a
 model call. Real HTTP is mocked via httpx.MockTransport exactly like the
@@ -145,7 +145,7 @@ def test_no_replay_storm_after_long_downtime(db_session: Session) -> None:
     runs = scheduler_service.startup_catchup(db_session, store, _client(_empty_calendar_handler), _fixed_clock(t0))
     assert len(runs) == 1
 
-    # A second startup_catchup call immediately after must not re-trigger —
+    # A second startup_catchup call immediately after must not re-trigger:
     # next_due_at has already advanced from the real completion time.
     runs2 = scheduler_service.startup_catchup(db_session, store, _client(_empty_calendar_handler), _fixed_clock(t0))
     assert runs2 == []
@@ -256,7 +256,7 @@ def test_retry_after_is_respected_over_computed_backoff(db_session: Session) -> 
     assert run.outcome == "failed"
     schedule = db_session.get(IntegrationSyncSchedule, "google_health")
     # Retry-After (120 min) wins over the plain 2x-interval backoff (120 min would tie here,
-    # but a longer Retry-After must always win) — assert it's honored, not undershot.
+    # but a longer Retry-After must always win). Assert it's honored, not undershot.
     assert schedule.next_due_at.replace(tzinfo=timezone.utc) >= t0 + timedelta(minutes=120)
 
 

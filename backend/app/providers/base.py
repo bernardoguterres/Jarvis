@@ -15,7 +15,7 @@ from typing import Protocol
 class ProviderErrorCode:
     """Sanitised, stable error codes safe to store and return to clients.
 
-    Never a raw exception message or provider-internal detail — those could
+    Never a raw exception message or provider-internal detail, since those could
     leak secrets (bearer tokens, internal URLs) or change wording across
     provider versions in a way that breaks stored-error comparisons.
     """

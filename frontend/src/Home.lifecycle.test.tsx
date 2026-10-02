@@ -7,7 +7,7 @@ import type { Domain, HomeBriefing, MissionCandidates } from "./api";
 
 /** A promise this test controls directly, so a request can be left
  * deliberately unresolved while Home unmounts, then resolved/rejected
- * afterward — reproducing the exact race a normal mocked-resolved-value
+ * afterward, reproducing the exact race a normal mocked-resolved-value
  * fetch can't: real network timing where the response arrives after the
  * viewer has already navigated away. */
 function deferred<T>() {
@@ -57,7 +57,7 @@ describe("Home — async lifecycle safety", () => {
     const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
     // Strict Mode: mounts, runs every effect's cleanup, then re-runs setup
-    // once more before the component's "real" lifetime begins — the exact
+    // once more before the component's "real" lifetime begins: the exact
     // condition that exposed mountedRef never being reset back to true.
     const { unmount } = render(
       <StrictMode>
@@ -65,7 +65,7 @@ describe("Home — async lifecycle safety", () => {
       </StrictMode>,
     );
 
-    // Leave every request unresolved, then unmount — mirrors selecting a
+    // Leave every request unresolved, then unmount. This mirrors selecting a
     // domain (or any navigation away from Home) before these ever settle.
     unmount();
 
@@ -75,13 +75,13 @@ describe("Home — async lifecycle safety", () => {
     // (`ReferenceError: window is not defined`, surfaced intermittently
     // across full test-suite runs) required vitest's jsdom environment
     // for an *entire test file* to be torn down while one of these
-    // promises was still pending from an earlier file — React's
+    // promises was still pending from an earlier file. React's
     // dispatchSetState reads `window.event` for priority inference on any
     // update triggered outside a synthetic event (exactly what a `.then()`
     // continuation is), which only throws if `window` itself is gone, not
     // merely because the component unmounted. A real browser tab's
     // `window` never disappears while the page is open, so that crash is
-    // a test-environment artifact, not a producible bug — and it can't be
+    // a test-environment artifact, not a producible bug, and it can't be
     // deterministically re-triggered inside one still-alive test file
     // without unsafely deleting global `window` mid-test. Verified this
     // directly: with every mountedRef guard temporarily stripped, this
@@ -105,7 +105,7 @@ describe("Home — async lifecycle safety", () => {
     });
 
     expect(consoleErrorSpy).not.toHaveBeenCalled();
-    // The 30s Mission Control poll interval must be cleared on unmount —
+    // The 30s Mission Control poll interval must be cleared on unmount,
     // proven directly, not inferred from the absence of a crash.
     expect(clearIntervalSpy).toHaveBeenCalled();
   });
@@ -123,7 +123,7 @@ describe("Home — async lifecycle safety", () => {
       </StrictMode>,
     );
 
-    // Resolve while Home is still mounted — this must reach the screen.
+    // Resolve while Home is still mounted: this must reach the screen.
     // If mountedRef were stuck false after Strict Mode's double-invoke
     // (the exact regression this file guards against), this update would
     // be silently dropped and the briefing would stay in "loading"

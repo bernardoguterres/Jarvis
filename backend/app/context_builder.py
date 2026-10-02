@@ -1,11 +1,11 @@
 """Model-independent ContextBuilder / retrieval for one Jarvis turn.
 
 Fully local, deterministic retrieval (FTS5 lexical search + importance/
-recency fallback) — no embeddings in this phase (see docs/DECISIONS.md for
+recency fallback), no embeddings in this phase (see docs/DECISIONS.md for
 why). Original memory/record text is always authoritative; the FTS index is
 derived and rebuildable (app/fts_service.py).
 
-Cross-domain context is never included implicitly — only when a turn
+Cross-domain context is never included implicitly, only when a turn
 explicitly names/selects an additional domain.
 """
 
@@ -178,8 +178,8 @@ def _recent_messages(session: Session, conversation_id: str, limit: int) -> list
 def _retrieve_document_citations(
     session: Session, domain_ids: list[str], query_text: str, limit: int
 ) -> tuple[list[str], str | None]:
-    """Phase 9: document chunks are always quoted, untrusted reference
-    data — the framing in GLOBAL_SYSTEM_INSTRUCTION applies to them exactly
+    """Document chunks are always quoted, untrusted reference
+    data. The framing in GLOBAL_SYSTEM_INSTRUCTION applies to them exactly
     as it does to memories. Returns (chunk_ids_used, rendered_section)."""
     hits = search_document_fts(session, query_text, domain_ids=domain_ids, limit=limit)
     if not hits:
@@ -202,7 +202,7 @@ def _retrieve_document_citations(
 
 def _retrieve_google_health_context(session: Session, days: int) -> tuple[list[str], str | None]:
     """Compact, BODY-only Google Health context: recent daily summaries and
-    a couple of recent sleep/exercise sessions — never raw time-series
+    a couple of recent sleep/exercise sessions, never raw time-series
     data. Data can originate from Fitbit, Pixel Watch, Health Connect,
     Google Fit, or any other source connected in Google Health; source
     devices/platforms are included where the API supplied them, but which
@@ -305,12 +305,12 @@ def build_context(
     max_recent_messages: int,
     context_char_budget: int = DEFAULT_CONTEXT_CHAR_BUDGET,
 ) -> ContextPackage:
-    """`domain=None` means a general conversation (see migration 0011) —
+    """`domain=None` means a general conversation (see migration 0011),
     not a seventh domain, just the absence of a fixed one. In that case
     only the global profile (section 2) is included by default; every
     domain named in `additional_domain_ids` is treated exactly like the
     existing explicit "include another domain" mechanism domain
-    conversations already use (section 7) — general conversations simply
+    conversations already use (section 7). General conversations simply
     have no implicit primary domain contributing on top of that."""
     reasons: list[dict] = []
     sections: list[str] = []
@@ -379,10 +379,10 @@ def build_context(
             body = "\n".join(f"- {_render_record(r)}" for r in records)
             add_section(f"{domain.name} structured records", body)
 
-    # 6a. Phase 9: document citations, Google Health (BODY only by default),
-    # and Google Calendar (LIFE only by default) — all quoted reference
+    # 6a. Document citations, Google Health (BODY only by default),
+    # and Google Calendar (LIFE only by default). All quoted reference
     # data, domain-aware, never silently promoted to memory. A general
-    # conversation (domain=None) contributes nothing implicitly here —
+    # conversation (domain=None) contributes nothing implicitly here;
     # only explicitly-selected additional domains do.
     in_scope_domain_ids = ([domain.id] if domain is not None else []) + list(additional_domain_ids)
     in_scope_slugs = ({domain.slug} if domain is not None else set()) | {

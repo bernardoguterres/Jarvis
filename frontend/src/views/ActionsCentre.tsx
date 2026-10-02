@@ -16,8 +16,8 @@ import StatusChip, { type ChipTone } from "../components/StatusChip";
 import { ConsoleHeader, ConsoleModule, MiniCoreIndicator, TechnicalDetails } from "../components/console/Console";
 import { formatDateTime } from "../formatDateTime";
 
-// Phase 12C: only genuinely unresolved proposals are offered "Add to
-// Mission Focus" — a settled one (succeeded/denied/expired/failed) is
+// Only genuinely unresolved proposals are offered "Add to
+// Mission Focus". A settled one (succeeded/denied/expired/failed) is
 // already visible in its own history and isn't an ongoing concern to
 // keep on a watchlist.
 const MISSION_FOCUS_ELIGIBLE_STATUSES: ActionStatus[] = ["proposed", "approved"];
@@ -45,7 +45,7 @@ const TIMELINE_TONE: Record<string, string> = {
 };
 
 // needs_review means an interrupted external write's outcome could not be
-// confirmed either way — it is never a settled/historical state, it still
+// confirmed either way. It is never a settled/historical state; it still
 // needs Bernardo's attention (verify the target system directly).
 const PENDING_STATUSES: ActionStatus[] = ["proposed", "approved", "executing", "needs_review"];
 

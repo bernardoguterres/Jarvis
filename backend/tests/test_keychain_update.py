@@ -1,4 +1,4 @@
-"""app.keychain_update's platform guard — never touches the real Keychain
+"""app.keychain_update's platform guard. Never touches the real Keychain
 (the actual SecItemUpdate call was verified against a real, disposable,
 uniquely-named test item in a manual one-off check; see
 docs/DECISIONS.md)."""

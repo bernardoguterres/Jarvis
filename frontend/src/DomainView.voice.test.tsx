@@ -61,8 +61,8 @@ function baseMocks(domains: Domain[] = [DOMAIN]) {
 
 beforeEach(() => {
   vi.restoreAllMocks();
-  // Phase 12C: Mission Focus's own fetch, not what any of these tests are
-  // about — default it to a harmless empty state.
+  // Mission Focus's own fetch, not what any of these tests are
+  // about, so default it to a harmless empty state.
   vi.spyOn(api, "fetchMissionFocus").mockResolvedValue({ active_pins: [], max_active_pins: 5, default_visible: 3 });
   FakeMediaRecorder.instances = [];
 
@@ -183,7 +183,7 @@ describe("DomainView — push-to-talk voice", () => {
     await waitFor(() => expect(screen.queryByText("listening")).not.toBeInTheDocument());
     expect(FakeMediaRecorder.instances).toHaveLength(0);
 
-    // Permission finally resolves after the cancel — recording must not
+    // Permission finally resolves after the cancel: recording must not
     // start retroactively.
     const fakeTrack = { stop: vi.fn() };
     resolveGetUserMedia({ getTracks: () => [fakeTrack] } as unknown as MediaStream);
@@ -209,7 +209,7 @@ describe("DomainView — push-to-talk voice", () => {
     await user.pointer({ keys: "[MouseLeft>]", target: button });
 
     expect(await screen.findByText("listening")).toBeInTheDocument();
-    // A disabled button never receives mouseup/mouseleave at all — if this
+    // A disabled button never receives mouseup/mouseleave at all. If this
     // button were disabled here, releasing the mouse could never stop the
     // recording, stranding the user in "listening" with no mouse-driven way
     // out (only Escape would still work, via the window-level listener).
@@ -265,7 +265,7 @@ describe("DomainView — audio-reactive voice capture overlay (Phase 6)", () => 
     await user.pointer({ keys: "[/MouseLeft]", target: button });
 
     expect(await screen.findByText("TRANSCRIBING LOCALLY")).toBeInTheDocument();
-    // No transcript content anywhere yet — only the truthful local-processing
+    // No transcript content anywhere yet, only the truthful local-processing
     // label, never placeholder or guessed text standing in for real speech.
     expect(screen.queryByText(/what do you remember/i)).not.toBeInTheDocument();
 

@@ -8,19 +8,19 @@ interface UsePushToTalkOptions {
 }
 
 /** Mechanics of a single hold-to-record gesture via MediaRecorder. Does not
- * know about transcription, turns, or playback — callers own what happens
+ * know about transcription, turns, or playback; callers own what happens
  * to the recorded blob.
  *
  * getUserMedia's permission prompt can take an arbitrary amount of time to
  * resolve. If the user releases (stop) or cancels (Escape) before it
- * resolves, that release must still be honored once permission comes back
- * — otherwise a quick tap-and-release, or an Escape pressed while the
+ * resolves, that release must still be honored once permission comes back.
+ * Otherwise a quick tap-and-release, or an Escape pressed while the
  * prompt is up, would be silently ignored and leave the caller's UI stuck
  * showing "listening" forever with the recorder never actually starting or
  * stopping. `pendingReleaseRef` records that intent across the await. */
 export function usePushToTalk({ onRecordingComplete, onError }: UsePushToTalkOptions) {
   const [status, setStatus] = useState<RecorderStatus>("idle");
-  // The exact MediaStream already acquired below via getUserMedia — exposed
+  // The exact MediaStream already acquired below via getUserMedia, exposed
   // so a caller (the audio-reactive waveform) can attach a Web Audio
   // AnalyserNode to it directly, never requesting microphone permission a
   // second time.
@@ -86,7 +86,7 @@ export function usePushToTalk({ onRecordingComplete, onError }: UsePushToTalkOpt
       setStatus("error");
       // Surface the real DOMException name/message (e.g. "NotAllowedError",
       // "NotFoundError", "NotReadableError", "SecurityError" for an
-      // insecure-context rejection) rather than a generic message — the
+      // insecure-context rejection) rather than a generic message. The
       // specific cause is otherwise undiagnosable from the UI alone.
       const reason = err instanceof DOMException ? `${err.name}: ${err.message}` : String(err);
       onError(`Could not access the microphone (${reason}).`);

@@ -1,8 +1,8 @@
-"""Phase 12F: Evidence-Based Decision Room — request/response models.
+"""Decision Room request/response models.
 Never includes a raw model prompt, provider metadata beyond the small
 labeled summary Research's own `ResearchModelMetaRead` already
 established, or unescaped client-supplied text presented as an
-authoritative source snapshot — every title/snippet field here was
+authoritative source snapshot: every title/snippet field here was
 resolved server-side (see app.decision_service)."""
 
 from __future__ import annotations
@@ -38,7 +38,7 @@ DecisionSourceType = Literal[
     "mission_control_session",
     "decision",
 ]
-# Unlike Research (a documented subset — see schemas_research.py's own
+# Unlike Research (a documented subset; see schemas_research.py's own
 # comment), Decision's evidence-link table is new in this same phase, so
 # it correctly covers the FULL current Recall vocabulary, "decision"
 # included (a decision may cite another decision as evidence).
@@ -394,7 +394,7 @@ class DecisionOutcomeReviewRead(BaseModel):
 
 
 class CalibrationSummaryRead(BaseModel):
-    # None fields mean "not enough reviewed decisions yet" — never a
+    # None fields mean "not enough reviewed decisions yet", never a
     # fabricated statistic from a tiny sample; see
     # app.decision_service.MIN_CALIBRATION_SAMPLE.
     reviewed_count: int

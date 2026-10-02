@@ -1,6 +1,6 @@
-"""Phase 12F: HTTP-level tests for the Decision Room endpoints. Uses the
+"""HTTP-level tests for the Decision Room endpoints. Uses the
 standard `client` fixture (fake Hermes/STT/TTS already wired by
-conftest.py) — every route except `POST .../briefs/critique` never calls
+conftest.py): every route except `POST .../briefs/critique` never calls
 a model; that one is covered via `client_with_fake_provider`. Deliberately
 focuses on HTTP-layer concerns (status codes, malformed input, the
 PUT/POST-only method convention) rather than re-proving service-layer

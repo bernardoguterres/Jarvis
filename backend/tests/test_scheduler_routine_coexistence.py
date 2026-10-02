@@ -1,4 +1,4 @@
-"""Phase 10B: the single scheduler loop drives both Phase 10A integration
+"""The single scheduler loop drives both Phase 10A integration
 resync and Phase 10B routines in the same tick/startup pass, without one
 interfering with the other. No real Keychain/Google/Hermes/model call."""
 

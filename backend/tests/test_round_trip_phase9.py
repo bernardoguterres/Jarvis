@@ -1,6 +1,6 @@
 """Phase 9 round-trip: imported documents/extracted text, normalized
 Google Calendar and Google Health caches, and integration metadata all survive
-export/restore — but every integration connection is forced back to
+export/restore, but every integration connection is forced back to
 disconnected (reauthorization required), regardless of its status before
 export, since real OAuth tokens live only in the Keychain, never in the
 exported database."""
@@ -57,7 +57,7 @@ def test_phase9_data_survives_export_and_restore(tmp_path: Path) -> None:
         session.add(CalendarEventCache(calendar_id=calendar.id, external_event_id="ev1", title="Dentist", all_day=True))
         session.add(GoogleHealthDailySummary(date=date(2026, 8, 1), steps=8000))
 
-        # Phase 10: an enabled automatic-sync schedule must not survive a
+        # An enabled automatic-sync schedule must not survive a
         # restore enabled (the connection it depends on is force-disconnected).
         cal_schedule = session.get(IntegrationSyncSchedule, "google_calendar")
         cal_schedule.enabled = True
@@ -92,14 +92,14 @@ def test_phase9_data_survives_export_and_restore(tmp_path: Path) -> None:
         assert len(restored_calendar.events) == 1
         assert session.query(GoogleHealthDailySummary).count() == 1
 
-        # But BOTH integrations show disconnected — reauthorization required,
+        # But BOTH integrations show disconnected: reauthorization required,
         # regardless of their status at export time.
         gcal_conn = session.get(IntegrationConnection, "google_calendar")
         google_health_conn = session.get(IntegrationConnection, "google_health")
         assert gcal_conn.status == "disconnected"
         assert google_health_conn.status == "disconnected"
 
-        # Phase 10: automatic sync must not resume enabled after a restore —
+        # Automatic sync must not resume enabled after a restore:
         # the connection it depends on is force-disconnected in this same step.
         restored_cal_schedule = session.get(IntegrationSyncSchedule, "google_calendar")
         assert restored_cal_schedule.enabled is False

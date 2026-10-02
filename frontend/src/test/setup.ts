@@ -6,7 +6,7 @@ afterEach(() => {
   cleanup();
 });
 
-// jsdom has never implemented window.matchMedia — needed since Phase 6's
+// jsdom has never implemented window.matchMedia. It is needed since the
 // voice-waveform pass added a real useReducedMotion() hook (application
 // code, not just CSS). Defaults every test to "no preference" (matches:
 // false); a test that specifically needs reduced motion overrides this

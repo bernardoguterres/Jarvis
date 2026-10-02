@@ -7,10 +7,10 @@ interface NotFoundDiagnosticProps {
 }
 
 /** A genuine unknown-route fallback. This app has exactly one real
- * frontend route ("/") — everything else reaching this component means
+ * frontend route ("/"). Everything else reaching this component means
  * the backend's SPA fallback (see app/main.py) served index.html for a
  * path this interface doesn't recognize, so it renders this instead of
- * silently pretending to be Home. Deliberately violet/cyan, not red —
+ * silently pretending to be Home. Deliberately violet/cyan, not red:
  * the system itself isn't broken, a URL just doesn't correspond to
  * anything. */
 function NotFoundDiagnostic({ onReturnHome, onOpenPalette }: NotFoundDiagnosticProps) {

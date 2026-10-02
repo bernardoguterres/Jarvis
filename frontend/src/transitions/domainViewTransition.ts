@@ -3,7 +3,7 @@ import { flushSync } from "react-dom";
 /** The one shared `view-transition-name` used for the Home↔domain morph.
  * Only ever assigned to a single DOM node at a time (imperatively, right
  * before/after the transition), never applied via a static CSS rule to
- * all six domain nodes at once — the View Transitions API requires a
+ * all six domain nodes at once: the View Transitions API requires a
  * given name to be unique across the document at snapshot time. */
 const DOMAIN_TRANSITION_NAME = "jarvis-domain-shared";
 
@@ -21,12 +21,12 @@ export function supportsViewTransitions(): boolean {
 }
 
 // `document.startViewTransition`'s callback runs in a microtask, not
-// synchronously — so a rapid double-click/double-Enter can otherwise reach
+// synchronously, so a rapid double-click/double-Enter can otherwise reach
 // this function a second time before the first transition's DOM swap has
 // actually happened, starting a second, conflicting transition. This
 // module-level latch (there is only ever one Home↔domain transition
 // in flight at a time, regardless of which slug) makes a second call a
-// no-op until the first one's `commit` has genuinely run — without making
+// no-op until the first one's `commit` has genuinely run, without making
 // the first activation itself feel delayed.
 let transitionInFlight = false;
 
@@ -39,7 +39,7 @@ export function __resetTransitionInFlightForTests(): void {
 /** Runs `commit` (a React state update that swaps Home for a domain view,
  * or a domain view back for Home) as one continuous browser View
  * Transition, so the click/keyboard/shortcut/command path that selected
- * `slug` all read identically — never a manual growth animation followed
+ * `slug` all read identically, never a manual growth animation followed
  * by an artificial wait before the destination screen replaces Home.
  *
  * Whichever single DOM node currently carries
@@ -50,19 +50,19 @@ export function __resetTransitionInFlightForTests(): void {
  * now carries that same data attribute gets the same name for the "new"
  * snapshot, so the browser morphs one directly into the other. When no
  * matching node exists on either side (e.g. a command fired from a Centre
- * page, where Home was never mounted), no name is assigned at all — the
+ * page, where Home was never mounted), no name is assigned at all. The
  * browser's own default root crossfade covers that case, exactly the
  * "clean short page crossfade" this is supposed to fall back to.
  *
- * Falls back to an immediate, undelayed `commit()` — never an artificial
- * wait either way — when View Transitions aren't supported or the user
+ * Falls back to an immediate, undelayed `commit()` (never an artificial
+ * wait either way) when View Transitions aren't supported or the user
  * prefers reduced motion, matching this project's existing global
  * reduced-motion discipline. */
 export function runDomainViewTransition(slug: string, commit: () => void): void {
   if (transitionInFlight) return;
 
   if (!supportsViewTransitions() || prefersReducedMotion()) {
-    // No async gap here — `commit` runs synchronously, so there is no
+    // No async gap here: `commit` runs synchronously, so there is no
     // window for a second activation to race this one; no latch needed.
     commit();
     return;
@@ -81,7 +81,7 @@ export function runDomainViewTransition(slug: string, commit: () => void): void 
     });
   } catch {
     // A genuinely unsupported/broken environment (e.g. a test DOM with a
-    // partial polyfill) — never leave navigation stuck behind a failed
+    // partial polyfill). Never leave navigation stuck behind a failed
     // animation call.
     if (sourceEl) sourceEl.style.viewTransitionName = "";
     transitionInFlight = false;
@@ -90,12 +90,12 @@ export function runDomainViewTransition(slug: string, commit: () => void): void 
   }
 
   // `ready` rejects whenever the browser decides it cannot (or should
-  // not) run the custom animation at all — most commonly the document
+  // not) run the custom animation at all, most commonly the document
   // being hidden/backgrounded at the exact moment of the call, which is
   // a normal, recoverable condition (e.g. the user switched tabs mid
   // click) rather than a bug in `commit` itself. `updateCallbackDone`/
-  // `finished` still resolve normally in that case — the DOM swap always
-  // completes — so this exists purely to avoid an unhandled promise
+  // `finished` still resolve normally in that case (the DOM swap always
+  // completes), so this exists purely to avoid an unhandled promise
   // rejection console error, never to change navigation behavior.
   transition.ready.catch(() => {});
 

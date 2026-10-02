@@ -184,7 +184,7 @@ class TestCleanupStaleExportTempFiles:
         # racing this sweep) must never be swept out from under itself.
         recent = populated_settings.exports_dir / ".jarvis-export-20250101-120000.zip.tmp-4242-1735732800000"
         recent.write_bytes(b"in-progress zip bytes")
-        # No _age_file call — mtime is "now".
+        # No _age_file call, so mtime is "now".
 
         removed = cleanup_stale_export_temp_files(populated_settings)
 
@@ -224,11 +224,11 @@ class TestCleanupStaleExportTempFiles:
         outside_target = tmp_path / "outside-target.txt"
         outside_target.write_bytes(b"must survive untouched")
         # `entry.stat()` follows symlinks (matching Path.stat()'s default),
-        # so the age check sees the *target's* mtime — age it well past the
+        # so the age check sees the *target's* mtime. Age it well past the
         # threshold. This isolates the parent-directory safety check as the
         # only thing that can still be preventing removal: without it, this
         # test would otherwise pass vacuously (skipped for being "too
-        # young" rather than for escaping exports_dir) — confirmed by
+        # young" rather than for escaping exports_dir), confirmed by
         # deliberately removing the parent-directory check and re-running
         # this test, which failed for exactly that reason before this fix.
         _age_file(outside_target, DEFAULT_STALE_EXPORT_TEMP_MAX_AGE_SECONDS + 60)
@@ -275,7 +275,7 @@ class TestCleanupStaleExportTempFiles:
         action_service.expire_interrupted_executions in test_actions_api.py)."""
         from app.config import get_settings
 
-        restart_client_factory()  # first startup — establishes the isolated JARVIS_DATA_DIR
+        restart_client_factory()  # first startup establishes the isolated JARVIS_DATA_DIR
         settings = get_settings()
         stale = settings.exports_dir / ".jarvis-export-20250101-120000.zip.tmp-1-1"
         stale.write_bytes(b"leftover")

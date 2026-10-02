@@ -1,5 +1,5 @@
-"""Mission Control / Current Focus — request/response models. Never
-includes a credential, raw token, or provider payload — only already-
+"""Mission Control / Current Focus request/response models. Never
+includes a credential, raw token, or provider payload, only already-
 normalized, typed session/candidate fields."""
 
 from __future__ import annotations
@@ -33,7 +33,7 @@ class MissionCandidateRead(BaseModel):
 
 class MissionCandidatesRead(BaseModel):
     """`recommended`/`alternatives` are always phrased to the client as
-    "suggested from current information" — never claimed to represent
+    "suggested from current information", never claimed to represent
     Bernardo's actual preference; the frontend must not word it as
     definitive either."""
 

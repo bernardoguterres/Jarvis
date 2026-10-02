@@ -1,5 +1,5 @@
 """Google Calendar write capabilities go through the exact same Phase 8
-action lifecycle — exact-payload approval, replay/tamper rejection — with
+action lifecycle (exact-payload approval, replay/tamper rejection) with
 all HTTP mocked."""
 
 from __future__ import annotations
@@ -37,7 +37,7 @@ def _owned_selected_calendar(db_session: Session) -> CalendarCalendar:
 def _grant_write_scope(db_session: Session) -> None:
     """Simulates a Calendar connection where Google actually granted the
     write scope (i.e. Bernardo completed the incremental-consent round trip
-    for calendar.events.owned) — never assumed, always read from what the
+    for calendar.events.owned), never assumed, always read from what the
     connection row actually records."""
     conn = db_session.get(IntegrationConnection, "google_calendar")
     if conn is None:
@@ -56,7 +56,7 @@ def _grant_write_scope(db_session: Session) -> None:
 
 def _read_only_connection(db_session: Session) -> None:
     """Simulates a Calendar connection authorized for read-only access
-    only — the write scope was never requested/granted."""
+    only; the write scope was never requested/granted."""
     conn = db_session.get(IntegrationConnection, "google_calendar")
     if conn is None:
         conn = IntegrationConnection(provider="google_calendar", status="connected", scopes_json="[]")
@@ -237,7 +237,7 @@ def test_event_delete_full_lifecycle(db_session: Session) -> None:
 def test_read_only_authorization_cannot_propose_calendar_mutation(db_session: Session) -> None:
     """A connection authorized for read-only scopes only (no incremental
     consent for calendar.events.owned performed yet) must never be able to
-    even propose a write — the scope check happens at propose time, before
+    even propose a write. The scope check happens at propose time, before
     any approval/execution round trip. Never assume a requested scope was
     granted."""
     calendar = _owned_selected_calendar(db_session)
@@ -342,7 +342,7 @@ def test_incremental_consent_preserves_previously_granted_read_scopes(db_session
 
 def test_client_type_and_redirect_uri_match_web_application_flow() -> None:
     """The documented setup (README.md) says 'Web application' client type
-    with a fixed backend redirect URI — assert the implementation actually
+    with a fixed backend redirect URI. Assert the implementation actually
     matches that, not an installed/Desktop-app flow. Desktop clients cannot
     use incremental authorization, which this flow relies on."""
     from app import integration_service

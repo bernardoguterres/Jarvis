@@ -1,6 +1,6 @@
-"""Phase 6: general Jarvis conversation scope (migration 0011).
+"""General Jarvis conversation scope (migration 0011).
 
-This is deliberately NOT a seventh domain — every test here also asserts
+This is deliberately NOT a seventh domain: every test here also asserts
 that exactly six domains exist and that a general conversation has no
 domain_id, real or fabricated. All turns use FakeProvider; no test in this
 file ever makes a real Hermes/model call.
@@ -42,7 +42,7 @@ def test_general_conversation_has_no_domain_id(client_with_fake_provider: TestCl
     assert body["domain_id"] is None
     assert body["title"] == "General chat"
 
-    # Still exactly six domains — creating a general conversation must never
+    # Still exactly six domains. Creating a general conversation must never
     # fabricate or reuse a "JARVIS" domain row.
     domains = client.get("/api/domains").json()
     assert len(domains) == 6
@@ -81,7 +81,7 @@ def test_default_general_turn_retrieves_no_domain_scoped_material(client_with_fa
     run_id = resp.json()["run_id"]
     snapshot = client.get(f"/api/agent-runs/{run_id}/context").json()
 
-    # No active domain at all — general, not a fabricated seventh domain.
+    # No active domain at all: general, not a fabricated seventh domain.
     assert snapshot["active_domain_id"] is None
     assert snapshot["additional_domain_ids"] == []
     # Global profile is included by default...
@@ -112,7 +112,7 @@ def test_explicit_per_turn_domain_inclusion_works_and_does_not_persist(
     assert snapshot1["additional_domain_ids"] == [body_id]
     assert body_id and len(snapshot1["domain_memory_version_ids"]) == 1
 
-    # Turn 2: no explicit inclusion — must NOT silently carry BODY over.
+    # Turn 2: no explicit inclusion, so it must NOT silently carry BODY over.
     resp2 = client.post(
         f"/api/conversations/{conv['id']}/turns",
         json={"content": "what's next", "idempotency_key": str(uuid.uuid4())},
@@ -124,7 +124,7 @@ def test_explicit_per_turn_domain_inclusion_works_and_does_not_persist(
 
 def test_general_conversation_domain_isolation_unaffected(client_with_fake_provider: TestClient) -> None:
     """A general conversation must never let a domain's memories leak into
-    another domain's own conversation, and vice versa — domain isolation
+    another domain's own conversation, and vice versa: domain isolation
     (Phase 1) must remain exactly as it was."""
     client = client_with_fake_provider
     body_id = _domain_id(client, "body")
@@ -153,7 +153,7 @@ def test_general_turn_no_real_model_call(client_with_fake_provider: TestClient, 
     )
     assert resp.status_code == 201
     assert resp.json()["provider"] == "fake"
-    # The FakeProvider recorded exactly one call — proves a "model call"
+    # The FakeProvider recorded exactly one call, which proves a "model call"
     # happened only against the fake, never a real provider.
     assert len(fake_provider.sent_system_prompts) == 1
 

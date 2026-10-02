@@ -1,21 +1,12 @@
-"""Hermes agent-provider implementation.
+"""Hermes agent provider, using the local Hermes API server's
+OpenAI-compatible endpoints: GET /health, GET /v1/models and
+POST /v1/chat/completions. The bearer token is never logged or included
+in an error.
 
-Calls the local Hermes API server's OpenAI-compatible endpoints
-(gateway/platforms/api_server.py in the Hermes Agent codebase):
-GET /health, GET /v1/models, POST /v1/chat/completions.
-
-Never logs, returns, or embeds the bearer token in any error message.
-
-Model selection is intentionally NOT sent in the request. The API server
-only recognises its own virtual per-profile alias (e.g. "jarvis") as a
-"model" value — anything else is treated as an explicit per-request
-override attempt, which would fail (or worse, silently try a different
-provider) if it doesn't match a configured route. Omitting the field lets
-the profile's own configured provider/model (set via `jarvis config set
-model` or `jarvis setup model`) fully own that decision — true model
-independence: this code never needs to know or assume what's configured.
-`self._model` is purely a human-readable label for local display/audit
-(Message.model_used, agent_runs.model) and is never transmitted to Hermes.
+No model is sent in the request. Hermes treats anything other than its
+profile alias as a per-request override, so leaving it out lets the
+profile's own configuration decide. `self._model` is only a label for
+local display and audit (Message.model_used, agent_runs.model).
 """
 
 from __future__ import annotations
@@ -126,7 +117,7 @@ class HermesProvider(AgentProvider):
             data = resp.json()
             content = data["choices"][0]["message"]["content"]
             # data["model"] is Hermes's own virtual per-profile alias (e.g.
-            # "jarvis"), not the underlying model — use our configured label
+            # "jarvis"), not the underlying model, so use our configured label
             # for anything human-facing instead.
             model_name = self._model
             usage_data = data.get("usage") or {}

@@ -1,6 +1,6 @@
 """Derived, rebuildable FTS5 index over active memory content.
 
-The FTS table is never authoritative — memory_items/memory_versions are the
+The FTS table is never authoritative: memory_items/memory_versions are the
 source of truth. This module is the only place that writes to or reads from
 memory_fts, so keeping it in sync (or rebuilding it from scratch) never
 depends on remembering to do so elsewhere.
@@ -26,7 +26,7 @@ def sanitize_fts_query(raw_query: str) -> str:
     token is treated as a literal quoted phrase (so operators/punctuation/
     unusual Unicode in the input can never produce malformed FTS5 syntax),
     joined with OR (so a natural-language query matches documents containing
-    ANY of its words, ranked by bm25 — FTS5's default between bare terms is
+    ANY of its words, ranked by bm25. FTS5's default between bare terms is
     AND, which would otherwise require every word, including "what"/"do"/
     "you", to appear in the same short memory and silently match nothing)."""
     tokens = [t for t in raw_query.strip().split() if t]
@@ -111,16 +111,16 @@ def search_memory_fts(
 ) -> list[tuple[str, float]]:
     """Returns (memory_item_id, bm25_score) pairs ordered by relevance
     (lower bm25 = more relevant). Empty list if the query has no usable
-    tokens or matches nothing — callers fall back to importance/recency."""
+    tokens or matches nothing; callers fall back to importance/recency."""
     safe_query = sanitize_fts_query(query)
     if not safe_query:
         return []
 
-    # `domain_ids=None` means "no domain filter at all" (search everything —
+    # `domain_ids=None` means "no domain filter at all" (search everything:
     # every domain plus global), the direct search API's default. An
     # explicit `[]` is a deliberate "zero domains in scope" request (e.g. a
     # general conversation, or a Research/Decision policy narrowed to
-    # nothing) and must never be silently widened back to "no filter" —
+    # nothing) and must never be silently widened back to "no filter":
     # it matches only global memories when include_global is true, and
     # nothing at all otherwise.
     scope_clauses = []

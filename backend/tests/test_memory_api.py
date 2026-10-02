@@ -162,7 +162,7 @@ def test_fts_rebuild_and_status_endpoints(client: TestClient) -> None:
 
 def test_pagination_limits_enforced(client: TestClient) -> None:
     resp = client.get("/api/memories", params={"limit": 500})
-    assert resp.status_code == 422  # bounded — the server rejects an excessive limit
+    assert resp.status_code == 422  # bounded: the server rejects an excessive limit
 
     resp_ok = client.get("/api/memories", params={"limit": 50})
     assert resp_ok.status_code == 200

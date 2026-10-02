@@ -1,7 +1,7 @@
 """Confirms migration 0013 -> 0014 (Phase 12C Mission Focus) creates the
 new table plus its real database-level enforcement (partial unique
 indexes, max-5-active triggers), with no data loss to existing tables.
-Forward-only — 0001-0013 untouched."""
+Forward-only: 0001-0013 untouched."""
 
 from __future__ import annotations
 
@@ -93,7 +93,7 @@ def test_migration_0014_creates_mission_focus_table_and_preserves_data(data_dir:
 def test_full_fresh_migration_chain_reaches_0014(data_dir: Path) -> None:
     """Named for the 0014 (Mission Focus) migration this file otherwise
     covers, but asserts against whatever the current head actually is
-    (0015+, Mission Control, as of this writing) — never a hardcoded
+    (0015+, Mission Control, as of this writing), never a hardcoded
     revision id, since forward-only migrations after 0014 are expected."""
     from alembic import command
 

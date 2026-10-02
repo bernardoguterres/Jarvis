@@ -1,11 +1,11 @@
-"""Google Health API provider — a general Google Health integration (not
+"""Google Health API provider: a general Google Health integration (not
 Fitbit-specific; data can come from Fitbit, Pixel Watch, Health Connect,
 Google Fit, or other connected sources). Every request is mocked via
 httpx.MockTransport; no real network call is ever made.
 
 Field names and filter syntax below were verified live against the real,
 connected Google Health API during Phase 9 acceptance (see
-docs/DECISIONS.md D64) — e.g. distance is millimeters (not meters), sleep
+docs/DECISIONS.md D64), e.g. distance is millimeters (not meters), sleep
 is a session type fetched via `list` (never `dailyRollUp`), and sleep vs.
 exercise use different filter field conventions (end_time/UTC vs.
 civil_start_time/civil)."""
@@ -73,7 +73,7 @@ def test_google_health_authorization_omits_include_granted_scopes() -> None:
     authorization (unlike Calendar, which adds a write scope later). Live
     Phase 9 acceptance found that requesting `include_granted_scopes=true`
     here caused Google to return the union of every scope ever granted to
-    the Cloud project for this user, not just this client — so a Health
+    the Cloud project for this user, not just this client, so a Health
     token ended up also carrying Calendar's scopes (docs/DECISIONS.md D63).
     The parameter must be omitted entirely, never sent as "false"."""
     url = google_health.build_authorization_url(
@@ -98,14 +98,14 @@ def _empty_handler(request: httpx.Request) -> httpx.Response:
 def _rollup_point(year: int, month: int, day: int, **fields: dict) -> dict:
     """Matches the real dailyRollUp response shape, confirmed live: a
     structured `civilStartTime` CivilDateTime object (not a plain string),
-    and the metric's value sitting directly on the point — no `"value"`
+    and the metric's value sitting directly on the point, with no `"value"`
     wrapper (docs/DECISIONS.md D64)."""
     return {"civilStartTime": {"date": {"year": year, "month": month, "day": day}}, **fields}
 
 
 def test_steps_and_distance_use_the_real_rollup_field_names() -> None:
     """distance is millimeters (distanceMillimetersSum-style field
-    `distance.millimetersSum`), not the old (wrong) assumption of meters —
+    `distance.millimetersSum`), not the old (wrong) assumption of meters:
     a real bug found and fixed live (docs/DECISIONS.md D64)."""
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -280,7 +280,7 @@ def test_exercise_session_parses_metrics_summary() -> None:
 
 
 def test_one_metric_failure_does_not_abort_the_rest_of_the_sync() -> None:
-    """Missing/unsupported data for a given account is normal — a failure
+    """Missing/unsupported data for a given account is normal. A failure
     fetching one metric must not prevent other metrics from being fetched
     and persisted."""
 
@@ -377,7 +377,7 @@ def test_heart_rate_31_day_sync_no_longer_reports_range_too_large() -> None:
 def test_one_chunk_failure_preserves_data_from_other_successful_chunks() -> None:
     """A failure in one chunk must be recorded against that metric without
     destroying successful data already fetched from other chunks of the
-    same metric — and no immediate retry is attempted (the handler is only
+    same metric, and no immediate retry is attempted (the handler is only
     ever called once per chunk)."""
     call_count = {"n": 0}
 
@@ -409,13 +409,13 @@ def test_one_chunk_failure_preserves_data_from_other_successful_chunks() -> None
     # Data from the other (successful) chunks is preserved, not discarded.
     assert date(2026, 8, 15) in result.summaries
     assert result.summaries[date(2026, 8, 15)].heart_rate_avg_bpm == 60
-    # Exactly one call per chunk — no immediate retry after the failure.
+    # Exactly one call per chunk, with no immediate retry after the failure.
     assert call_count["n"] == 3
 
 
 def test_chunked_fetch_produces_no_duplicate_days() -> None:
     """Non-overlapping chunks must never cause the same civil day to be
-    counted twice — each day appears in exactly one chunk's response."""
+    counted twice: each day appears in exactly one chunk's response."""
     seen_days: list[str] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -444,7 +444,7 @@ def test_chunked_fetch_produces_no_duplicate_days() -> None:
 
 def test_civil_time_range_uses_the_real_civil_date_time_shape() -> None:
     """CivilDateTime is `{date: {year, month, day}, time?}`, NOT a plain ISO
-    date/datetime string — confirmed against the real, live Google Health
+    date/datetime string, confirmed against the real, live Google Health
     API, which rejects a plain-string range with HTTP 400 (D62)."""
     captured = {}
 
@@ -459,7 +459,7 @@ def test_civil_time_range_uses_the_real_civil_date_time_shape() -> None:
 
 def test_sleep_filter_uses_utc_end_time_exercise_filter_uses_civil_start_time() -> None:
     """Live-verified: sleep and exercise use different filter conventions
-    for the same kind of range (end_time/UTC vs. civil_start_time/civil) —
+    for the same kind of range (end_time/UTC vs. civil_start_time/civil),
     not interchangeable, confirmed by direct testing against the real API."""
     sleep_filter = google_health._sleep_filter(date(2026, 8, 1), date(2026, 8, 27))
     assert "sleep.interval.end_time" in sleep_filter

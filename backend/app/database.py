@@ -23,15 +23,15 @@ def _enable_sqlite_foreign_keys(dbapi_connection, connection_record) -> None:  #
     # at all, unless the *linked* SQLite library's own compile-time default
     # happens to differ (some distributions patch this; relying on that is
     # exactly the fragility being avoided here). This app always has at
-    # least two independent connections capable of writing at once — the
+    # least two independent connections capable of writing at once (the
     # FastAPI request-handling session(s) and the background
-    # SchedulerRuntime's own session (Phase 10) — so an ordinary, brief
+    # SchedulerRuntime's own session), so an ordinary, brief
     # overlap (a scheduled sync's commit landing at the same moment as a
     # user saving a note) must not depend on whatever a given platform's
     # SQLite build happens to default to. Setting this explicitly makes the
     # behavior deterministic everywhere: the caller waits up to 5s for the
-    # lock to clear — comfortably more than this app's uniformly small, fast
-    # transactions ever need — rather than failing immediately on any
+    # lock to clear (comfortably more than this app's uniformly small, fast
+    # transactions ever need) rather than failing immediately on any
     # platform where the compiled default is 0. See docs/DECISIONS.md D83.
     cursor.execute("PRAGMA busy_timeout=5000")
     cursor.close()

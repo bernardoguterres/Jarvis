@@ -1,17 +1,12 @@
-"""Phase 10B: controller-owned proactive routines — the testable logic
-layer. Mirrors app/scheduler_service.py's patterns exactly (injected
-clock, per-type single-flight lock, bounded exponential backoff, no-replay
-catch-up semantics) so the same scheduler loop can drive both Phase 10A
-integration resync and Phase 10B routines without duplicating that
-machinery.
+"""Proactive routines (morning briefing, evening check-in, weekly review).
+Uses the same patterns as app/scheduler_service.py: an injected clock,
+a per-type single-flight lock, bounded backoff and no replay of missed
+runs.
 
-A routine never creates an action proposal, mutates Calendar, writes
-Health data, edits a memory, sends a notification, speaks aloud, or
-contacts anyone — it only assembles a deterministic, source-referenced
-summary from already-locally-cached data. No model call happens here;
-the separate, explicit "Discuss with Jarvis" action (app/routers/routines.py)
-is the only path that ever reaches a model, and only when Bernardo asks
-for it.
+A routine only assembles a deterministic summary from data already
+stored locally. It never proposes actions, changes Calendar, Health or
+memory, sends notifications or calls a model; "Discuss with Jarvis" in
+app/routers/routines.py is the only model path, and only on request.
 """
 
 from __future__ import annotations
@@ -136,9 +131,9 @@ def set_schedule(
     selected_domains: list[str],
     clock: Clock,
 ) -> RoutineSchedule:
-    """Explicit local UI action — configuring Jarvis's own routine
+    """Explicit local UI action. Configuring Jarvis's own routine
     schedule/domain-selection metadata has no external side effect, so
-    this does not go through the Phase 8 proposal lifecycle."""
+    this does not go through the proposal lifecycle."""
     validate_local_time(local_time)
     validate_domains(routine_type, selected_domains)
     if routine_type == "weekly_review" and weekday is None:
@@ -175,7 +170,7 @@ def _backoff_minutes(consecutive_failure_count: int) -> int:
 
 
 # --------------------------------------------------------------------------
-# Content assembly — deterministic, source-referenced, no model call
+# Content assembly: deterministic, source-referenced, no model call
 # --------------------------------------------------------------------------
 
 
@@ -317,7 +312,7 @@ _EVENING_CHECKIN_PROMPTS = (
 
 
 def build_evening_checkin() -> list[OutputSection]:
-    """A fixed, static template — no data pulled, no model call. Bernardo's
+    """A fixed, static template: no data pulled, no model call. Bernardo's
     own typed answers (if any) are recorded separately on the run's
     `responses_json`, never auto-promoted to permanent memory."""
     return [OutputSection(title="Evening check-in", lines=[OutputLine(text=p) for p in _EVENING_CHECKIN_PROMPTS])]
@@ -408,7 +403,7 @@ def _trim_history(session: Session, routine_type: str) -> None:
 def run_routine(session: Session, routine_type: str, trigger: str, clock: Clock) -> RoutineRun:
     """Runs one routine execution, guarded by this routine's single-flight
     lock (manual, scheduled, and startup-catchup share it, exactly like
-    Phase 10A's integration locks). Never raises — every failure is caught
+    the integration sync locks). Never raises: every failure is caught
     and recorded as a sanitized, bounded local audit row. Never creates an
     action proposal, mutates Calendar/Health data, edits a memory, sends a
     notification, or makes a model call."""
@@ -449,9 +444,9 @@ def run_routine(session: Session, routine_type: str, trigger: str, clock: Clock)
 
         now = clock()
 
-        # Phase 12B: a lightweight audit-only snapshot, recorded ONLY for
+        # A lightweight audit-only snapshot, recorded ONLY for
         # Morning Briefing and ONLY under its own "morning_briefing"
-        # baseline — this never touches BriefingItemState (the Home-only
+        # baseline. This never touches BriefingItemState (the Home-only
         # continuity ledger) or any acknowledge/snooze table, so a
         # background routine run can never silently consume Home's "new
         # since you last opened Jarvis" comparison baseline. No per-item

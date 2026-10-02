@@ -9,7 +9,7 @@ export interface PaletteAction {
 interface CommandPaletteProps {
   actions: PaletteAction[];
   onClose: () => void;
-  /** Shared deterministic command parser (commands/registry.ts) — resolves
+  /** Shared deterministic command parser (commands/registry.ts). Resolves
    * a raw typed query into an executable action when it names a command
    * (including its aliases, e.g. "health area") that isn't already covered
    * by the static `actions` list below. Optional so this component stays
@@ -17,7 +17,7 @@ interface CommandPaletteProps {
   resolveCommand?: (text: string) => PaletteAction | null;
 }
 
-/** Command palette (Cmd+K) — a filtered static action list, plus the same
+/** Command palette (Cmd+K): a filtered static action list, plus the same
  * deterministic command parser DomainView's voice transcript handling
  * uses, so aliases and system commands work identically whether typed or
  * spoken. */

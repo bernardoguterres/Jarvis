@@ -7,15 +7,15 @@ import { describe, expect, it } from "vitest";
  * axe-core during Research Centre container QA: `--text-tertiary`
  * (`.ledger-row-meta`, `.ledger-empty`, `.console-eyebrow`,
  * `.console-description`, `.change-badge`, `.briefing-item-subtitle`, and
- * ~25 other shared selectors — 44 usages total) measured 4.466:1 against
+ * ~25 other shared selectors, 44 usages total) measured 4.466:1 against
  * the lightest panel background it is ever paired with
  * (`--bg-panel-hover`), a genuine miss of the 4.5:1 normal-text threshold
- * — present on every already-shipped Centre using these selectors, not
+ * which was present on every already-shipped Centre using these selectors, not
  * just Research Centre, since the token itself was short. Fixed centrally
  * at the token (index.css `:root`), not per-selector, so every current
  * and future user of `--text-tertiary` benefits. jsdom has no real
- * rendering/compositing engine, so — mirroring homeCoreStyling.test.ts's
- * established pattern — this asserts directly against the real CSS
+ * rendering/compositing engine, so (mirroring homeCoreStyling.test.ts's
+ * established pattern) this asserts directly against the real CSS
  * source's token values via the same WCAG relative-luminance formula
  * axe-core itself uses, rather than a screenshot/pixel-sampling test. */
 
@@ -44,13 +44,13 @@ function contrastRatio(hexA: string, hexB: string): number {
 }
 
 // Every panel/canvas background --text-tertiary is ever composited
-// against in this app's single (always-dark) theme — see index.css's
+// against in this app's single (always-dark) theme. See index.css's
 // `:root` background-token block. --bg-panel-hover is the lightest of
 // these, and is therefore always the binding (worst-case) constraint.
 const BACKGROUND_TOKENS = ["bg-void", "bg-deep", "bg-panel", "bg-panel-raised", "bg-panel-hover", "bg-panel-sunken"];
 
 const WCAG_AA_NORMAL_TEXT = 4.5;
-// A deliberate margin above the bare 4.5:1 minimum — the fix should not
+// A deliberate margin above the bare 4.5:1 minimum: the fix should not
 // land at exactly the threshold, where routine future rounding/anti-
 // aliasing differences could tip it back under.
 const SAFETY_MARGIN = 4.6;

@@ -1,8 +1,8 @@
-"""Phase 10B: controller-owned proactive routines — a fixed catalogue
-(never arbitrary cron), reusing the Phase 10A scheduling infrastructure.
+"""Proactive routines: a fixed catalogue
+(never arbitrary cron), reusing the integration scheduling infrastructure.
 
 Routines never create action proposals, mutate Calendar, write Health
-data, edit memories, send notifications, speak aloud, or contact anyone —
+data, edit memories, send notifications, speak aloud, or contact anyone;
 they only assemble a deterministic, source-backed summary from locally
 cached data. No model call happens as part of running a routine; the only
 model-using path is the separate, explicit "Discuss with Jarvis" action.
@@ -21,7 +21,7 @@ from app.models import _new_uuid, _utcnow
 ROUTINE_TYPES = ("morning_briefing", "evening_checkin", "weekly_review")
 
 # Domains a routine may include. BODY/MIND/PEOPLE are sensitive and must
-# always be an explicit, per-routine opt-in — never included merely
+# always be an explicit, per-routine opt-in, never included merely
 # because a routine is enabled.
 SENSITIVE_DOMAIN_SLUGS = ("body", "mind", "people")
 ALL_DOMAIN_SLUGS = ("body", "mind", "people", "path", "build", "life")
@@ -34,7 +34,7 @@ ROUTINE_RUN_RETENTION_PER_TYPE = 30
 
 
 class RoutineSchedule(Base):
-    """One row per fixed routine type. Disabled by default — Bernardo must
+    """One row per fixed routine type. Disabled by default; Bernardo must
     explicitly enable and configure each one. `weekday` (0=Monday..6=Sunday)
     is only meaningful for `weekly_review`; NULL otherwise."""
 
@@ -67,7 +67,7 @@ class RoutineSchedule(Base):
 class RoutineRun(Base):
     """Bounded local history of routine executions. `output_json` is a
     structured, deterministic summary ({"sections": [{"title", "lines":
-    [{"text", "source_ref"}]}]}) — never a raw provider payload, never
+    [{"text", "source_ref"}]}]}), never a raw provider payload, never
     model-generated, never a credential. `responses_json` holds the
     user's own typed answers for an Evening Check-in run (kept local,
     domain-scoped, never auto-promoted to permanent memory)."""

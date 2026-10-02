@@ -12,7 +12,7 @@ describe("VoiceCaptureOverlay", () => {
 
   it("calls onDismiss when the overlay itself is clicked while in the error state", () => {
     // Regression test: a stuck "VOICE ERROR" screen previously had no
-    // click-anywhere dismissal at all — only Escape (and only after a
+    // click-anywhere dismissal at all, only Escape (and only after a
     // separate cancel() bug was fixed) could clear it, which a viewer with
     // no keyboard handy, or who simply didn't know the shortcut, had no way
     // to discover.

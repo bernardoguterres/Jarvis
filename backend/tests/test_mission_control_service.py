@@ -1,5 +1,5 @@
-"""Mission Control / Current Focus — lifecycle, timer, and candidate-reuse
-logic. Every test uses fictional fixtures and an injected clock — no real
+"""Mission Control / Current Focus: lifecycle, timer, and candidate-reuse
+logic. Every test uses fictional fixtures and an injected clock, with no real
 Google/Keychain/Hermes/model contact, exactly like the Mission Focus and
 briefing test suites this mirrors."""
 
@@ -217,7 +217,7 @@ def test_starting_a_second_mission_allowed_after_first_completes(db_session: Ses
 
 def test_database_level_partial_unique_index_blocks_a_second_in_flight_row(db_session: Session, data_dir) -> None:
     """The real backstop is migration 0015's partial unique index, not just
-    the service-layer count-then-insert check — proven directly against a
+    the service-layer count-then-insert check, proven directly against a
     second, independent raw connection to the same database file."""
     import sqlite3
     import uuid

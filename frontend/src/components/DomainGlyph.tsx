@@ -6,7 +6,7 @@ function isDomainGlyphSlug(value: string): value is DomainSlug {
   return (DOMAIN_SLUG_ORDER as readonly string[]).includes(value);
 }
 
-/** The one canonical icon per domain (`docs/DECISIONS.md` D94) — official
+/** The one canonical icon per domain (`docs/DECISIONS.md` D94): official
  * `lucide-react` icons, chosen and approved directly by Bernardo, not a
  * hand-drawn approximation. Do not redraw or reinterpret these; if a
  * domain's icon ever needs to change, that is a deliberate future
@@ -23,7 +23,7 @@ const ICONS: Record<DomainSlug, LucideIcon> = {
 };
 
 /** The one stroke weight every glyph renders at, in the icon's own 24×24
- * viewBox units — since CSS (never this component) controls the
+ * viewBox units), since CSS (never this component) controls the
  * rendered pixel size (`.domain-node-glyph` for Home, `.domain-glyph`'s
  * base rule for the header emblem), a shared viewBox-relative stroke
  * width already scales proportionally with whatever size CSS assigns, so
@@ -35,15 +35,15 @@ const STROKE_WIDTH = 1.75;
 /** Every Lucide icon shares one 24×24 viewBox, but each icon's own drawn
  * content fills a different fraction of that square (a thin diagonal
  * "Activity" line versus a wide, near-edge-to-edge "UsersRound"
- * silhouette) — so identical CSS width/height do not read as identical
+ * silhouette), so identical CSS width/height do not read as identical
  * optical size. This is a small, deliberately narrow correction applied
  * uniformly across every context (Home orbit, header emblem, selector
  * chips) via a single `transform: scale()` on the glyph itself, never a
- * per-page override. It changes paint only — the element's layout box
+ * per-page override. It changes paint only; the element's layout box
  * (and therefore any surrounding badge/count-bubble position) is
  * unaffected, and `transform-origin: 50% 50%` keeps the icon centered in
  * place at every size and on every color/selection-state change. Revisit
- * these only alongside a deliberate, visually-verified icon audit — never
+ * these only alongside a deliberate, visually-verified icon audit, never
  * tune a single value in isolation from the other five. */
 const OPTICAL_SCALE: Record<DomainSlug, number> = {
   body: 1.06,
@@ -62,7 +62,7 @@ const OPTICAL_SCALE: Record<DomainSlug, number> = {
  *  - "lg" (the default, no extra class): Home's orbital nodes, which stay
  *    on their existing responsive `--node-size`-relative sizing rather
  *    than a fixed rem value, since they must scale continuously with the
- *    orbit's own responsive layout — but still resolve to one shared
+ *    orbit's own responsive layout, but still resolve to one shared
  *    class (`domain-node-glyph`) so all six render at the same size. */
 type DomainGlyphSize = "sm" | "md";
 
@@ -72,16 +72,16 @@ interface DomainGlyphProps {
   className?: string;
 }
 
-/** The one shared icon component for all six fixed Jarvis domains —
+/** The one shared icon component for all six fixed Jarvis domains:
  * canonical `lucide-react` icons (never hand-drawn SVG, a raster image,
  * an emoji, or a first-letter fallback), rendered with `fill="none"`,
  * `currentColor`, and rounded caps/joins so they inherit this app's
  * violet/cyan state colors from their surrounding button/emblem rather
- * than carrying any color, background, glow, or animation of their own —
+ * than carrying any color, background, glow, or animation of their own;
  * the Jarvis node/ring chrome around the icon owns all of that. The icon
  * itself never rotates or otherwise animates; only what's around it does.
  * Purely decorative (`aria-hidden`, `focusable="false"`, no `aria-label`
- * of its own) — the enclosing control's real accessible name (a domain
+ * of its own); the enclosing control's real accessible name (a domain
  * button's `aria-label`, or a domain view's `<h1>`) is always the single
  * source of truth for what a domain is called, both on Home and in the
  * domain header, since both call sites render this exact same component.

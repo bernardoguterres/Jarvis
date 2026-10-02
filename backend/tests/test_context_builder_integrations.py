@@ -189,7 +189,7 @@ def test_general_conversation_document_leak_fixed_but_explicit_domain_still_work
     db_session: Session, memory_settings: Settings
 ) -> None:
     """Sanity check alongside the regression above: explicitly adding MIND
-    as an additional domain still surfaces its documents as intended —
+    as an additional domain still surfaces its documents as intended:
     the fix must narrow an implicit empty scope, not break explicit scope."""
     mind = db_session.query(Domain).filter_by(slug="mind").one()
     life = db_session.query(Domain).filter_by(slug="life").one()

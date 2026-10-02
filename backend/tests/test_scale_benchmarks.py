@@ -1,10 +1,10 @@
-"""V1 reliability audit — scale testing (workstream 4).
+"""V1 reliability audit: scale testing (workstream 4).
 
 Generates a fictional dataset representing roughly one year of genuine,
 if fairly heavy, personal use across all six domains, then benchmarks the
 operations named in the audit brief: startup, FTS retrieval, context
 construction, conversation loading, export, validation, and an isolated
-restore. Never real user data — every string here is synthetic.
+restore. Never real user data: every string here is synthetic.
 
 This is a *reasonableness* check for a single-user local SQLite app, not a
 stress test for a multi-tenant service: the volumes below are deliberately
@@ -13,7 +13,7 @@ bounds are generous upper bounds (an order of magnitude beyond what a
 personal machine should ever need for these operations), chosen to catch a
 genuine algorithmic regression (an accidental O(n^2) somewhere, a missing
 index) without being flaky on a slower CI/container machine. If a bound is
-ever hit, that is itself the finding — see docs/DECISIONS.md D83/D84 for
+ever hit, that is itself the finding. See docs/DECISIONS.md D83/D84 for
 the actual measurements recorded from the run that produced this file.
 """
 
@@ -67,7 +67,7 @@ BENCHMARK_REPORT: dict[str, object] = {}
 @pytest.fixture(scope="module")
 def scale_settings(tmp_path_factory: pytest.TempPathFactory) -> Settings:
     """A single, module-scoped, isolated JARVIS_DATA_DIR populated once and
-    reused read-mostly across every benchmark in this file — generating a
+    reused read-mostly across every benchmark in this file, since generating a
     year of data is itself expensive and is not what's being timed."""
     data_dir = tmp_path_factory.mktemp("jarvis-scale")
     settings = Settings(jarvis_data_dir=str(data_dir))
@@ -95,7 +95,7 @@ def _generate_dataset(session: Session, settings: Settings) -> None:
     domains = {d.slug: d for d in session.query(Domain).all()}
     base_time = datetime.now(timezone.utc) - timedelta(days=365)
 
-    # Global memories (real service call — must go through FTS indexing).
+    # Global memories (real service call, so it goes through FTS indexing).
     for i in range(GLOBAL_MEMORIES):
         memory_service.create_memory(
             session, scope="global", domain_id=None, kind="fact",
@@ -138,14 +138,14 @@ def _generate_dataset(session: Session, settings: Settings) -> None:
                 occurred_at=base_time + timedelta(days=i * 6), payload=payload_fn(i),
             )
 
-        # Domain summary — several real edited versions over the year.
+        # Domain summary: several real edited versions over the year.
         for i in range(SUMMARY_EDITS_PER_DOMAIN):
             domain_summary_service.set_domain_summary(
                 session, domain.id,
                 f"Fictional {slug} summary, revision {i} — a realistic paragraph-length rolling summary of the domain's state at this point in the year.",
             )
 
-    # Action proposals + audit events — bulk ORM inserts (proposal creation
+    # Action proposals + audit events: bulk ORM inserts (proposal creation
     # itself isn't a benchmarked operation here; volume matters for export
     # size, not for exercising action_service's own logic, which has its
     # own dedicated tests).
@@ -188,7 +188,7 @@ def _generate_dataset(session: Session, settings: Settings) -> None:
         skill.current_version_id = version.id
     session.commit()
 
-    # Routine runs — a year of daily/weekly cadence.
+    # Routine runs: a year of daily/weekly cadence.
     for routine_type in ("morning_briefing", "evening_checkin", "weekly_review"):
         for i in range(ROUTINE_RUNS_PER_TYPE):
             session.add(
@@ -205,7 +205,7 @@ def _generate_dataset(session: Session, settings: Settings) -> None:
             )
     session.commit()
 
-    # Documents + chunks — a few real small files on disk too, for realism.
+    # Documents + chunks: a few real small files on disk too, for realism.
     documents_dir = settings.data_dir / "documents"
     documents_dir.mkdir(parents=True, exist_ok=True)
     for i in range(DOCUMENTS_COUNT):
@@ -234,7 +234,7 @@ def _db_size_mb(settings: Settings) -> float:
 
 
 def test_report_dataset_scale_and_database_size(scale_session: Session, scale_settings: Settings) -> None:
-    """Not a pass/fail benchmark — records what was actually generated and
+    """Not a pass/fail benchmark. Records what was actually generated and
     how large the resulting database is, so a human reviewing this file's
     output (`pytest -s`) can judge scale directly."""
     counts = {

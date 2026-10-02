@@ -5,18 +5,18 @@ interface AddToMissionFocusButtonProps {
   sourceType: MissionFocusSourceType;
   sourceId: string;
   /** The matching active pin, if the caller's own already-fetched pin
-   * list contains one for this exact source — never re-derived here, so
+   * list contains one for this exact source. Never re-derived here, so
    * every eligible-source screen shares one source of truth (`GET
    * /api/mission-focus`) rather than each button polling independently. */
   existingPin?: MissionFocusPin;
   /** Called after a successful pin/unpin so the parent can refetch its
-   * own pin list — this component never caches pin state itself. */
+   * own pin list; this component never caches pin state itself. */
   onChanged: () => void;
 }
 
 /** A restrained, single-purpose control for eligible source screens
  * (DomainView's structured records, Actions Centre's proposals,
- * Integrations Centre's Calendar events) — never a large form, never
+ * Integrations Centre's Calendar events), never a large form, never
  * editable beyond Mission Focus's own metadata, and truthful about the
  * 5-pin limit rather than silently replacing another pin. */
 function AddToMissionFocusButton({ sourceType, sourceId, existingPin, onChanged }: AddToMissionFocusButtonProps) {

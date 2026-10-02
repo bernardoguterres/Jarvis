@@ -1,5 +1,5 @@
-"""Phase 12D: Unified Recall and Provenance HTTP surface. Deterministic
-local search only — never a model call, never a mutation. `POST /rebuild`
+"""Recall HTTP routes. Deterministic
+local search only: never a model call, never a mutation. `POST /rebuild`
 is the one exception to "read-only": an explicit, user-triggered repair
 action, not something an ordinary search ever calls itself."""
 

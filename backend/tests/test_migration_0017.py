@@ -78,7 +78,7 @@ def test_full_fresh_migration_chain_reaches_head(data_dir: Path) -> None:
 
 def test_database_level_partial_unique_index_blocks_duplicate_active_evidence(data_dir: Path) -> None:
     """The service layer's own check-then-insert is only the first line
-    of defense — this proves the database itself refuses a second
+    of defense. This proves the database itself refuses a second
     simultaneously-active (workspace_id, source_type, source_id) row."""
     settings = Settings(jarvis_data_dir=str(data_dir))
     settings.ensure_directories()

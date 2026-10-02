@@ -26,7 +26,7 @@ interface MissionControlStripProps {
   onComplete: (completionNote: string | null, whatChangedNote: string | null) => void;
   onAbandon: () => void;
   /** True while a lifecycle call (start/pause/resume/complete/abandon) is
-   * in flight — disables controls so a double-click can't double-submit,
+   * in flight. Disables controls so a double-click can't double-submit,
    * never a page-wide loading flag. */
   busy: boolean;
   actionError: string | null;
@@ -295,8 +295,8 @@ function ActiveMission({
   const headingRef = useRef<HTMLSpanElement>(null);
 
   // Starting a mission unmounts the manual-entry/candidate form and mounts
-  // this component in its place — without this, keyboard/screen-reader
-  // focus was silently dropped back to <body> (found during the Phase 12C
+  // this component in its place. Without this, keyboard/screen-reader
+  // focus was silently dropped back to <body> (found during
   // real-Mac acceptance pass), losing the user's place entirely. Moving
   // focus to this panel's own heading on mount keeps it inside Mission
   // Control and lets a screen reader announce the new active state
@@ -308,10 +308,10 @@ function ActiveMission({
   }, [session.id]);
 
   // A setInterval tick purely to force a re-render every second while
-  // active — elapsed/remaining are always re-derived from the session's
+  // active; elapsed/remaining are always re-derived from the session's
   // own persisted timestamps (computeElapsedSeconds), never held or
   // decremented by this interval itself. Paused/completed sessions don't
-  // need a live tick at all — their elapsed time is already frozen.
+  // need a live tick at all, since their elapsed time is already frozen.
   useEffect(() => {
     if (session.status !== "active") return;
     const id = window.setInterval(() => setNow(new Date()), 1000);
@@ -320,7 +320,7 @@ function ActiveMission({
 
   const elapsed = computeElapsedSeconds(session, now);
   const remaining = computeRemainingSeconds(session, now);
-  // Announced to screen readers only at a coarse (minute) granularity —
+  // Announced to screen readers only at a coarse (minute) granularity;
   // an aria-live region updated every second would be unusably noisy.
   const announcedMinute = Math.floor(elapsed / 60);
 
@@ -416,12 +416,12 @@ function ActiveMission({
   );
 }
 
-/** Mission Control / Current Focus — reuses Home's own briefing candidates
+/** Mission Control / Current Focus: reuses Home's own briefing candidates
  * (never a second prioritization engine) to suggest one thing to focus on
  * at a time, and a small local timer built entirely from the backend's
  * persisted session state (never a frontend countdown as source of
- * truth). Matches BriefingStrip's established visual register — this is
- * Home's own cinematic surface, not an internal-console screen — and
+ * truth). Matches BriefingStrip's established visual register (this is
+ * Home's own cinematic surface, not an internal-console screen) and
  * never claims a suggestion is definitively "the" priority. */
 function MissionControlStrip({
   candidates,

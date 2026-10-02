@@ -65,7 +65,7 @@ def test_punctuation_and_operators_do_not_raise(db_session: Session) -> None:
         "**()::",
     ]
     for q in dangerous_queries:
-        # Must never raise — either returns hits or an empty list.
+        # Must never raise: either returns hits or an empty list.
         result = search_memory_fts(db_session, q, domain_ids=[body_id])
         assert isinstance(result, list)
 
@@ -119,7 +119,7 @@ def test_none_domain_ids_searches_every_domain_by_default(db_session: Session) -
 def test_explicit_empty_domain_ids_matches_only_global_memories(db_session: Session) -> None:
     """Regression: an explicit empty domain scope (e.g. a general
     conversation, or a Research/Decision policy narrowed to nothing) must
-    never silently fall back to "no filter" — that would leak MIND/PEOPLE
+    never silently fall back to "no filter", which would leak MIND/PEOPLE
     memories into an unrelated context."""
     mind_id = db_session.query(Domain).filter_by(slug="mind").one().id
     domain_item = memory_service.create_memory(

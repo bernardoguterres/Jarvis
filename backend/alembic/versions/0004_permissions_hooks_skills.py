@@ -1,4 +1,4 @@
-"""Phase 8: action proposals, audit events, hook events, and versioned
+"""Action proposals, audit events, hook events, and versioned
 skills.
 
 Revision ID: 0004

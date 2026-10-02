@@ -1,5 +1,5 @@
-"""Phase 10B: request/response models for the fixed routine catalogue.
-Never includes a credential — routine configuration/output has none."""
+"""Request/response models for the fixed routine catalogue.
+Never includes a credential; routine configuration/output has none."""
 
 from __future__ import annotations
 

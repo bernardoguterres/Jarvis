@@ -4,7 +4,7 @@ interface VoiceStateIndicatorProps {
 
 /** Restyled wrapper around the existing voice-state text. Renders exactly
  * the same text content as before (tests match on the raw state word, e.g.
- * "listening") — this only adds a colored dot and container, driven by the
+ * "listening"). This only adds a colored dot and container, driven by the
  * same real `state` value, never a decorative animation of its own. */
 function VoiceStateIndicator({ state }: VoiceStateIndicatorProps) {
   if (state === "idle") {

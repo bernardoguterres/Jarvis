@@ -1,10 +1,10 @@
-"""Phase 12F: `app.decision_service.draft_critique_with_model` — the
+"""`app.decision_service.draft_critique_with_model`, the
 "Ask Jarvis to challenge this decision" model boundary. Exactly one fake
 `send_turn()` call, citation validation, prompt-injection isolation,
 model-failure preserving all decision state, and an AST-level structural
 guarantee that this module can never reach a tool/action/terminal/
 filesystem/browser-automation/cron/Calendar/Health capability. No real
-model call is ever made — FakeProvider only."""
+model call is ever made; FakeProvider only."""
 
 from __future__ import annotations
 
@@ -125,7 +125,7 @@ def test_model_failure_leaves_decision_and_prior_versions_untouched(db_session: 
     assert [e.id for e in evidence_before] == [e.id for e in evidence_after]
     assert [v.id for v in versions_before] == [v.id for v in versions_after]
     assert ds.get_brief_version(db_session, decision.id, deterministic.id) is not None
-    # The decision itself was never touched — still not decided.
+    # The decision itself was never touched: still not decided.
     assert ds.get_decision(db_session, decision.id).status == "draft"
 
 
@@ -143,7 +143,7 @@ def test_prompt_injection_shaped_evidence_cannot_alter_the_system_prompt_or_be_e
 
 def test_critique_never_creates_a_final_version_or_changes_lifecycle_status(db_session: Session) -> None:
     """The single most important boundary: a model critique has no
-    lifecycle authority at all — it cannot decide, cannot choose an
+    lifecycle authority at all. It cannot decide, cannot choose an
     option, cannot mark anything decided."""
     decision, _option, _evidence = _decision_with_evidence(db_session)
     provider = _FakeProvider(content="I would lean towards this option [1].")

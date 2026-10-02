@@ -1,14 +1,10 @@
-"""Phase 9 (corrected): OAuth connect/disconnect/sync for Google Calendar
-and Google Health (a general Google Health integration in the UI — reads
-consented data that can originate from Fitbit, Pixel Watch, Health Connect,
-Google Fit, or other connected sources; see docs/DECISIONS.md D64 for why
-the legacy Fitbit Web API integration was replaced and the product
-language was broadened beyond Fitbit-specific framing).
+"""OAuth connect/disconnect/sync routes for Google Calendar and Google
+Health (data from Fitbit, Pixel Watch, Health Connect or other connected
+sources).
 
-The OAuth callback endpoints are hit directly by the user's browser after
-Google redirects back — they are loopback-only (this backend only ever
-binds 127.0.0.1) and validated against the exact registered redirect URI.
-They return a small static HTML page, not JSON.
+The OAuth callbacks are opened by the user's browser after Google
+redirects back. They are loopback-only, checked against the exact
+registered redirect URI, and return a small HTML page rather than JSON.
 """
 
 from __future__ import annotations
@@ -76,7 +72,7 @@ _PROVIDER_LABELS = {"google_calendar": "Google Calendar", "google_health": "Goog
 
 # Same token *values* index.css defines (--accent-cyan-strong, --status-error,
 # --bg-void, --bg-panel-sunken, --border-subtle, --text-primary/secondary/
-# tertiary, --font-mono) — duplicated here as plain constants rather than
+# tertiary, --font-mono), duplicated here as plain constants rather than
 # imported, since this page is rendered by FastAPI, not bundled by Vite,
 # and must never depend on the frontend build existing at all.
 _TOKEN_CYAN = "#6fe9f2"
@@ -92,7 +88,7 @@ _TOKEN_FONT_MONO = 'ui-monospace, "SF Mono", Menlo, monospace'
 
 def _diagnostic_ring_svg(accent: str, *, gapped: bool, animation_class: str) -> str:
     """A small echo of the frontend's diagnostic ring (see
-    frontend/src/components/diagnostic/Diagnostic.tsx) — a segmented circle
+    frontend/src/components/diagnostic/Diagnostic.tsx): a segmented circle
     with one wedge cut away for a failure, whole for a success. Plain
     inline SVG so this page never depends on the frontend CSS bundle.
     `animation_class` (see `_callback_page`) is what actually gives it
@@ -128,7 +124,7 @@ def _callback_page(
     show_try_again: bool = False,
 ) -> HTMLResponse:
     # title/message can carry values Google or an exception controlled
-    # (the callback's own `error` query param, or str(exc)) — always
+    # (the callback's own `error` query param, or str(exc)), so always
     # HTML-escape before interpolating, since this page is served directly
     # to the browser that just followed the OAuth redirect.
     safe_title = html.escape(title)
@@ -136,9 +132,9 @@ def _callback_page(
     safe_provider = html.escape(provider or "the provider")
     accent = _TOKEN_CYAN if ok else _TOKEN_ERROR
     label = html.escape(micro_label or ("CONNECTED" if ok else "CONNECTION FAULT"))
-    # Success spins continuously and briskly — a real "it's working"
+    # Success spins continuously and briskly, a real "it's working"
     # signal, like a gear happily running. Failure repeats a slow,
-    # deliberate partial turn-and-stop cycle — reads as "it keeps trying
+    # deliberate partial turn-and-stop cycle that reads as "it keeps trying
     # and stalling," never a continuous spin (which would wrongly read as
     # "still trying to complete right now") or a static image ("dead").
     ring_animation_class = "diag-ring-spin" if ok else "diag-ring-turn-stop"
@@ -203,7 +199,7 @@ def _callback_page(
 
 @router.get("/api/integrations", response_model=list[IntegrationConnectionRead])
 def list_integrations(db: Session = Depends(get_db)) -> list[IntegrationConnectionRead]:
-    """Read-only — never touches the Keychain or mutates OAuth state.
+    """Read-only: never touches the Keychain or mutates OAuth state.
     Each provider's row is fetched independently so one provider's
     unexpected failure can never take down the other provider's (truthful)
     status; a failure here is reported as `status="error"`, never silently
@@ -229,21 +225,14 @@ def list_integrations(db: Session = Depends(get_db)) -> list[IntegrationConnecti
 
 
 def _open_in_system_browser(url: str) -> None:
-    """Opens `url` in the real system browser, server-side, from this
-    trusted local process — never through the native app's WebView/JS
-    bridge, which was found unreliable for this exact purpose (Tauri only
-    injects its IPC bridge into content loaded from its own trusted
-    origin, and this app's real content loads from the same plain
-    http://127.0.0.1 origin as everything else, not that trusted one).
-    This makes "Connect" work identically whether Jarvis is running as
-    the packaged native app or the `jarvisctl.sh` dev-mode browser
-    workflow, with no special-casing needed anywhere in the frontend.
+    """Opens `url` in the system browser from this local process instead
+    of the native app's WebView, where Tauri's IPC bridge isn't available
+    for content served from 127.0.0.1. This makes "Connect" behave the
+    same in the native app and the browser dev workflow.
 
-    A dedicated, narrowly-named function — not an inline
-    `subprocess.Popen` call — specifically so tests can patch this one
-    seam (see conftest.py's `_no_real_browser_open`) without patching the
-    shared `subprocess` module wholesale, which would also break every
-    other real subprocess use elsewhere (Hermes profile export, etc.)."""
+    Kept as its own function so tests can patch just this call (see
+    conftest.py's `_no_real_browser_open`) without patching `subprocess`
+    globally."""
     try:
         subprocess.Popen(["open", url])
     except OSError:
@@ -400,9 +389,9 @@ def get_schedule(provider: str, db: Session = Depends(get_db)) -> IntegrationSch
 def update_schedule(
     provider: str, payload: IntegrationScheduleUpdateRequest, db: Session = Depends(get_db)
 ) -> IntegrationScheduleRead:
-    """An explicit local UI action — configuring how Jarvis manages its own
+    """An explicit local UI action. Configuring how Jarvis manages its own
     local schedule metadata has no external side effect of its own, so
-    this does not go through the Phase 8 proposal lifecycle (that governs
+    this does not go through the proposal lifecycle (that governs
     actions with an external effect, like a Calendar write)."""
     if provider not in _PROVIDERS:
         raise HTTPException(status_code=404, detail="Unknown provider")
@@ -509,7 +498,7 @@ _CATEGORY_DAILY_FIELDS = {
 @router.get("/api/integrations/google_health/metric-groups", response_model=list[GoogleHealthMetricGroupStatus])
 def google_health_metric_groups(db: Session = Depends(get_db)) -> list[GoogleHealthMetricGroupStatus]:
     """Per-category (matching the registry's scope categories: activity,
-    health_metrics, sleep) availability — whether *anything* useful was
+    health_metrics, sleep) availability: whether *anything* useful was
     persisted recently, not a claim that every possible metric/source is
     present. Availability depends on the connected account, contributing
     devices/apps, granted scopes, and device capabilities."""

@@ -1,7 +1,6 @@
-"""Phase 12B: briefing continuity — bounded snapshot audit trail, a
+"""Briefing continuity: bounded snapshot audit trail, a
 per-identity change-detection ledger (Home-briefing only), and local
-acknowledge/snooze presentation state. Forward-only — 0001-0012 are
-untouched.
+acknowledge/snooze presentation state.
 
 Revision ID: 0013
 Revises: 0012

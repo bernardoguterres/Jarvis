@@ -1,8 +1,8 @@
-"""Phase 9: explicit browser upload/import of local documents only — never
+"""Explicit browser upload/import of local documents only, never
 a scanned or watched folder. Validates content by sniffing actual bytes
 (never trusting the filename extension), enforces size/count/page limits,
 guards against DOCX zip bombs and macro-enabled documents, extracts text
-via safe, non-executing parsers (pypdf/python-docx — no macro or embedded
+via safe, non-executing parsers (pypdf/python-docx, with no macro or embedded
 OLE-object execution), chunks it, and indexes it in the rebuildable FTS5
 document index.
 """
@@ -31,7 +31,7 @@ MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024  # 25 MiB
 MAX_TOTAL_DOCUMENTS = 500
 MAX_PDF_PAGES = 500
 MAX_DOCX_MEMBERS = 2000
-MAX_DOCX_UNCOMPRESSED_BYTES = 100 * 1024 * 1024  # 100 MiB — zip-bomb guard
+MAX_DOCX_UNCOMPRESSED_BYTES = 100 * 1024 * 1024  # 100 MiB zip-bomb guard
 
 CHUNK_SIZE_CHARS = 1500
 CHUNK_OVERLAP_CHARS = 200
@@ -77,7 +77,7 @@ def _sniff(data: bytes, original_filename: str) -> SniffResult:
             )
         raise DocumentValidationError("File is a ZIP archive but not a recognized .docx document.")
 
-    # No strong binary signature — only accept if it decodes cleanly as text
+    # No strong binary signature, so only accept if it decodes cleanly as text
     # with no embedded NUL bytes (a cheap, effective binary-content check).
     if b"\x00" in data[:8192]:
         raise DocumentValidationError("File content is not recognized as PDF, DOCX, or plain text.")

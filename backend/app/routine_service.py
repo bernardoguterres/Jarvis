@@ -189,6 +189,12 @@ class OutputLine:
 class OutputSection:
     title: str
     lines: list[OutputLine] = field(default_factory=list)
+    # The one domain this section's content comes from (Calendar counts as
+    # LIFE), or None for content owned by no domain (the evening check-in's
+    # fixed prompts). A run can span several domains, so the run itself is
+    # indexed as global; recall_index_service uses this tag to index only
+    # the LIFE/PATH/BUILD sections and keep BODY/MIND/PEOPLE out of Recall.
+    domain_slug: str | None = None
 
 
 def _record_payload(record: StructuredRecord) -> dict:
@@ -206,7 +212,7 @@ def _life_tasks_section(session: Session, life_domain_id: str) -> OutputSection:
         title = payload.get("title", "(untitled task)")
         due = f" (due {payload['due_date']})" if payload.get("due_date") else ""
         lines.append(OutputLine(text=f"{title}{due}", source_ref=f"record:{r.id[:8]}"))
-    return OutputSection(title="Active LIFE tasks", lines=lines)
+    return OutputSection(title="Active LIFE tasks", lines=lines, domain_slug="life")
 
 
 def _calendar_section(session: Session, today: date_type) -> OutputSection:
@@ -215,7 +221,7 @@ def _calendar_section(session: Session, today: date_type) -> OutputSection:
     for ev in rows:
         when = ev.start_datetime.strftime("%H:%M") if ev.start_datetime else "all day"
         lines.append(OutputLine(text=f"{when} — {ev.title}", source_ref=f"calendar_event:{ev.id[:8]}"))
-    return OutputSection(title="Today's Calendar events", lines=lines)
+    return OutputSection(title="Today's Calendar events", lines=lines, domain_slug="life")
 
 
 def _path_deadlines_section(session: Session, path_domain_id: str) -> OutputSection:
@@ -226,7 +232,7 @@ def _path_deadlines_section(session: Session, path_domain_id: str) -> OutputSect
         title = payload.get("title", "(untitled deadline)")
         due = f" (due {payload['due_date']})" if payload.get("due_date") else ""
         lines.append(OutputLine(text=f"{title}{due}", source_ref=f"record:{r.id[:8]}"))
-    return OutputSection(title="Upcoming PATH deadlines", lines=lines)
+    return OutputSection(title="Upcoming PATH deadlines", lines=lines, domain_slug="path")
 
 
 def _build_checkpoints_section(session: Session, build_domain_id: str) -> OutputSection:
@@ -236,7 +242,7 @@ def _build_checkpoints_section(session: Session, build_domain_id: str) -> Output
         payload = _record_payload(r)
         text = f"{payload.get('project', '(project)')}: {payload.get('summary', '')}"
         lines.append(OutputLine(text=text, source_ref=f"record:{r.id[:8]}"))
-    return OutputSection(title="Active BUILD checkpoints", lines=lines)
+    return OutputSection(title="Active BUILD checkpoints", lines=lines, domain_slug="build")
 
 
 def _body_section(session: Session) -> OutputSection:
@@ -252,7 +258,7 @@ def _body_section(session: Session) -> OutputSection:
             parts.append(f"resting_hr={row.resting_heart_rate}")
         if parts:
             lines.append(OutputLine(text=f"{row.date.isoformat()}: " + " ".join(parts), source_ref=f"google_health_summary:{row.id[:8]}"))
-    return OutputSection(title="BODY — recent Google Health data", lines=lines)
+    return OutputSection(title="BODY — recent Google Health data", lines=lines, domain_slug="body")
 
 
 def _mind_section(session: Session, mind_domain_id: str) -> OutputSection:
@@ -266,7 +272,7 @@ def _mind_section(session: Session, mind_domain_id: str) -> OutputSection:
     lines = [
         OutputLine(text=f"mood={_record_payload(r).get('mood', '?')}", source_ref=f"record:{r.id[:8]}") for r in rows
     ]
-    return OutputSection(title="MIND — recent check-ins", lines=lines)
+    return OutputSection(title="MIND — recent check-ins", lines=lines, domain_slug="mind")
 
 
 def _people_section(session: Session, people_domain_id: str) -> OutputSection:
@@ -281,7 +287,7 @@ def _people_section(session: Session, people_domain_id: str) -> OutputSection:
         OutputLine(text=f"{_record_payload(r).get('person', '?')}: {_record_payload(r).get('note', '')}", source_ref=f"record:{r.id[:8]}")
         for r in rows
     ]
-    return OutputSection(title="PEOPLE — recent interactions", lines=lines)
+    return OutputSection(title="PEOPLE — recent interactions", lines=lines, domain_slug="people")
 
 
 def build_morning_briefing(session: Session, selected_domains: list[str], today: date_type) -> list[OutputSection]:
@@ -347,7 +353,7 @@ def build_weekly_review(session: Session, selected_domains: list[str], today: da
             payload = _record_payload(r)
             summary = payload.get("title") or payload.get("summary") or payload.get("note") or r.record_type
             lines.append(OutputLine(text=f"Open: {summary}", source_ref=f"record:{r.id[:8]}"))
-        sections.append(OutputSection(title=f"{slug.upper()} — weekly review", lines=lines))
+        sections.append(OutputSection(title=f"{slug.upper()} — weekly review", lines=lines, domain_slug=slug))
 
     if "body" in selected_domains:
         rows = (
@@ -361,13 +367,22 @@ def build_weekly_review(session: Session, selected_domains: list[str], today: da
             for r in rows
             if r.steps is not None
         ]
-        sections.append(OutputSection(title="BODY — Health trends this week", lines=lines))
+        sections.append(OutputSection(title="BODY — Health trends this week", lines=lines, domain_slug="body"))
     return sections
 
 
 def _sections_to_json(sections: list[OutputSection]) -> str:
     return json.dumps(
-        {"sections": [{"title": s.title, "lines": [{"text": ln.text, "source_ref": ln.source_ref} for ln in s.lines]} for s in sections]}
+        {
+            "sections": [
+                {
+                    "title": s.title,
+                    "domain_slug": s.domain_slug,
+                    "lines": [{"text": ln.text, "source_ref": ln.source_ref} for ln in s.lines],
+                }
+                for s in sections
+            ]
+        }
     )
 
 

@@ -21,7 +21,8 @@ Design rules enforced by construction here:
   * Every adapter only reads already-vetted, human-readable fields — never
     `arguments_json`/`confirmation_token`/`result_json` (action
     proposals), never `output_json`'s raw shape beyond its own documented
-    plain-text `lines[].text` (routine runs), never OAuth/Keychain/
+    plain-text `lines[].text` of LIFE/PATH/BUILD-tagged sections (routine
+    runs), never OAuth/Keychain/
     credential data, never a raw provider payload.
   * `domain_slug` is resolved once here, at write time, and stored as a
     plain slug string (never a domain_id) — see migration 0016's own
@@ -264,10 +265,23 @@ def _render_action_proposal(session: Session, proposal_id: str) -> dict:
     }
 
 
+# A routine run is indexed as global (domain_slug=None), so it is visible
+# wherever global results are allowed, including default Recall and every
+# Research/Decision evidence search. Only sections whose structured
+# `domain_slug` tag is in this allowlist may contribute text; BODY/MIND/
+# PEOPLE sections (present only when Bernardo opted them into a routine)
+# stay in the Routine Centre and never reach the index. Fail closed: a
+# section with no tag, an unknown tag, or a run written before sections
+# were tagged contributes nothing.
+_INDEXABLE_ROUTINE_SECTION_DOMAINS = frozenset({"life", "path", "build"})
+
+
 def _routine_output_text(output_json: str | None) -> str:
     """Extracts only the documented plain-text `lines[].text` values from
     a routine run's structured, deterministic `output_json` — never the
-    raw shape/keys, and safe against any malformed/unexpected JSON."""
+    raw shape/keys, and safe against any malformed/unexpected JSON. Only
+    sections tagged with an allowlisted domain are included (see
+    `_INDEXABLE_ROUTINE_SECTION_DOMAINS`)."""
     if not output_json:
         return ""
     try:
@@ -279,6 +293,8 @@ def _routine_output_text(output_json: str | None) -> str:
     texts: list[str] = []
     for section in data.get("sections") or []:
         if not isinstance(section, dict):
+            continue
+        if section.get("domain_slug") not in _INDEXABLE_ROUTINE_SECTION_DOMAINS:
             continue
         if isinstance(section.get("title"), str):
             texts.append(section["title"])

@@ -333,7 +333,9 @@ def test_routine_run_indexed_with_reason_and_output_text(db_session: Session) ->
     run = RoutineRun(
         routine_type="morning_briefing", trigger="manual", started_at=NOW, completed_at=NOW, outcome="succeeded",
         reason=None,
-        output_json=json.dumps({"sections": [{"title": "Calendar", "lines": [{"text": "Dentist at 11am", "source_ref": None}]}]}),
+        output_json=json.dumps(
+            {"sections": [{"title": "Calendar", "domain_slug": "life", "lines": [{"text": "Dentist at 11am", "source_ref": None}]}]}
+        ),
         selected_domains_json="[]",
     )
     db_session.add(run)

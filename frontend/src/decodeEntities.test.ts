@@ -19,7 +19,7 @@ describe("decodeHtmlEntities", () => {
   it("decodes text that resembles an HTML tag without ever executing as markup", () => {
     // Regression for the actual bug: a server-escaped snippet like
     // "&lt;script&gt;" must come back as the literal, inert text
-    // "<script>" — this function only ever turns entities back into
+    // "<script>". This function only ever turns entities back into
     // characters for a plain React text child, never for
     // dangerouslySetInnerHTML, so the result can never be parsed as markup.
     expect(decodeHtmlEntities("&lt;script&gt;alert(1)&lt;/script&gt;")).toBe("<script>alert(1)</script>");

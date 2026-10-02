@@ -1,4 +1,4 @@
-"""Phase 8: the Jarvis-initiated action proposal/approval/execution API."""
+"""The Jarvis-initiated action proposal/approval/execution API."""
 
 from __future__ import annotations
 

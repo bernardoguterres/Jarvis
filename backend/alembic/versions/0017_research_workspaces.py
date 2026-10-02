@@ -1,18 +1,10 @@
-"""Phase 12E: Source-Grounded Research Workspace, built on top of Phase
-12D Unified Recall — never a second search/indexing engine. Adds four new
-tables: research_workspaces, research_evidence (a typed pointer to a real,
-already-existing Recall-eligible source, never a copy of its live
-content), research_notes (user-authored notes/claims), and
-research_brief_versions (versioned, cited briefs — regenerating always
-creates a new version rather than overwriting one).
+"""Research workspaces: research_workspaces, research_evidence (typed
+pointers to real Recall sources), research_notes, and
+research_brief_versions (regenerating always adds a version).
 
-A partial unique index (`uq_research_evidence_active_source`) makes adding
-the same evidence to a workspace twice idempotent even under a race,
-mirroring migration 0014's `uq_mission_focus_active_source` pattern. A
-plain unique constraint on (workspace_id, version_number) keeps brief
-version numbering unambiguous per workspace.
-
-Forward-only — 0001-0016 are untouched.
+A partial unique index (`uq_research_evidence_active_source`) makes
+adding the same evidence twice idempotent even under a race, and a
+unique (workspace_id, version_number) keeps brief numbering clear.
 
 Revision ID: 0017
 Revises: 0016
@@ -83,7 +75,7 @@ def upgrade() -> None:
     # Real database-level idempotency: adding the same (workspace, source)
     # pair twice can never create two simultaneously-active evidence rows,
     # even under a race the service layer's own check-then-insert alone
-    # cannot fully close — mirrors migration 0014's
+    # cannot fully close, mirroring migration 0014's
     # uq_mission_focus_active_source pattern exactly. Partial (not plain)
     # so re-adding a previously-removed evidence row is never wrongly
     # blocked by its own old 'removed' row.

@@ -12,7 +12,7 @@ describe("formatDateTime", () => {
     // Regression test for the actual bug: the backend sends timestamps
     // like "2026-09-04T12:00:00" with no "Z"/offset (SQLite/SQLAlchemy
     // strips timezone info on retrieval even though the value is stored
-    // as UTC) — JavaScript's Date parser treats a timezone-less date-TIME
+    // as UTC). JavaScript's Date parser treats a timezone-less date-TIME
     // string as *local*, silently misinterpreting an actual UTC value.
     // Appending "Z" ourselves before parsing is what fixes this.
     const withoutZ = formatDateTime("2026-09-04T12:00:00");

@@ -266,7 +266,7 @@ describe("Home — briefing continuity (Phase 12B)", () => {
     render(<Home onSelectDomain={() => {}} onOpenGeneral={() => {}} onNavigate={() => {}} health="ok" />);
     await screen.findByText("Renew passport");
 
-    // The snooze duration list is a native <details> disclosure — matching
+    // The snooze duration list is a native <details> disclosure, matching
     // the project's existing .builder-surface pattern (docs/DECISIONS.md
     // D80), jsdom's queries reach its content directly regardless of the
     // native `open` toggle, which jsdom itself doesn't simulate on click.

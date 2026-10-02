@@ -1,5 +1,5 @@
 """Confirms migration 0012 -> 0013 (Phase 12B briefing continuity) creates
-the four new tables with no data loss to existing tables. Forward-only —
+the four new tables with no data loss to existing tables. Forward-only:
 0001-0012 untouched."""
 
 from __future__ import annotations

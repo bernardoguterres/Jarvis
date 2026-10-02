@@ -1,29 +1,13 @@
-"""Mission Control / Current Focus — turns Phase 12A/12B's deterministic
-situational briefing into one persistent, timed focus session at a time.
+"""Mission Control: one persistent, timed focus session at a time, with
+candidates taken from the Home briefing.
 
-Hard rules enforced by construction here (mirrors CLAUDE.md/Phase 12A-12C):
-
-  * No model call, no Hermes call, anywhere in this module.
-  * Candidates are never independently ranked here — `mission_candidates()`
-    takes an already-assembled `HomeBriefing` (the caller — the router —
-    calls `app.briefing_service.assemble_home_briefing()` exactly once)
-    and only partitions its already-sorted NOW/NEXT/WATCH `items`. There
-    is no second prioritization engine, and this module never triggers a
-    second assembly/ledger-write/snapshot pass on its own.
-  * A source reference (`source_type`/`source_id`) is resolved via the
-    exact same `app.briefing_service.resolve_pin_source()` Phase 12C
-    already built for the same five eligible source types — never a
-    second resolution implementation.
-  * Ending a focus session (complete or abandon) never mutates the
-    underlying Calendar event, LIFE/PATH/BUILD record, or action proposal
-    it was started from — those remain entirely separate state machines.
-  * Only one row may be `active`/`paused` at a time — enforced primarily
-    here (for a clean error message) and backed by a real database-level
-    partial unique index (migration 0015) so a race can never bypass it.
-  * The timer is always derived from persisted timestamps
-    (`started_at`/`paused_at`/`accumulated_paused_seconds`/`completed_at`)
-    via `elapsed_seconds()` — never a frontend countdown as source of
-    truth, so an ordinary restart is accurate for free.
+No model or Hermes call. Candidates come from an already-assembled
+`HomeBriefing`, so there is no second ranking engine, and source
+references resolve through `briefing_service.resolve_pin_source()`.
+Ending a session never changes the item it came from. Only one session
+can be active or paused, enforced here and by a partial unique index
+(migration 0015). Elapsed time is always computed from stored
+timestamps, so a restart stays accurate.
 """
 
 from __future__ import annotations
@@ -50,13 +34,13 @@ from app.models_mission_control import (
 )
 from app.recall_index_service import sync_recall
 
-# Real, already-existing source types a mission may reference — the same
+# Real, already-existing source types a mission may reference: the same
 # five Mission Focus already validates, plus 'manual' for free text.
 _RESOLVABLE_SOURCE_TYPES = ("life_task", "path_deadline", "build_checkpoint", "calendar_event", "action_proposal")
 
 FOCUS_DURATION_PRESETS_MINUTES = (25, 45, 60)
 
-# History retention — mirrors routine_service's ROUTINE_RUN_RETENTION_PER_TYPE
+# History retention. Mirrors routine_service's ROUTINE_RUN_RETENTION_PER_TYPE
 # and briefing_service's SNAPSHOT_RETENTION_PER_CONSUMER pattern: a bounded
 # count of terminal (completed/abandoned) rows, never the current
 # active/paused session.
@@ -69,7 +53,7 @@ class MissionControlError(Exception):
 
 def _as_aware(dt: datetime | None) -> datetime | None:
     """SQLite drops tzinfo on round-trip even through a `DateTime(timezone=
-    True)` column (see docs/DECISIONS.md D89) — normalize back to aware
+    True)` column, so normalize back to aware
     UTC at every read boundary rather than trusting a value fetched fresh
     from the database to still be aware."""
     if dt is None:
@@ -79,7 +63,7 @@ def _as_aware(dt: datetime | None) -> datetime | None:
 
 def elapsed_seconds(row: FocusSession, now: datetime) -> int:
     """Derives elapsed *focus* time (paused time excluded) purely from
-    persisted timestamps — never a decrementing frontend interval. Frozen
+    persisted timestamps, never a decrementing frontend interval. Frozen
     at `completed_at` for a terminal session, at `paused_at` while
     currently paused, or ticking live against `now` while active."""
     started_at = _as_aware(row.started_at)
@@ -103,7 +87,7 @@ def remaining_seconds(row: FocusSession, now: datetime) -> int:
 @dataclass(frozen=True)
 class MissionCandidate:
     """One candidate the briefing assembler already surfaced, reshaped for
-    "what should I do now" rather than a triage list — the exact same
+    "what should I do now" rather than a triage list. The same
     `BriefingItem` fields, never independently re-derived."""
 
     stable_key: str
@@ -136,7 +120,7 @@ class MissionControlCandidates:
     """At most one recommended candidate, at most two alternatives (both
     drawn from the briefing's NOW/NEXT items, already deterministically
     sorted), and any WATCH items shown separately. Never a claim that this
-    represents Bernardo's actual preference — always presented as
+    represents Bernardo's actual preference; it is always presented as
     "suggested from current information."""
 
     recommended: MissionCandidate | None
@@ -147,7 +131,7 @@ class MissionControlCandidates:
 
 def mission_candidates(briefing: HomeBriefing) -> MissionControlCandidates:
     """Partitions an already-assembled `HomeBriefing` (from
-    `assemble_home_briefing()` — never re-computed here) into a Mission
+    `assemble_home_briefing()`, never re-computed here) into a Mission
     Control candidate view. Deliberately takes the already-built
     `HomeBriefing` rather than a session/now pair, so a caller that
     already fetched the Home briefing this turn (or a test with a fixed
@@ -198,7 +182,7 @@ def start_mission(
     now: datetime,
 ) -> FocusSession:
     """Creates a focus session and immediately starts it (`status='active'`,
-    `started_at=now`) — the one atomic action behind "Start", "Focus on
+    `started_at=now`). This is the one atomic action behind "Start", "Focus on
     this for 45 minutes", and every other entry point. Raises
     `MissionControlError` (never a bare exception, never a silent guess)
     for: a session already in flight, an out-of-range duration, an
@@ -265,7 +249,7 @@ def _require_current(session: Session, session_id: str) -> FocusSession:
 def pause_mission(session: Session, session_id: str, now: datetime) -> FocusSession:
     row = _require_current(session, session_id)
     if row.status == "paused":
-        return row  # idempotent — a duplicate/retried request is a safe no-op
+        return row  # idempotent: a duplicate/retried request is a safe no-op
     if row.status != "active":
         raise MissionControlError(f"Cannot pause a session in status {row.status!r}.")
     row.paused_at = now
@@ -296,7 +280,7 @@ def resume_mission(session: Session, session_id: str, now: datetime) -> FocusSes
 
 def _fold_pause_if_any(row: FocusSession, now: datetime) -> None:
     """Ending (complete/abandon) directly from `paused` must not silently
-    count the final paused window as focus time — fold it in first,
+    count the final paused window as focus time, so fold it in first,
     exactly like a resume immediately followed by an end."""
     if row.status == "paused" and row.paused_at is not None:
         paused_at = _as_aware(row.paused_at)
@@ -378,7 +362,7 @@ def get_history(session: Session, limit: int = 20) -> list[FocusSession]:
 
 
 def cleanup_old_focus_sessions(session: Session) -> int:
-    """Bounded history retention — mirrors routine_service's/briefing_
+    """Bounded history retention. Mirrors routine_service's/briefing_
     service's own established pattern: keep the most recent
     `FOCUS_SESSION_HISTORY_RETENTION` terminal rows, prune the rest. The
     current active/paused session (if any) is never a candidate for

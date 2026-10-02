@@ -55,7 +55,7 @@ def test_before_action_hooks_run_in_order_and_stop_at_first_failure(db_session: 
         extra={"confirmation_token": "irrelevant"},
     )
     outcomes = hooks.run_hooks("before_action", context)
-    assert len(outcomes) == 2  # capability_allowlist (ok), confirmation_validity (blocked) — stopped there
+    assert len(outcomes) == 2  # capability_allowlist (ok), confirmation_validity (blocked), stopped there
     assert outcomes[0].allowed is True
     assert outcomes[1].allowed is False
 
@@ -106,5 +106,5 @@ def test_recursion_guard_blocks_re_execution_after_success(db_session: Session) 
     )
     outcomes = hooks.run_hooks("before_action", context)
     # confirmation_validity itself already blocks (status is no longer "approved"),
-    # so recursion_guard never even needs to run — still a correct fail-closed result.
+    # so recursion_guard never even needs to run. Still a correct fail-closed result.
     assert any(not o.allowed for o in outcomes)

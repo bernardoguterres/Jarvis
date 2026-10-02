@@ -1,27 +1,27 @@
 """D83: a second connection writing while another connection's transaction
-is still open can raise `database is locked` immediately, with no retry —
+is still open can raise `database is locked` immediately, with no retry:
 SQLite's own documented default busy timeout is 0ms. This app always has at
-least two independent connections capable of writing at once — the FastAPI
+least two independent connections capable of writing at once (the FastAPI
 request-handling session(s) and the background SchedulerRuntime's own
-session (Phase 10) — so an ordinary, brief overlap must not depend on
+session), so an ordinary, brief overlap must not depend on
 whatever busy-timeout default a given platform's SQLite build happens to
 ship with.
 
 Important honesty note (found while writing these tests): this container's
 particular linked SQLite build already defaults to a 5000ms busy timeout
-with *no* PRAGMA set at all — some distributions patch this away from
+with *no* PRAGMA set at all; some distributions patch this away from
 upstream SQLite's documented 0ms default. That means a test which only
 checks "does a brief overlap succeed without raising" cannot, by itself,
 prove `app.database`'s own PRAGMA is what's responsible *in this specific
-environment* — it would pass even if that line were deleted, purely by
+environment*. It would pass even if that line were deleted, purely by
 platform coincidence. The tests below are written to be conclusive
 regardless of any given platform's ambient default:
 
 1. `test_a_second_writer_fails_immediately_when_busy_timeout_is_explicitly_zero`
    proves the underlying failure mode is real and that this test file's
    locking mechanism can actually detect it (never a vacuously-passing
-   test), by explicitly forcing busy_timeout=0 — overriding whatever the
-   platform default is — before holding the lock.
+   test), by explicitly forcing busy_timeout=0 (overriding whatever the
+   platform default is) before holding the lock.
 2. `test_a_second_writer_waits_for_the_lock_when_busy_timeout_is_set`
    proves that explicitly setting a non-zero busy_timeout (mirroring what
    `app.database` does) turns that same failure into a brief, successful
@@ -70,7 +70,7 @@ def _hold_lock_in_background(conn: sqlite3.Connection, hold_seconds: float, star
 
 def test_a_second_writer_fails_immediately_when_busy_timeout_is_explicitly_zero() -> None:
     """Establishes that this test file's locking setup genuinely reproduces
-    contention — busy_timeout=0 overrides any platform default, so this
+    contention. busy_timeout=0 overrides any platform default, so this
     must fail regardless of what this machine's SQLite happens to ship
     with."""
     path = tempfile.mktemp(suffix=".sqlite")
@@ -89,7 +89,7 @@ def test_a_second_writer_fails_immediately_when_busy_timeout_is_explicitly_zero(
 
 def test_a_second_writer_waits_for_the_lock_when_busy_timeout_is_set() -> None:
     """The same contention as above, but with a non-zero busy_timeout on
-    both sides (mirroring app.database's own PRAGMA) — the second writer
+    both sides (mirroring app.database's own PRAGMA), so the second writer
     must now succeed by waiting, never raise."""
     path = tempfile.mktemp(suffix=".sqlite")
     holder = _raw_connection(path, busy_timeout_ms=5000)
@@ -111,8 +111,8 @@ def test_a_second_writer_waits_for_the_lock_when_busy_timeout_is_set() -> None:
 
 
 def test_the_apps_own_connect_listener_sets_busy_timeout_explicitly(memory_settings: Settings) -> None:
-    """Proves app.database's connect-event listener is what applies this —
-    not a coincidental platform default — by asserting the exact documented
+    """Proves app.database's connect-event listener is what applies this,
+    not a coincidental platform default, by asserting the exact documented
     value rather than merely "non-zero"."""
     engine = build_engine(memory_settings.database_url)
     with engine.connect() as conn:

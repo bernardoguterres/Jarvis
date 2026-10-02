@@ -1,5 +1,5 @@
 // A deterministic, allowlisted, model-independent interface-command
-// registry and parser. This never guesses via Hermes or any model — it is
+// registry and parser. This never guesses via Hermes or any model; it is
 // plain string normalization plus a fixed alias table, shared by the
 // Command Palette (typed input) and DomainView's voice transcript handling
 // (spoken input), so both surfaces agree on exactly the same set of safe
@@ -19,7 +19,7 @@ export type CentreTarget =
 
 export type DomainSlug = "body" | "mind" | "people" | "path" | "build" | "life";
 
-// "general" opens the general Jarvis conversation itself — a scope, not a
+// "general" opens the general Jarvis conversation itself: a scope, not a
 // seventh domain (see docs/DECISIONS.md D75/D79).
 export type NavigateTarget = "home" | "back" | "command_palette" | "general" | CentreTarget | `domain:${DomainSlug}`;
 
@@ -31,17 +31,17 @@ export interface SensitiveControl {
 
 // Safe direct actions: read-only or trivially reversible, and execute
 // immediately from anywhere (Home, a Centre, a domain conversation, the
-// general conversation) without any confirmation step — CLAUDE.md §12's
+// general conversation) without any confirmation step: CLAUDE.md §12's
 // "Read" tier. Never anything that mutates external state or local
-// configuration; those are `confirm_required` or the Phase 8 proposal
+// configuration; those are `confirm_required` or the proposal
 // lifecycle instead.
 export type SafeAction =
   | { kind: "sync_provider"; provider: "google_calendar" | "google_health"; providerLabel: string }
   | { kind: "retry_connection" }
   | { kind: "run_routine"; routineType: "morning_briefing" | "evening_checkin" | "weekly_review"; routineLabel: string }
-  // Mission Control (Phase 12D-adjacent — see CLAUDE.md §9's Mission
+  // Mission Control (see CLAUDE.md §9's Mission
   // Control addendum): every one of these is a local, reversible,
-  // non-Hermes state change on `focus_sessions` — never a Calendar/
+  // non-Hermes state change on `focus_sessions`, never a Calendar/
   // memory/task mutation, so all six are CLAUDE.md §12 "Read"-tier safe
   // actions, same as sync_provider/run_routine above.
   | { kind: "focus_start"; durationMinutes: number | null }
@@ -51,16 +51,16 @@ export type SafeAction =
   | { kind: "focus_abandon" }
   | { kind: "focus_show_current" }
   | { kind: "focus_show_history" }
-  // Phase 12D Unified Recall: a deterministic local search, never a model
-  // call — reads exactly like the others in this table (never mutates
+  // Unified Recall: a deterministic local search, never a model
+  // call. It reads exactly like the others in this table (never mutates
   // anything, never requires confirmation). `domainHint` is set only when
   // the phrase names a real domain as an explicit trailing scope ("...in
-  // BODY") — resolved via the exact same DOMAIN_ALIASES table `findDomain`
+  // BODY"), resolved via the exact same DOMAIN_ALIASES table `findDomain`
   // already uses for plain navigation, never a second table.
   | { kind: "open_recall"; query: string; domainHint: DomainSlug | null };
 
 // Confirmation-required actions: a real, named, consequential local
-// configuration change — CLAUDE.md §12's "Confirm" tier. The registry only
+// configuration change: CLAUDE.md §12's "Confirm" tier. The registry only
 // ever identifies *which* action was named; it never calls anything
 // itself, and the UI must show an explicit confirm/cancel before the
 // caller executes it.
@@ -84,14 +84,14 @@ const CENTRE_ALIASES: Record<CentreTarget, string[]> = {
   routine_centre: ["routine centre", "routines centre", "routine center", "routines centre", "routines", "routine"],
   data_management: ["data management", "data centre", "data center", "export centre", "backups"],
   recall_centre: ["recall centre", "recall center", "recall", "search jarvis", "unified recall"],
-  // Navigation only — deliberately no "research this for me" safe action.
+  // Navigation only, deliberately no "research this for me" safe action.
   // A research workspace is only ever created or drafted by a direct
-  // in-Centre action (CLAUDE.md's Phase 12E boundary); a spoken/typed
+  // in-Centre action (CLAUDE.md's Research boundary); a spoken/typed
   // phrase may only open the Centre itself, never execute research.
   research_centre: ["research centre", "research center", "research", "research workspace", "open research", "show research centre"],
-  // Navigation only — deliberately no autonomous "decide this for me"
+  // Navigation only, deliberately no autonomous "decide this for me"
   // action. Jarvis must never finalize or execute a decision on its own
-  // (CLAUDE.md's Phase 12F boundary); a spoken/typed phrase may only ever
+  // (CLAUDE.md's Decision Room boundary); a spoken/typed phrase may only ever
   // open the Decision Room itself.
   decision_centre: ["decision room", "decision centre", "decision center", "decisions", "open decisions", "show decision room", "review my decisions"],
 };
@@ -106,8 +106,8 @@ const DOMAIN_ALIASES: Record<DomainSlug, string[]> = {
 };
 
 /** Runtime guard for a value that claims to be a `NavigateTarget` but
- * didn't come from `parseCommand` itself — e.g. a `link_target` string the
- * backend attaches to a Phase 12A briefing item (api.ts's `BriefingItem`).
+ * didn't come from `parseCommand` itself, e.g. a `link_target` string the
+ * backend attaches to a briefing item (api.ts's `BriefingItem`).
  * Never trust such a string without this check first; an unrecognized
  * value must never navigate anywhere (see components/BriefingStrip.tsx). */
 export function isNavigateTarget(value: string | null | undefined): value is NavigateTarget {
@@ -123,7 +123,7 @@ export function isNavigateTarget(value: string | null | undefined): value is Nav
 
 const NAV_VERB_PREFIX = /^(open|show|go to|go|navigate to|take me to|display|switch to|jump to)\s+/;
 
-// Every entry's `requires` regexes must ALL match, in any order — voice
+// Every entry's `requires` regexes must ALL match, in any order. Voice
 // transcripts don't reliably preserve word order ("connect google
 // calendar" vs "google calendar connect"), so this deliberately checks
 // for the presence of each required word rather than a fixed sequence.
@@ -140,7 +140,7 @@ const SENSITIVE_CONTROLS: Array<{ requires: RegExp[]; control: SensitiveControl 
 
 // Confirmation-required (CLAUDE.md §12 "Confirm" tier): a real, named,
 // consequential local configuration change. The registry only ever names
-// *which* action was requested — it never calls anything itself. Checked
+// *which* action was requested. It never calls anything itself. Checked
 // before SENSITIVE_CONTROLS/BLOCKED_VERBS so "disconnect google calendar"
 // resolves here (a real confirm dialog, then a real disconnect if
 // accepted) rather than being merely shown or refused outright.
@@ -168,7 +168,7 @@ const CONFIRM_ACTIONS: Array<{ requires: RegExp[]; action: ConfirmAction; interp
 // Safe direct actions (CLAUDE.md §12 "Read" tier): read-only or trivially
 // reversible, so these execute immediately from anywhere with no
 // confirmation step. Checked before BLOCKED_VERBS for the same reason as
-// CONFIRM_ACTIONS above — "sync calendar" must resolve here, not be
+// CONFIRM_ACTIONS above: "sync calendar" must resolve here, not be
 // refused as a generic mutating phrase. `excludes` (checked first, if
 // present) keeps a broad word like "sync" from shadowing the more
 // specific "automatic sync" *schedule toggle* phrasing, which stays a
@@ -202,7 +202,7 @@ const SAFE_ACTIONS: Array<{ requires: RegExp[]; excludes?: RegExp[]; action: Saf
     action: { kind: "run_routine", routineType: "weekly_review", routineLabel: "Weekly Review" },
     interpreted: "Run Weekly Review now",
   },
-  // Mission Control lifecycle controls — never require confirmation (they
+  // Mission Control lifecycle controls never require confirmation (they
   // never touch Calendar/memory/an external system), so they're safe
   // actions like everything else in this table, and get the exact same
   // negation/question gating below.
@@ -229,7 +229,7 @@ const SAFE_ACTIONS: Array<{ requires: RegExp[]; excludes?: RegExp[]; action: Saf
 ];
 
 // "Start focus" needs a captured duration ("focus on this for 45 minutes"),
-// which SAFE_ACTIONS' static requires/action table can't express — matched
+// which SAFE_ACTIONS' static requires/action table can't express. Matched
 // separately, but through the exact same explanatoryOnly (negation/
 // question) gate as everything else in that table (see parseCommand).
 // Anchored at the start of the (already-normalized) text, unlike
@@ -246,18 +246,18 @@ function matchFocusStart(normalized: string): Extract<SafeAction, { kind: "focus
   return { kind: "focus_start", durationMinutes: minutes !== null && minutes >= 5 && minutes <= 180 ? minutes : null };
 }
 
-// Phase 12D Unified Recall: three natural phrasings. Each strips its own
+// Unified Recall: three natural phrasings. Each strips its own
 // leading trigger phrase, leaving the rest of the text to inspect for a
 // TRAILING "in my memories" (no domain scope, just strips the phrase) or
-// "in <domain>" clause (scopes the search — resolved via the exact same
+// "in <domain>" clause (scopes the search, resolved via the exact same
 // DOMAIN_ALIASES/findDomain table plain navigation already uses, never a
 // second domain table). An ordinary query that merely happens to contain
 // " in " but whose trailing segment isn't a real domain or "my memories"
-// (e.g. "search jarvis for coffee in Lisbon") is never mis-split — the
+// (e.g. "search jarvis for coffee in Lisbon") is never mis-split. The
 // whole remainder is kept as the query text.
 //
 // "find X" alone (with no "in my memories"/domain qualifier) is
-// deliberately NOT matched — "find" is far too common in ordinary
+// deliberately NOT matched: "find" is far too common in ordinary
 // conversation ("find out if...", "find the article about...") to safely
 // treat as a search-Jarvis command without a qualifier; "search jarvis
 // for X" and "look up X" are unambiguous enough on their own.
@@ -292,19 +292,19 @@ function matchOpenRecall(normalized: string): Extract<SafeAction, { kind: "open_
     }
   }
   // "find X" requires an explicit qualifier ("in my memories"/"in
-  // <domain>") — if none resolved above, this isn't a confident enough
+  // <domain>"). If none resolved above, this isn't a confident enough
   // match to treat as a command.
   if (requiresInClause) return null;
   return { kind: "open_recall", query: rest, domainHint: null };
 }
 
-// Pure reads (never start/pause/resume/complete/abandon anything) —
+// Pure reads (never start/pause/resume/complete/abandon anything),
 // matched as exact aliases, same as RETRY_CONNECTION_ALIASES/
 // GENERAL_CONVERSATION_ALIASES below, and for the same reason those two
 // need no negation/question gate: a negated phrase ("don't show mission
 // history") is a different string than the alias itself and simply fails
 // to match, and a genuine question phrasing ("what did I accomplish
-// today?") is deliberately usable here as a real trigger — CLAUDE.md's
+// today?") is deliberately usable here as a real trigger. CLAUDE.md's
 // Mission Control core-experience list names it explicitly as a command,
 // not a request for an explanation the way "what happens if I finish
 // this?" is for the mutating focus_complete action above.
@@ -341,13 +341,13 @@ const GENERAL_CONVERSATION_ALIASES = [
 
 // Verbs that mutate, execute, or reach an external service. Never
 // auto-clicked, even when a specific control is identified above (those
-// still only navigate + focus + explain, never click) — this list exists
+// still only navigate + focus + explain, never click). This list exists
 // to catch every OTHER mutating phrasing that doesn't match a known
 // control, so it can still be refused explicitly rather than silently
 // ignored or, worse, misrouted into a conversation turn.
 const BLOCKED_VERBS = /\b(connect|disconnect|enable|disable|delete|remove|restore|import|approve|deny|reject|execute|run\s*now|sync\s*now|archive|unarchive)\b/;
 
-// The blocked-verb check only fires alongside one of these — a mutating
+// The blocked-verb check only fires alongside one of these: a mutating
 // verb used in ordinary domain conversation ("I need to delete this bad
 // habit") must never be misread as a UI command. Requiring a system noun
 // too keeps the refusal scoped to genuine attempts to operate Jarvis's own
@@ -357,12 +357,12 @@ const SYSTEM_NOUN = /\b(calendar|health|integration|action|skill|routine|backup|
 const POSITIONAL_SELECTION = /\b(press|click|tap)\s+the\s+(first|second|third|fourth|fifth|\d+(st|nd|rd|th)?)\s+(button|item|option)\b/;
 
 // CONFIRM_ACTIONS/SAFE_ACTIONS match by keyword *presence*, not sequence or
-// grammar (see the comment above SENSITIVE_CONTROLS) — "don't disconnect
+// grammar (see the comment above SENSITIVE_CONTROLS). "don't disconnect
 // google calendar" contains exactly the same keywords as "disconnect
 // google calendar" and would otherwise resolve identically. A safe_action
 // executes immediately with no confirmation step at all, so this is a real
 // gap, not a cosmetic one: reliability-audit finding, D83/D84. Checked once
-// and used to skip only those two tables — SENSITIVE_CONTROLS stays
+// and used to skip only those two tables. SENSITIVE_CONTROLS stays
 // unaffected by negation, since it never activates anything regardless
 // ("shows, does not activate"), so a negated phrase merely navigating to
 // and highlighting a control is harmless either way.
@@ -370,7 +370,7 @@ const NEGATION_PATTERN = /\b(don'?t|do not|never|shouldn'?t|should not|won'?t|wi
 
 // The same keyword-presence matching means a genuine QUESTION about a
 // command ("what does sync calendar do", "how do I export data") contains
-// the identical keywords as the command itself — "what does sync calendar
+// the identical keywords as the command itself: "what does sync calendar
 // do" previously resolved to safe_action and ran a real sync immediately,
 // purely from being asked what it does. Matches a leading question word/
 // phrase; a trailing "?" is checked separately in parseCommand against the
@@ -391,7 +391,7 @@ function normalize(text: string): string {
 // A looser match would let an ordinary sentence that happens to end in a
 // domain word ("This knee pain is really affecting my body") get silently
 // rerouted into a navigation command instead of being sent as a real
-// conversation message — exactness is what keeps this deterministic and
+// conversation message. Exactness is what keeps this deterministic and
 // safe to run on every voice transcript, not just palette queries typed
 // with clear intent.
 function matchAlias(exact: string, aliases: string[]): boolean {
@@ -415,7 +415,7 @@ function findDomain(exact: string): DomainSlug | null {
 /**
  * Parse free text (typed or transcribed) into a deterministic command.
  * `inDomain` indicates whether there's currently an active domain
- * conversation to fall back to when nothing matches — see the `none`
+ * conversation to fall back to when nothing matches. See the `none`
  * result's handling contract in the caller (DomainView continues the
  * conversation; outside a domain the caller should ask the user to pick
  * one rather than send anything ambiguous anywhere).
@@ -458,11 +458,11 @@ export function parseCommand(rawText: string): ParsedCommand {
   // Negated phrasing ("don't disconnect google calendar", "never sync
   // health") and genuine questions ("what does sync calendar do", "how do
   // I export data?") must not resolve to the same result as the affirmative
-  // command — CONFIRM_ACTIONS/SAFE_ACTIONS match on keyword presence
+  // command. CONFIRM_ACTIONS/SAFE_ACTIONS match on keyword presence
   // regardless of grammar, so without this check a safe_action would
   // execute immediately despite the user only asking or explicitly saying
   // not to. Skips only these two tables; see NEGATION_PATTERN's comment
-  // for why SENSITIVE_CONTROLS is unaffected — the same reasoning applies
+  // for why SENSITIVE_CONTROLS is unaffected; the same reasoning applies
   // to questions (it's still only "show, don't activate").
   const explanatoryOnly = NEGATION_PATTERN.test(normalized) || QUESTION_PATTERN.test(normalized) || heard.trim().endsWith("?");
 
@@ -479,7 +479,7 @@ export function parseCommand(rawText: string): ParsedCommand {
     }
   }
 
-  // Safe direct actions — read-only or trivially reversible, execute
+  // Safe direct actions: read-only or trivially reversible, execute
   // immediately, checked before the sensitive controls/blocked-verb
   // catch-all for the same reason.
   if (!explanatoryOnly) {
@@ -515,8 +515,8 @@ export function parseCommand(rawText: string): ParsedCommand {
 
   // A sensitive-control phrase can appear combined with an explicit
   // navigation verb ("go to integrations and show google health automatic
-  // sync") or on its own ("show the google calendar disconnect button") —
-  // check this before the generic blocked-verb catch-all below, since
+  // sync") or on its own ("show the google calendar disconnect button").
+  // Check this before the generic blocked-verb catch-all below, since
   // these DO resolve to a specific, safely-navigable target.
   for (const { requires, control } of SENSITIVE_CONTROLS) {
     if (requires.every((re) => re.test(normalized))) {

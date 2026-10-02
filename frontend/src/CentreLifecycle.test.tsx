@@ -9,7 +9,7 @@ import type { Domain, IntegrationConnection, IntegrationSchedule, RoutineSchedul
 /** Same technique as Home.lifecycle.test.tsx: a promise this test controls
  * directly, left unresolved across an unmount so the continuation fires
  * only afterward. Reported as observations (not confirmed defects) in the
- * V1 audit, since — unlike Home.tsx — none of these three components poll
+ * V1 audit, since (unlike Home.tsx) none of these three components poll
  * on an interval, and no failure had actually been reproduced for them.
  * This file is what actually checks that, instead of leaving it asserted. */
 function deferred<T>() {

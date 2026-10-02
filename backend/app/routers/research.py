@@ -1,10 +1,10 @@
-"""Phase 12E: Source-Grounded Research Workspace HTTP surface, built on
-top of Phase 12D Unified Recall. Evidence search is read-only (delegates
+"""Source-Grounded Research Workspace HTTP surface, built on
+top of Recall. Evidence search is read-only (delegates
 to `app.recall_service.search()`); every other route here only ever
-mutates this feature's own local presentation/analysis state — never a
+mutates this feature's own local presentation/analysis state, never a
 Calendar/Health/memory mutation, never a tool, never Hermes toolset
 configuration. `POST .../briefs/draft` is the one route that reaches a
-model, and only via a single `provider.send_turn()` call — see
+model, and only via a single `provider.send_turn()` call; see
 `app.research_service.draft_brief_with_model`.
 """
 

@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import DomainGlyph from "./DomainGlyph";
 import { DOMAIN_SLUG_ORDER } from "../domainOrder";
 
-/** The canonical slug → Lucide icon mapping (`docs/DECISIONS.md` D94) —
+/** The canonical slug → Lucide icon mapping (`docs/DECISIONS.md` D94),
  * verified here by the CSS class Lucide stamps on every icon
  * (`lucide-<kebab-case-name>`), which is a real, stable signal of which
  * icon actually rendered, not just an assumption. */
@@ -46,7 +46,7 @@ describe("DomainGlyph — the canonical lucide-react icon per domain (D94)", () 
       const svg = container.querySelector("svg")!;
       expect(svg.textContent).toBe(""); // no letter mark of any kind
       // Every shape inside inherits stroke/fill from the svg root (i.e.
-      // has no shape-level fill/color override of its own) — none of the
+      // has no shape-level fill/color override of its own). None of the
       // six icons draw a filled background shape.
       const shapesWithOwnFill = Array.from(svg.querySelectorAll("[fill]")).filter(
         (el) => el.getAttribute("fill") !== "none" && el.getAttribute("fill") !== "currentColor",

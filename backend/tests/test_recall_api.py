@@ -1,5 +1,5 @@
-"""Phase 12D: HTTP-level tests for Recall's endpoints. Uses the standard
-`client` fixture (fake Hermes/STT/TTS already wired by conftest.py) — no
+"""HTTP-level tests for Recall's endpoints. Uses the standard
+`client` fixture (fake Hermes/STT/TTS already wired by conftest.py), with no
 real Google/Keychain/Hermes/model call, and no model call is ever
 expected from `/api/recall/*` (search and rebuild are both pure local
 reads/writes)."""

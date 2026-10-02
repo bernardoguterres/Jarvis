@@ -1,5 +1,5 @@
-"""Phase 10B: routine configuration and historical outputs survive
-export/restore, but every schedule is forced disabled afterward — mirrors
+"""Routine configuration and historical outputs survive
+export/restore, but every schedule is forced disabled afterward, mirroring
 the existing Phase 9/10A restore-safety pattern exactly."""
 
 from __future__ import annotations

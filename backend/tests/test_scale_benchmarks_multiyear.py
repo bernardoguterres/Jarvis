@@ -1,15 +1,15 @@
-"""V1 durability pass — realistic multi-year scale (D85).
+"""V1 durability pass: realistic multi-year scale (D85).
 
 Complements `test_scale_benchmarks.py` (a one-year, ~2,500-row dataset built
 through the real service layer, which already validates the write path
 itself at moderate scale) with a materially larger, 3-5-year, ~50,000-100,000
 -row dataset spanning every table the durability-pass brief names, built via
 efficient bulk inserts (this file's purpose is read/query performance at
-volume, not re-validating the write path — that's already covered) and
+volume, not re-validating the write path, which is already covered) and
 benchmarks every operation named in the brief. Fictional data only.
 
 Thresholds are defined *before* the numbers are seen (see the constants
-below), as generous personal-app upper bounds — an order of magnitude past
+below), as generous personal-app upper bounds, an order of magnitude past
 what a MacBook Pro M2 Pro should ever need for a single user's own SQLite
 database. If a threshold is genuinely breached, that is the finding to fix;
 hitting a number well inside a bound is not itself grounds to "optimize
@@ -136,7 +136,7 @@ def _generate(session: Session, settings: Settings) -> None:
                     first_user_id = msg_id
                 if role == "assistant" and first_assistant_id is None:
                     first_assistant_id = msg_id
-            # One agent_run + context_snapshot per conversation — a real,
+            # One agent_run + context_snapshot per conversation: a real,
             # audited turn, not every message (matches real usage: not
             # every note is sent to Jarvis).
             if first_user_id and first_assistant_id:
@@ -164,10 +164,10 @@ def _generate(session: Session, settings: Settings) -> None:
     _bulk(session, ContextSnapshot, snap_rows)
     total_rows += len(conv_rows) + len(msg_rows) + len(run_rows) + len(snap_rows)
 
-    # --- Memories (items + versions) + FTS, bulk (not the real service call —
+    # --- Memories (items + versions) + FTS, bulk (not the real service call,
     # already validated at moderate scale in test_scale_benchmarks.py) ---
     # MemoryItem.current_version_id and MemoryVersion.memory_item_id are
-    # mutually referencing FKs — inserted with current_version_id=NULL
+    # mutually referencing FKs, inserted with current_version_id=NULL
     # first, then versions, then a bulk UPDATE sets current_version_id
     # (mirrors how memory_service.create_memory itself sequences this in
     # two real statements, just batched for volume here).
@@ -240,7 +240,7 @@ def _generate(session: Session, settings: Settings) -> None:
     session.commit()
     total_rows += len(summary_rows) + len(summary_version_rows)
 
-    # --- Structured records (direct rows — payload shapes mirror
+    # --- Structured records (direct rows; payload shapes mirror
     # structured_record_service's validated schema, but bulk-inserted since
     # write-path validation is already covered elsewhere). ---
     RECORD_TYPE_BY_SLUG = {"body": "body_weight", "mind": "mind_checkin", "people": "people_interaction", "path": "path_deadline", "build": "build_checkpoint", "life": "life_task"}
@@ -391,7 +391,7 @@ def _generate(session: Session, settings: Settings) -> None:
     total_rows += len(routine_rows)
 
     # --- Integration sync history (bounded to 50/provider by the real app's
-    # own trimming logic — generating more would be unrealistic, not just
+    # own trimming logic. Generating more would be unrealistic, not just
     # unnecessary). ---
     sync_rows = []
     for provider in ("google_calendar", "google_health"):
@@ -554,7 +554,7 @@ def test_export_validate_restore_and_writability_at_multiyear_scale(
     restore_result = import_service.restore_archive(export_result.path, target_settings)
     restore_elapsed = time.monotonic() - start
 
-    # Restored-database writability — a genuine post-restore write, not just
+    # Restored-database writability: a genuine post-restore write, not just
     # a read, using the restored database's own engine/session.
     from app.database import build_engine
 

@@ -1,6 +1,6 @@
-"""Phase 12C: HTTP-level tests for Mission Focus's endpoints. Uses the
+"""HTTP-level tests for Mission Focus's endpoints. Uses the
 standard `client` fixture (fake Hermes/STT/TTS already wired by
-conftest.py) — no real Google/Keychain/Hermes/model call."""
+conftest.py), with no real Google/Keychain/Hermes/model call."""
 
 from __future__ import annotations
 

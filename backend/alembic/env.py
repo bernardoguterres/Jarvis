@@ -8,7 +8,7 @@ from sqlalchemy import engine_from_config, pool
 from app.config import get_settings
 from app.database import Base
 from app import models  # noqa: F401  (ensures models are registered on Base.metadata)
-from app import models_memory  # noqa: F401  (Phase 4 memory/records/context tables)
+from app import models_memory  # noqa: F401  (memory/records/context tables)
 
 config = context.config
 

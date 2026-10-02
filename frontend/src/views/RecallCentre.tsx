@@ -15,7 +15,7 @@ interface RecallCentreProps {
   onBack: () => void;
   onNavigate: (target: NavigateTarget) => void;
   /** Set only when Recall was opened via a voice/palette "search Jarvis
-   * for X" command (App.tsx's `executeSafeAction`) — pre-seeds the query
+   * for X" command (App.tsx's `executeSafeAction`). Pre-seeds the query
    * and optional domain scope. `token` changes on every command so this
    * re-applies even if the exact same query is searched twice in a row;
    * every other entry point (Systems menu, palette's static action, the
@@ -24,7 +24,7 @@ interface RecallCentreProps {
   seed: { query: string; domainHint: string | null; token: number } | null;
 }
 
-// BODY/MIND/PEOPLE require explicit inclusion — CLAUDE.md's Recall
+// BODY/MIND/PEOPLE require explicit inclusion, per CLAUDE.md's Recall
 // durable rule, identical to the Home briefing's own structural default.
 // Omitting `domains` entirely from the request would already default to
 // this same set server-side, but naming it here explicitly keeps the
@@ -86,7 +86,7 @@ function RecallCentre({ onBack, onNavigate, seed }: RecallCentreProps) {
   }, []);
 
   // Apply a command-seeded query/domain exactly once per token, never on
-  // an ordinary re-render — a fresh seed always resets to page 0.
+  // an ordinary re-render. A fresh seed always resets to page 0.
   useEffect(() => {
     if (!seed) return;
     setQuery(seed.query);
@@ -308,7 +308,7 @@ function RecallCentre({ onBack, onNavigate, seed }: RecallCentreProps) {
                         className="briefing-item-subtitle"
                         // Already HTML-escaped with <mark> highlight spans
                         // by the backend (recall_service.make_snippet_html)
-                        // — rendered verbatim, never re-escaped.
+                        // and rendered verbatim, never re-escaped.
                         dangerouslySetInnerHTML={{ __html: result.snippet_html }}
                       />
                       <span className="briefing-item-freshness">

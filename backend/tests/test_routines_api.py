@@ -1,6 +1,6 @@
-"""Phase 10B: HTTP-level tests for the routine catalogue's endpoints.
+"""HTTP-level tests for the routine catalogue's endpoints.
 Uses the standard `client` fixture (fake Hermes/STT/TTS already wired by
-conftest.py) — no real Google, Keychain, Hermes, or model call."""
+conftest.py), with no real Google, Keychain, Hermes, or model call."""
 
 from __future__ import annotations
 

@@ -11,11 +11,11 @@ interface DomainNodeProps {
   angleDeg: number;
   focusing?: boolean;
   onSelect: (slug: string) => void;
-  /** Pointer entered — gated behind Home's hover-intent delay before the
+  /** Pointer entered. Gated behind Home's hover-intent delay before the
    * hover ring actually activates. */
   onPointerEnter: (slug: string) => void;
   onPointerLeave: () => void;
-  /** Keyboard focus — applied immediately, bypassing the pointer
+  /** Keyboard focus, applied immediately, bypassing the pointer
    * hover-intent delay entirely (a keyboard user is never "passing
    * through" a node the way a moving pointer can be). */
   onFocus: (slug: string) => void;
@@ -26,18 +26,18 @@ interface DomainNodeProps {
  * percentages (computed by Home from the node count) rather than fixed
  * pixel coordinates, so the layout stays proportional at any container
  * size. `angleDeg` is the same angle used to place the node, used only to
- * orient the short inward "connector" stub shown on hover/focus — it never
+ * orient the short inward "connector" stub shown on hover/focus. It never
  * fabricates data, purely decorative. The node itself shows only the name
  * and a short fixed subtitle; the full truthful description lives in
  * Home's contextual info panel, not inside the circle.
  *
  * `.node-ring-outer`/`.node-ring-inner` are the node's own small echo of
- * JarvisCore's ring language — always rotating (index.css), just invisible
+ * JarvisCore's ring language, always rotating (index.css), just invisible
  * (opacity:0) until `:hover`/`:focus-within`/`.is-focusing` reveals it, so
  * it's already mid-turn rather than restarting from frame 0 every time.
  * `focusing` is true
- * both for the brief moment after a click (before navigating) and — via
- * Home's `commandFocusSlug` — when a typed/spoken command targets this
+ * both for the brief moment after a click (before navigating) and (via
+ * Home's `commandFocusSlug`) when a typed/spoken command targets this
  * domain while already on Home; that's the only sense in which "the
  * selected domain" is a real, trackable state here (Home unmounts once a
  * domain is actually open, so there's nothing left to keep lit). */
@@ -77,7 +77,7 @@ function DomainNode({
         </span>
         {/* "lg": Home's own responsive `--node-size`-relative sizing (see
             `.domain-button .domain-node-glyph` in index.css), not one of
-            DomainGlyph's fixed `sm`/`md` rem sizes — it must keep scaling
+            DomainGlyph's fixed `sm`/`md` rem sizes. It must keep scaling
             continuously with the orbit's own responsive layout. */}
         <DomainGlyph slug={domain.slug} className="domain-node-glyph" />
         <span className="domain-name">{domain.name}</span>

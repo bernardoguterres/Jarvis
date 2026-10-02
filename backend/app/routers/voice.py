@@ -1,8 +1,8 @@
-"""Phase 5: push-to-talk transcription and spoken-response synthesis.
+"""Push-to-talk transcription and spoken-response synthesis.
 
 Raw audio uploaded for transcription is written to a temporary file outside
 JARVIS_DATA_DIR and deleted immediately after transcription completes
-(success or failure) — CLAUDE.md §8 requires that raw recordings are not
+(success or failure), since CLAUDE.md §8 requires that raw recordings are not
 retained by default. Only the resulting transcript text is ever returned;
 nothing about the audio itself is persisted by this router.
 """
@@ -50,10 +50,10 @@ async def transcribe(
         from pathlib import Path
 
         # stt.transcribe() is synchronous, CPU-bound work (benchmarked at
-        # ~0.6-1.0s warm on the target M2 Pro) — running it directly inside
+        # ~0.6-1.0s warm on the target M2 Pro). Running it directly inside
         # this async handler would block the whole event loop for that
         # entire duration, stalling every other concurrent request (health
-        # polling, the Phase 10 scheduler runtime's own background task)
+        # polling, the scheduler runtime's own background task)
         # for no reason. Offloading to a worker thread costs nothing in
         # wall-clock transcription time; it only stops that time from
         # blocking unrelated work.

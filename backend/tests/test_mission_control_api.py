@@ -1,5 +1,5 @@
-"""Mission Control / Current Focus — HTTP-level tests. Uses the standard
-`client` fixture (fake Hermes/STT/TTS already wired by conftest.py) — no
+"""Mission Control / Current Focus HTTP-level tests. Uses the standard
+`client` fixture (fake Hermes/STT/TTS already wired by conftest.py), with no
 real Google/Keychain/Hermes/model call, and no model call is ever expected
 from any of these endpoints (candidates/start/pause/resume/complete/
 abandon/history are all pure local reads/writes)."""

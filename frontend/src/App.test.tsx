@@ -16,7 +16,7 @@ const DOMAINS: Domain[] = [
 
 beforeEach(() => {
   vi.restoreAllMocks();
-  // Phase 12A: Home's on-demand situational briefing fetch — not what any
+  // Home's on-demand situational briefing fetch is not what any
   // of these tests are about, so default it to a harmless empty briefing
   // rather than letting an unmocked network call resolve unpredictably.
   vi.spyOn(api, "fetchHomeBriefing").mockResolvedValue({

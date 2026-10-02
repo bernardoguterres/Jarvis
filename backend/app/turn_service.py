@@ -3,7 +3,7 @@ construction -> Hermes -> assistant message, with a full agent_runs +
 context_snapshots audit trail.
 
 Context construction (app/context_builder.py) is entirely local and
-model-independent — see CLAUDE.md §7 and docs/ARCHITECTURE.md.
+model-independent; see CLAUDE.md §7 and docs/ARCHITECTURE.md.
 """
 
 from __future__ import annotations
@@ -97,7 +97,7 @@ def send_turn(
             run=existing_run, user_message=user_message, assistant_message=assistant_message
         )
 
-    # None for a general conversation (migration 0011) — not a seventh
+    # None for a general conversation (migration 0011): not a seventh
     # domain, just the absence of one.
     domain = db.get(Domain, conversation.domain_id) if conversation.domain_id is not None else None
 
@@ -119,7 +119,7 @@ def send_turn(
     db.commit()
 
     # Context construction must fail safely, before any model call, if it
-    # fails at all — no assistant message is invented and the failure is
+    # fails at all. No assistant message is invented and the failure is
     # sanitised in the stored run.
     try:
         hook_outcomes = hooks.run_hooks(

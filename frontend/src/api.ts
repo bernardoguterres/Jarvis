@@ -9,7 +9,7 @@ export interface Domain {
 
 export interface Conversation {
   id: string;
-  // null means a general Jarvis conversation — not a seventh domain, just
+  // null means a general Jarvis conversation: not a seventh domain, just
   // the absence of one (see docs/DECISIONS.md, migration 0011).
   domain_id: string | null;
   title: string | null;
@@ -196,7 +196,7 @@ export interface RestoreResult {
 }
 
 /** Restores an export archive onto this machine's own real JARVIS_DATA_DIR
- * — the guarded action behind Data Management's "Restore from Jarvis
+ * as the guarded action behind Data Management's "Restore from Jarvis
  * export" flow (Mac-migration support). `confirm` must be true to
  * overwrite a target that already has data; every other safety behavior
  * (schema/checksum validation, forced-disconnected integrations,
@@ -217,7 +217,7 @@ export async function restoreImport(file: File, confirm: boolean): Promise<Resto
       const body = (await response.json()) as { detail?: string };
       if (body.detail) detail = body.detail;
     } catch {
-      // response wasn't JSON — fall back to statusText
+      // response wasn't JSON, so fall back to statusText
     }
     throw new ApiError(response.status, detail);
   }
@@ -276,7 +276,7 @@ export async function fetchAgentStatus(): Promise<AgentStatus> {
   return request("/api/agent/status");
 }
 
-// --- Phase 4: memory, structured records, summaries, context -----------------
+// --- Memory, structured records, summaries, context -----------------
 
 export type MemoryScope = "global" | "domain";
 export type MemoryKind =
@@ -518,7 +518,7 @@ export async function rebuildMemoryIndex(): Promise<{ indexed_count: number }> {
   return request("/api/memory-index/rebuild", { method: "POST" });
 }
 
-// --- Phase 5: push-to-talk voice ----------------------------------------
+// --- Push-to-talk voice -----------------------------------------------
 
 export async function transcribeAudio(audio: Blob): Promise<string> {
   const formData = new FormData();
@@ -565,7 +565,7 @@ export async function synthesizeSpeech(text: string): Promise<Blob> {
   return await response.blob();
 }
 
-// --- Phase 8: permissions, actions, hooks, skills -----------------------
+// --- Permissions, actions, hooks, skills -----------------------
 
 export type CapabilityId =
   | "memory.create"
@@ -760,9 +760,9 @@ export async function invokeSkill(
   return request(`/api/skills/${id}/invoke`, { method: "POST", body: JSON.stringify(input) });
 }
 
-// --- Phase 9 (corrected): integrations (Google Calendar, Google Health,
+// --- Integrations (Google Calendar, Google Health,
 // documents). "google_health" reads Fitbit/Health data via Google OAuth
-// and the Google Health API — the legacy Fitbit Web API integration was
+// and the Google Health API. The legacy Fitbit Web API integration was
 // replaced ahead of its September 2026 shutdown.
 
 export type IntegrationProvider = "google_calendar" | "google_health";
@@ -807,7 +807,7 @@ export async function syncGoogleHealth(daysBack = 7): Promise<IntegrationConnect
   });
 }
 
-// --- Phase 10: controller-owned automatic integration resync -----------
+// --- Controller-owned automatic integration resync -----------
 
 export interface IntegrationSchedule {
   provider: IntegrationProvider;
@@ -1025,7 +1025,7 @@ export async function deleteDocument(id: string, confirmFilename: string): Promi
   }
 }
 
-// --- Phase 10B: controller-owned proactive routines ---------------------
+// --- Controller-owned proactive routines ---------------------
 
 export type RoutineType = "morning_briefing" | "evening_checkin" | "weekly_review";
 
@@ -1089,18 +1089,18 @@ export async function recordCheckinResponses(runId: string, responses: Record<st
   return request(`/api/routines/runs/${runId}/responses`, { method: "POST", body: JSON.stringify({ responses }) });
 }
 
-// --- Phase 12A: on-demand Home situational briefing ----------------------
+// --- On-demand Home situational briefing ----------------------
 //
-// Assembled entirely locally and deterministically — this endpoint never
+// Assembled entirely locally and deterministically; this endpoint never
 // triggers a model/Hermes call (see docs/ARCHITECTURE.md §9l). The only
 // model-reaching action anywhere near this feature is the separate
 // "Discuss with Jarvis" flow, which reuses the existing general-conversation
-// endpoints above, exactly like Phase 10B's Routine Centre.
+// endpoints above, exactly like the Routine Centre.
 
 export type BriefingCategory = "now" | "next" | "watch";
 export type BriefingTone = "neutral" | "attention" | "failure";
 export type BriefingFreshness = "current" | "cached" | "stale" | "unavailable";
-// Phase 12B: continuity classification — see docs/ARCHITECTURE.md §16 for
+// Continuity classification: see docs/ARCHITECTURE.md §16 for
 // the exact deterministic rules this is computed by on the backend; the
 // frontend never re-derives or second-guesses this value.
 export type BriefingChangeState = "new" | "changed" | "ongoing" | "resolved" | "reopened";
@@ -1120,12 +1120,12 @@ export interface BriefingItem {
   freshness: BriefingFreshness;
   classification: "factual" | "inferred";
   // A string in the exact shape of commands/registry.ts's NavigateTarget
-  // (e.g. "domain:life", "actions_centre") — validated defensively before
+  // (e.g. "domain:life", "actions_centre"), validated defensively before
   // use, never trusted blindly (see components/BriefingStrip.tsx).
   link_target: string | null;
   fingerprint: string;
   change_state: BriefingChangeState;
-  // Phase 12C: set only when this exact item corresponds to an active
+  // Set only when this exact item corresponds to an active
   // Mission Focus pin.
   pinned: boolean;
   pin_rank: number | null;
@@ -1235,16 +1235,16 @@ export async function restoreBriefingItem(stableKey: string): Promise<BriefingIt
   return request(`/api/briefing/items/${encodeURIComponent(stableKey)}/restore`, { method: "POST" });
 }
 
-// --- Phase 12C: Mission Focus ---------------------------------------------
+// --- Mission Focus ----------------------------------------------------
 //
 // A small, deliberate, user-owned watchlist of at most five pinned
-// references to existing sources — never a copy of them, never a second
+// references to existing sources, never a copy of them, never a second
 // independent task system, never something Jarvis decides on its own.
 // Pinning/unpinning/editing/reordering are direct local presentation
-// actions (never the Phase 8 propose/approve/execute lifecycle) and never
-// call a model — the only model-reaching action anywhere near this
+// actions (never the propose/approve/execute lifecycle) and never
+// call a model. The only model-reaching action anywhere near this
 // feature is "Discuss Mission Focus with Jarvis", which reuses the
-// existing general-conversation turn endpoints exactly like Phase 10B/12A.
+// existing general-conversation turn endpoints exactly like routines and the briefing.
 
 export type MissionFocusSourceType = "life_task" | "path_deadline" | "build_checkpoint" | "calendar_event" | "action_proposal";
 
@@ -1306,8 +1306,8 @@ export async function reorderMissionFocus(pinIds: string[]): Promise<MissionFocu
 
 // --- Mission Control / Current Focus ---------------------------------------
 //
-// One persistent, timed focus session at a time, built on top of Phase
-// 12A/12B's shared briefing candidates and Phase 12C's source resolution —
+// One persistent, timed focus session at a time, built on top of the
+// shared briefing candidates and Mission Focus's source resolution,
 // never a second prioritization/task system. Starting, pausing, resuming,
 // completing, and abandoning a session are all local, reversible, non-
 // Hermes actions; the only model-reaching action anywhere near this
@@ -1338,7 +1338,7 @@ export interface MissionCandidate {
 }
 
 export interface MissionCandidates {
-  // Always presented to Bernardo as "suggested from current information" —
+  // Always presented to Bernardo as "suggested from current information",
   // never a claim that this is definitely his most important task.
   recommended: MissionCandidate | null;
   alternatives: MissionCandidate[];
@@ -1379,12 +1379,12 @@ export const FOCUS_DURATION_MAX_MINUTES = 180;
 /** Dispatched on `window` by App.tsx immediately after a voice/command-
  * palette focus_start/pause/resume/complete/abandon action succeeds, so
  * Home's Mission Control strip refetches right away instead of waiting
- * for its own poll interval or a window-focus event — found live during
- * the Phase 12C real-Mac acceptance pass: starting a mission via the
+ * for its own poll interval or a window-focus event. Found live during
+ * real-Mac acceptance testing: starting a mission via the
  * command palette while already on Home left the strip showing its old
  * (often empty) state until the next poll/reload, even though the
  * session had genuinely started server-side. Purely a "something
- * changed, refetch" signal — never carries the mutated data itself, so
+ * changed, refetch" signal. It never carries the mutated data itself, so
  * there is nothing here for a listener to trust without still calling
  * the real endpoint. */
 export const MISSION_CONTROL_REFRESH_EVENT = "jarvis:mission-control-refresh";
@@ -1443,7 +1443,7 @@ export async function abandonMission(sessionId: string, input?: { completion_not
 }
 
 /** Pure re-derivation of the backend's `elapsed_seconds()` (app/
- * mission_control_service.py) — never trust a frontend interval as the
+ * mission_control_service.py). Never trust a frontend interval as the
  * source of truth. Frozen at `completed_at` for a terminal session, at
  * `paused_at` while paused, ticking live against `now` while active. */
 export function computeElapsedSeconds(session: FocusSession, now: Date): number {
@@ -1466,8 +1466,8 @@ export function computeRemainingSeconds(session: FocusSession, now: Date): numbe
   return Math.max(0, target - computeElapsedSeconds(session, now));
 }
 
-// --- Phase 12D: Unified Recall and Provenance -------------------------------
-// Deterministic local search only — never a model call. See
+// --- Unified Recall and Provenance -------------------------------
+// Deterministic local search only, never a model call. See
 // backend/app/recall_service.py and docs/ARCHITECTURE.md §19.
 
 export type RecallSourceType =
@@ -1488,7 +1488,7 @@ export interface RecallResult {
   source_id: string;
   domain_slug: "body" | "build" | "life" | "mind" | "path" | "people" | null;
   title: string;
-  // Already HTML-escaped with <mark> highlight spans by the backend —
+  // Already HTML-escaped with <mark> highlight spans by the backend:
   // render verbatim (dangerouslySetInnerHTML), never re-escape, never
   // treat as executable.
   snippet_html: string;
@@ -1539,11 +1539,11 @@ export async function rebuildRecallIndex(): Promise<RecallRebuildResult> {
   return request("/api/recall/rebuild", { method: "POST" });
 }
 
-// --- Phase 12E: Source-Grounded Research Workspace ------------------------
+// --- Source-Grounded Research Workspace ------------------------
 //
 // Research over Jarvis's own local corpus, built entirely on top of Phase
 // 12D Unified Recall (evidence search below reuses `searchRecall`'s exact
-// backend pipeline, scoped to a workspace's own domain policy) — never a
+// backend pipeline, scoped to a workspace's own domain policy), never a
 // second search/indexing engine, never unrestricted web research, never an
 // autonomous agent. Every mutation here is a direct local presentation/
 // analysis action; the one route that can reach a model,
@@ -1622,7 +1622,7 @@ export interface ResearchModelMeta {
 // `sections_json` is the deterministic outline's own structured shape
 // (an array of {kind: "evidence_group"|"notes", ...}) for `source ===
 // "deterministic"`, or `[{kind: "model_text", heading, text}]` for
-// `source === "model"` — parsed by the UI, never re-interpreted as HTML or
+// `source === "model"`, parsed by the UI, never re-interpreted as HTML or
 // executable in any way; model-generated `text` is always rendered as
 // plain React text content, never dangerouslySetInnerHTML.
 export interface ResearchBriefVersion {
@@ -1761,13 +1761,13 @@ export async function draftBriefWithJarvis(workspaceId: string): Promise<Researc
   return request(`/api/research/workspaces/${workspaceId}/briefs/draft`, { method: "POST" });
 }
 
-// --- Phase 12F: Evidence-Based Decision Room -------------------------------
+// --- Evidence-Based Decision Room -------------------------------
 //
 // Completes Recall -> Research -> Decide -> Focus, built entirely on
-// Phase 12D Recall and Phase 12E Research Workspaces — evidence discovery
+// Recall and Research Workspaces. Evidence discovery
 // below reuses Recall's exact search pipeline, scoped to a decision's own
 // *effective* (intersected, never unioned) domain policy. Jarvis supports
-// the decision; it never makes it — only an explicit `decideDecision()`
+// the decision; it never makes it. Only an explicit `decideDecision()`
 // call ever records a final decision, and "Ask Jarvis to challenge this
 // decision" (`draftDecisionCritique`) is a separate, clearly-labeled
 // model-generated critique with no lifecycle authority of its own.
@@ -1780,7 +1780,7 @@ export type DecisionFactorKind = "assumption" | "risk" | "unknown";
 export type DecisionFactorStatus = "open" | "resolved";
 export type DecisionBriefSource = "deterministic" | "model";
 export type DecisionBriefStatus = "ok" | "invalid_citations";
-// One more than RecallSourceType — a decision may cite another decision.
+// One more than RecallSourceType: a decision may cite another decision.
 export type DecisionSourceType = RecallSourceType | "decision";
 
 export interface Decision {
@@ -1791,7 +1791,7 @@ export interface Decision {
   research_workspace_id: string | null;
   included_domain_slugs: ResearchDomainSlug[];
   // The INTERSECTION of this decision's own policy and its linked
-  // Research workspace's policy (if any) — always the real boundary
+  // Research workspace's policy (if any), always the real boundary
   // evidence discovery/linking is scoped to, never the union.
   effective_domain_slugs: ResearchDomainSlug[];
   status: DecisionStatus;
@@ -1929,7 +1929,7 @@ export interface DecisionModelMeta {
 
 // `sections_json` shape depends on `source`: for "deterministic" it is
 // `{sections: [...], missing_info_warnings: string[], review_date}`; for
-// "model" it is `{sections: [{kind: "model_text", heading, text}]}` —
+// "model" it is `{sections: [{kind: "model_text", heading, text}]}`,
 // parsed by the UI, never re-interpreted as HTML/executable. Model text is
 // always rendered as plain React text content, never dangerouslySetInnerHTML.
 export interface DecisionBriefVersion {

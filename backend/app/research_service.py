@@ -1,38 +1,13 @@
-"""Phase 12E: Source-Grounded Research Workspace — service logic built
-entirely on top of Phase 12D Unified Recall (`app.recall_service` /
-`app.recall_index_service`), never a second search or indexing engine.
+"""Research workspace service logic, built on Recall rather than a second
+search engine.
 
-Structural rules enforced by construction here (mirrors CLAUDE.md's
-Research Workspace requirements, and the same discipline
-`app.mission_focus_service`/`app.mission_control_service` already
-established):
-
-  * No tool, action-proposal, Calendar/Health/memory mutation, terminal,
-    filesystem, browser-automation, or cron capability anywhere in this
-    module — a research workspace and its evidence/notes/briefs are
-    entirely local presentation/analysis state.
-  * Evidence is always a typed pointer to a real, already-existing
-    Recall-eligible source (`app.recall_service.resolve_source_snapshot`)
-    — never a copy trusted from the client, and never accepted outside
-    the workspace's own explicit domain policy.
-  * BODY/MIND/PEOPLE evidence can only ever enter a workspace whose
-    `included_domain_slugs` explicitly names that domain — never widened
-    silently by creation, update, evidence search, or brief generation.
-  * Evidence search (`search_workspace_evidence`) delegates directly to
-    `app.recall_service.search()` — never a parallel query/ranking
-    implementation.
-  * `generate_deterministic_brief` never calls a model or Hermes. The one
-    function that does, `draft_brief_with_model`, makes exactly one
-    `provider.send_turn()` call, builds its own tightly-bounded evidence
-    packet, and never loops, retries automatically, performs a further
-    Recall search, or enables any tool.
-  * A citation is only ever trusted if its number was assigned by this
-    module from a piece of evidence genuinely in the workspace's ordered
-    citation list — every bracket number a model response contains is
-    checked against that fixed set before being treated as real.
-  * A model-call failure never persists a new brief version — the
-    workspace, its evidence/notes, and every existing version are left
-    completely untouched (see `ResearchModelError`).
+Evidence is always a typed pointer to a real Recall source, checked
+against the workspace's domain policy. BODY/MIND/PEOPLE evidence needs a
+workspace that names that domain explicitly, and nothing widens the
+policy silently. The deterministic brief never calls a model. The one
+model path makes exactly one call with no tools, citation numbers are
+checked against the workspace's evidence, and a failed call saves
+nothing (see `ResearchModelError`).
 """
 
 from __future__ import annotations
@@ -75,10 +50,10 @@ _DEFAULT_MODEL_TIMEOUT_SECONDS = 45.0
 
 _CITATION_PATTERN = re.compile(r"\[(\d+)\]")
 
-# Deliberately explicit about untrusted-evidence isolation — every EXCERPT
+# Deliberately explicit about untrusted-evidence isolation: every EXCERPT
 # in the packet built below is retrieved data, never a new instruction,
 # no matter what it says. The model has no tool access at all through
-# app.providers.base.AgentProvider.send_turn (a plain chat completion —
+# app.providers.base.AgentProvider.send_turn (a plain chat completion,
 # see app/providers/hermes.py, which sends only "messages", never
 # "tools"), so this is also structurally, not just verbally, enforced.
 _MODEL_SYSTEM_PROMPT = (
@@ -112,7 +87,7 @@ class ResearchNotFoundError(ResearchError):
 
 
 class ResearchModelError(ResearchError):
-    """Raised when a Draft-with-Jarvis request cannot be fulfilled — no
+    """Raised when a Draft-with-Jarvis request cannot be fulfilled: no
     evidence to draft from, or a provider failure. Never persists a new
     brief version; see the module docstring."""
 
@@ -144,7 +119,7 @@ def included_domain_slugs(workspace: ResearchWorkspace) -> list[str]:
 
 def _domain_allowed(workspace: ResearchWorkspace, domain_slug: str | None) -> bool:
     # None ("global/system", exactly Recall's own classification) is
-    # always allowed — it cannot be BODY/MIND/PEOPLE sensitive content by
+    # always allowed, since it cannot be BODY/MIND/PEOPLE sensitive content by
     # construction.
     if domain_slug is None:
         return True
@@ -171,7 +146,7 @@ def create_workspace(
             raise ResearchError(f"Unknown domain slug: {domain_slug!r}.")
     # None -> the same default LIFE/PATH/BUILD policy Recall itself
     # defaults to; an explicit (possibly empty) list is honored literally
-    # — creation never silently widens domain access.
+    # so creation never silently widens domain access.
     resolved = list(_DEFAULT_DOMAIN_SLUGS) if included_domain_slugs_arg is None else _normalize_domain_slugs(
         included_domain_slugs_arg
     )
@@ -215,7 +190,7 @@ def update_workspace(
             raise ResearchError("title cannot be empty.")
         workspace.title = title
     if included_domain_slugs_arg is not None:
-        # An explicit, possibly-empty list replaces the policy outright —
+        # An explicit, possibly-empty list replaces the policy outright,
         # never merged/widened automatically with the previous one.
         workspace.included_domain_slugs_json = json.dumps(_normalize_domain_slugs(included_domain_slugs_arg))
     session.commit()
@@ -283,7 +258,7 @@ def search_workspace_evidence(
     offset: int = 0,
 ) -> recall_service.RecallSearchResult:
     """Evidence discovery delegates directly to `recall_service.search()`
-    — never a parallel query/ranking implementation. The workspace's own
+    rather than a parallel query/ranking implementation. The workspace's own
     domain policy is always the effective boundary, regardless of any
     wider access `recall_service`'s own default would otherwise allow."""
     workspace = _require_workspace(session, workspace_id)
@@ -299,7 +274,7 @@ def search_workspace_evidence(
 
 
 def _snapshot_excerpt(content: str) -> str:
-    """A frozen, HTML-escaped citation-safe excerpt — reuses
+    """A frozen, HTML-escaped citation-safe excerpt. Reuses
     `recall_service.make_snippet_html` with an empty query (so it always
     takes the "no match" branch: escape + truncate, never highlights)
     rather than a second truncation/escaping implementation."""
@@ -371,7 +346,7 @@ def add_evidence(
         session.rollback()
         # The database-level partial unique index (migration 0017) is the
         # real backstop against a race the check-then-insert above cannot
-        # fully close on its own — still idempotent even then.
+        # fully close on its own, so it stays idempotent even then.
         existing = _find_active_evidence(session, workspace_id, source_type, source_id)
         if existing is not None:
             return existing
@@ -403,7 +378,7 @@ def update_evidence(
 
 
 def remove_evidence(session: Session, workspace_id: str, evidence_id: str) -> ResearchEvidence:
-    """Removes evidence from the workspace's own presentation — never
+    """Removes evidence from the workspace's own presentation. Never
     touches, archives, or deletes the underlying real source. Idempotent:
     removing an already-removed row is a no-op that returns it as-is.
     Already-generated brief citations are unaffected (see
@@ -487,7 +462,7 @@ def update_note(
 
 
 def archive_note(session: Session, workspace_id: str, note_id: str) -> ResearchNote:
-    """Never hard-deletes Bernardo's own written work — archives only."""
+    """Never hard-deletes Bernardo's own written work; archives only."""
     note = session.get(ResearchNote, note_id)
     if note is None or note.workspace_id != workspace_id:
         raise ResearchNotFoundError("Unknown note.")
@@ -524,7 +499,7 @@ def citation_order_evidence(session: Session, workspace_id: str) -> list[Researc
     """The one deterministic citation-numbering order shared by both the
     deterministic outline and the model draft's evidence packet: grouped
     by classification (supporting, contradicting, contextual, unresolved),
-    then by when it was added, then by id — never randomized, never
+    then by when it was added, then by id. Never randomized, never
     dependent on request/arrival order."""
     rows = list_evidence(session, workspace_id)
 
@@ -547,7 +522,7 @@ def _citation_record(number: int, evidence: ResearchEvidence) -> dict:
 
 
 def generate_deterministic_brief(session: Session, workspace_id: str) -> ResearchBriefVersion:
-    """Never calls a model or Hermes — a pure, reproducible rendering of
+    """Never calls a model or Hermes. A pure, reproducible rendering of
     the workspace's own current evidence/notes."""
     workspace = _require_workspace(session, workspace_id)
     ordered = citation_order_evidence(session, workspace_id)
@@ -631,14 +606,14 @@ def draft_brief_with_model(
     """Exactly one `provider.send_turn()` call, no tools, no autonomous
     follow-up, no hidden Recall search, no context beyond the workspace's
     own selected evidence. On any failure (no evidence, or a
-    ProviderError), raises `ResearchModelError` and persists nothing —
+    ProviderError), raises `ResearchModelError` and persists nothing:
     the workspace and every existing brief version stay exactly as they
     were."""
     workspace = _require_workspace(session, workspace_id)
     ordered = citation_order_evidence(session, workspace_id)
     if not ordered:
         raise ResearchModelError("Add at least one piece of evidence before drafting with Jarvis.")
-    # A bounded packet — never every conceivable evidence row unbounded;
+    # A bounded packet, never every conceivable evidence row unbounded;
     # the citation-order truncation still keeps the same deterministic
     # priority (supporting/contradicting/contextual/unresolved) evidence
     # first.
@@ -717,8 +692,8 @@ def list_brief_versions(session: Session, workspace_id: str) -> list[ResearchBri
 
 
 def citation_reads(session: Session, version: ResearchBriefVersion) -> list[dict]:
-    """Every citation's availability/link is always re-resolved fresh here
-    — server validates citation membership and current state; nothing
+    """Every citation's availability/link is always re-resolved fresh here.
+    The server validates citation membership and current state; nothing
     about a citation's live status is ever trusted from the frozen
     `citations_json` snapshot itself."""
     citations = json.loads(version.citations_json)

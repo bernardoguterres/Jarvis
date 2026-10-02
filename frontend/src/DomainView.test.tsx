@@ -25,8 +25,8 @@ const CONVERSATION: Conversation = {
 
 beforeEach(() => {
   vi.restoreAllMocks();
-  // Phase 12C: Mission Focus's own fetch, not what any of these tests are
-  // about — default it to a harmless empty state.
+  // Mission Focus's own fetch, not what any of these tests are
+  // about, so default it to a harmless empty state.
   vi.spyOn(api, "fetchMissionFocus").mockResolvedValue({ active_pins: [], max_active_pins: 5, default_visible: 3 });
 });
 
@@ -318,7 +318,7 @@ describe("DomainView — header identity (Phase 6, D91/D91)", () => {
     expect(document.querySelector(".domain-emblem-kbd")!.textContent).toBe("1");
 
     // The violet arc-and-dot only conveys real state (Jarvis genuinely
-    // processing/listening) — with nothing happening, it must not be
+    // processing/listening). With nothing happening, it must not be
     // rendered at all, so it never competes with the domain glyph.
     expect(document.querySelector(".mini-core")).toBeNull();
   });

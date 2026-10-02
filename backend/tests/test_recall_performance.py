@@ -1,5 +1,5 @@
-"""Phase 12D: five-year-scale performance, using fictional bulk-generated
-data — never Bernardo's real content. Proves search stays fast and
+"""Five-year-scale performance, using fictional bulk-generated
+data, never Bernardo's real content. Proves search stays fast and
 correctly bounded even with a large corpus, and that ranking/pagination
 hold up at scale, not just on a handful of fixture rows."""
 
@@ -18,7 +18,7 @@ NOW = datetime(2026, 8, 29, 9, 0, tzinfo=timezone.utc)
 
 # Five years of daily structured records (a bounded, realistic upper
 # estimate for one person's LIFE-domain task/journal volume) plus a
-# smaller volume of conversation messages — enough rows that an
+# smaller volume of conversation messages: enough rows that an
 # unindexed/linear-scan implementation would visibly slow down, while
 # staying well within what an ordinary automated test should spend.
 FIVE_YEAR_DAYS = 365 * 5
@@ -77,7 +77,7 @@ def test_pagination_remains_correct_at_scale(db_session: Session) -> None:
 
 
 def test_source_availability_recheck_does_not_blow_up_at_scale(db_session: Session) -> None:
-    """_resolve_availability re-queries the real source row per result —
+    """_resolve_availability re-queries the real source row per result,
     proving this stays a per-PAGE cost (bounded by `limit`), not a
     per-INDEXED-ROW cost, is what actually matters at scale."""
     _bulk_insert_recall_rows(db_session, "life", 5000, marker="availtoken")
@@ -87,5 +87,5 @@ def test_source_availability_recheck_does_not_blow_up_at_scale(db_session: Sessi
     assert elapsed < 2.0
     # Every one of these rows has no real structured_records row behind
     # it (they were inserted directly into recall_fts as bulk fixtures)
-    # — truthfully reported as unavailable, not silently dropped.
+    # and is truthfully reported as unavailable, not silently dropped.
     assert all(r.available is False for r in result.results)

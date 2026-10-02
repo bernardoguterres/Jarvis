@@ -1,20 +1,10 @@
-"""Phase 9 (corrected): Google Calendar integration — OAuth Authorization
-Code + PKCE against a Google **Web application** OAuth client (not
-Desktop/installed — incremental authorization via
-`include_granted_scopes=true` below is documented by Google as unsupported
-for installed/Desktop clients), least-privilege incremental scopes, and a
-normalized local read cache.
+"""Google Calendar integration: OAuth (Authorization Code + PKCE) against
+a Google Web application client, incremental least-privilege scopes, and
+a normalized local read cache.
 
-Read scopes requested by default:
-  https://www.googleapis.com/auth/calendar.calendarlist.readonly
-  https://www.googleapis.com/auth/calendar.events.readonly
-
-Write scope (only ever requested when the user explicitly enables write,
-via a fresh incremental-consent OAuth round trip — never silently upgraded):
-  https://www.googleapis.com/auth/calendar.events.owned
-  (write access to calendars the user OWNS only — never the broader
-  calendar.events scope, which would also permit writing to any calendar
-  merely shared with the user)
+Read scopes: calendar.calendarlist.readonly and calendar.events.readonly.
+Write uses calendar.events.owned, which only covers calendars the user
+owns, and is requested only when the user explicitly enables writing.
 """
 
 from __future__ import annotations
@@ -49,7 +39,7 @@ class GoogleCalendarError(Exception):
 class GoogleCalendarConflictError(GoogleCalendarError):
     """Raised when `events.insert` is given a caller-supplied `id` that
     already exists on the calendar (HTTP 409). This is Google's documented
-    signal for "an event with this ID was already created" — the expected
+    signal for "an event with this ID was already created", the expected
     outcome of retrying an insert whose earlier success response was lost.
     Never itself proof that *this* action's write is what created the
     event: the caller must still fetch it and confirm its
@@ -61,28 +51,13 @@ class GoogleCalendarConflictError(GoogleCalendarError):
 
 
 def deterministic_event_id(action_proposal_id: str) -> str:
-    """Derives a Google Calendar-compatible event ID deterministically from
-    a Jarvis action proposal's own persisted ID (a UUID4 string, which
-    contains hyphens Google's event-ID alphabet does not allow, so it can't
-    be used directly).
+    """Derives a valid Google event ID from a Jarvis action proposal ID.
 
-    Google restricts event IDs to the base32hex alphabet — lowercase
-    letters a-v and digits 0-9 (RFC 2938 section 3.1.2) — and a length of
-    5 to 1024 characters, unique per calendar. A SHA-256 hex digest already
-    satisfies the character constraint (hex digits 0-9a-f are a strict
-    subset of a-v) without needing a custom base32hex encoder, and using a
-    fixed, version-tagged prefix domain-separates this hash space from any
-    other use of the same proposal ID elsewhere in the app.
-
-    The same `action_proposal_id` always hashes to the same 32-character
-    result (128 bits of the digest) — the entire point: a retried insert
-    for the same Jarvis action reuses the exact same event ID, so Google
-    itself rejects a duplicate with 409 rather than silently creating a
-    second event. Two different Jarvis actions colliding on the same ID
-    would require a SHA-256 collision within a 128-bit truncation, which is
-    astronomically unlikely — not mathematically impossible, which is why
-    every caller of this function still verifies the resulting event's own
-    `jarvis_action_id` metadata before ever treating a match as success."""
+    Google event IDs must use base32hex (a-v, 0-9). A prefixed SHA-256 hex
+    digest fits that alphabet, and the same proposal always yields the same
+    32-character ID, so a retried insert gets a 409 from Google instead of
+    creating a duplicate. Callers still check the event's
+    `jarvis_action_id` metadata before treating a match as success."""
     digest = hashlib.sha256(f"jarvis:calendar-event-id:v1:{action_proposal_id}".encode("utf-8")).hexdigest()
     return digest[:32]
 
@@ -177,7 +152,7 @@ def refresh_access_token(*, client: httpx.Client, client_id: str, client_secret:
     )
     if response.status_code != 200:
         # Google's OAuth error body is {"error": "...", "error_description":
-        # "..."} — a standard error CODE/description, never a credential
+        # "..."}: a standard error CODE/description, never a credential
         # value, and safe to surface for real diagnosis (e.g.
         # "invalid_grant" means the refresh token itself was revoked,
         # which points somewhere completely different than a Keychain/
@@ -285,28 +260,12 @@ def create_event(
     """Returns the created event's external ID. `start`/`end` are either
     date strings (YYYY-MM-DD, all-day) or RFC3339 datetimes.
 
-    `idempotency_key`, when given (the Jarvis action proposal's own
-    persisted ID), is used two ways:
-
-    1. As the basis for a caller-supplied, deterministic Google event `id`
-       (see `deterministic_event_id`) sent in the insert request itself —
-       Google's documented mechanism for preventing a duplicate create
-       after a successful write whose response was lost: retrying the
-       exact same insert reuses the exact same ID, so Google itself
-       returns 409 (`GoogleCalendarConflictError`) instead of creating a
-       second event.
-    2. Stamped onto the event as `extendedProperties.private.jarvis_action_id`
-       — a documented Google Calendar feature (private extended properties
-       are visible only to the app that set them, queryable later via
-       `find_events_by_private_property`) — retained as secondary
-       reconciliation metadata, and as the only mechanism for an event
-       created before this deterministic-ID scheme existed (a plain
-       private-property search, still supported).
-
-    Raises `GoogleCalendarConflictError` on 409 rather than the generic
-    `GoogleCalendarError` so a caller can distinguish "an event already
-    exists at this ID" from an ordinary failure and reconcile instead of
-    just failing."""
+    `idempotency_key` (the action proposal ID) becomes a deterministic
+    event `id`, so a retry after a lost response gets a 409
+    (`GoogleCalendarConflictError`) instead of a second event. It is also
+    stored as `extendedProperties.private.jarvis_action_id` for
+    reconciliation, which older events without a deterministic ID still
+    rely on."""
     body: dict[str, Any] = {"summary": title}
     if description is not None:
         body["description"] = description
@@ -342,7 +301,7 @@ def find_events_by_private_property(
     carrying `extendedProperties.private[key] == value`. Uses the
     documented `privateExtendedProperty` query parameter on `events.list`
     (repeatable `key=value` filters, private properties scoped to the
-    creating app) — the safest existing mechanism for asking "did my
+    creating app). This is the safest existing mechanism for asking "did my
     earlier create actually happen" without trusting local state."""
     response = client.get(
         f"{API_BASE}/calendars/{quote(calendar_id, safe='')}/events",
@@ -355,7 +314,7 @@ def find_events_by_private_property(
 
 def get_event(*, client: httpx.Client, access_token: str, calendar_id: str, event_id: str) -> dict[str, Any] | None:
     """Returns the raw event resource, or None if it no longer exists
-    (404/410 — already deleted or never existed)."""
+    (404/410: already deleted or never existed)."""
     response = client.get(
         f"{API_BASE}/calendars/{quote(calendar_id, safe='')}/events/{quote(event_id, safe='')}",
         headers={"Authorization": f"Bearer {access_token}"},

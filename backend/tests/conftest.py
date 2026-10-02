@@ -14,7 +14,7 @@ from app.migration_info import upgrade_database_to_head
 @pytest.fixture(autouse=True)
 def _no_real_hermes_cli(monkeypatch: pytest.MonkeyPatch) -> None:
     """Automated tests must never shell out to whatever Hermes installation
-    (or lack of one) happens to exist on the machine running them — that
+    (or lack of one) happens to exist on the machine running them. That
     would make export tests non-deterministic and could leak a real local
     Hermes profile's contents into a test archive. Tests that specifically
     want to exercise Hermes-profile-export behavior override this back with
@@ -24,16 +24,16 @@ def _no_real_hermes_cli(monkeypatch: pytest.MonkeyPatch) -> None:
 
 @pytest.fixture(autouse=True)
 def _no_real_browser_open(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Automated tests must never actually spawn `open <url>` — `POST
+    """Automated tests must never actually spawn `open <url>`. `POST
     /api/integrations/{provider}/connect` does this for real (server-side
     system-browser open, see app/routers/integrations.py's
     `_open_in_system_browser`) so every OAuth connect-flow test would
     otherwise pop open a real browser window on whatever machine runs the
     suite. Patches that one dedicated function, never `subprocess.Popen`
-    globally — the latter is a shared module object, and patching it
+    globally: the latter is a shared module object, and patching it
     would also silently break every other real subprocess use elsewhere
     (Hermes profile export, etc.) that happens to run in the same test
-    session — confirmed the hard way when an earlier, broader version of
+    session. This was confirmed the hard way when an earlier, broader version of
     this same fixture did exactly that."""
     monkeypatch.setattr("app.routers.integrations._open_in_system_browser", lambda url: None)
 
@@ -48,7 +48,7 @@ def data_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 
 def _prepare_schema(data_dir: Path) -> Settings:
     """Applies real Alembic migrations (not create_all) so the resulting
-    database carries a genuine alembic_version stamp — required for the
+    database carries a genuine alembic_version stamp, required for the
     Phase 2 import/export schema-revision checks to have anything to check."""
     settings = get_settings()
     assert settings.data_dir == data_dir.resolve()
@@ -95,7 +95,7 @@ def restart_client_factory(data_dir: Path) -> Generator:
 def populated_settings(data_dir: Path) -> Settings:
     """A fully migrated, seeded data directory with one BODY and one BUILD
     conversation (each with a message) plus one document, one domain
-    summary, and one skill file — the fixture used by Phase 2 export/import
+    summary, and one skill file: the fixture used by export/import
     tests that need real content to round-trip."""
     settings = _prepare_schema(data_dir)
 
@@ -141,7 +141,7 @@ def populated_settings(data_dir: Path) -> Settings:
 
 
 class FakeProvider:
-    """A mocked/fake agent provider — automated tests must never make a real
+    """A mocked/fake agent provider. Automated tests must never make a real
     (paid) call to Hermes/Claude. Configurable per-test via the mutable
     attributes below."""
 
@@ -203,14 +203,14 @@ def client_with_fake_provider(
     client: TestClient, fake_provider: FakeProvider
 ) -> Iterator[TestClient]:
     """The standard `client` fixture, but with its Hermes provider replaced
-    by a FakeProvider — for tests that exercise agent/turn endpoints without
+    by a FakeProvider, for tests that exercise agent/turn endpoints without
     ever making a real network call."""
     client.app.state.provider = fake_provider
     yield client
 
 
 class FakeSTT:
-    """Fake speech-to-text — automated tests must never load a real
+    """Fake speech-to-text. Automated tests must never load a real
     faster-whisper model (slow, and downloads weights over the network on
     first use)."""
 
@@ -227,7 +227,7 @@ class FakeSTT:
 
 
 class FakeTTS:
-    """Fake text-to-speech — automated tests must never call the real Edge
+    """Fake text-to-speech. Automated tests must never call the real Edge
     TTS network endpoint."""
 
     def __init__(self) -> None:
@@ -257,7 +257,7 @@ def client_with_fake_voice(
     client: TestClient, fake_stt: FakeSTT, fake_tts: FakeTTS
 ) -> Iterator[TestClient]:
     """The standard `client` fixture, but with real STT/TTS replaced by
-    fakes — for tests that exercise voice endpoints without ever loading a
+    fakes, for tests that exercise voice endpoints without ever loading a
     real Whisper model or calling the real Edge TTS network endpoint."""
     client.app.state.stt = fake_stt
     client.app.state.tts = fake_tts
@@ -277,7 +277,7 @@ def client_with_fake_integrations(
     client: TestClient, fake_credential_store: FakeCredentialStore
 ) -> Iterator[TestClient]:
     """The standard `client` fixture, but with the credential store replaced
-    by an in-memory fake — automated tests must never touch the real macOS
+    by an in-memory fake. Automated tests must never touch the real macOS
     Keychain. HTTP to Google (Calendar and Health) must additionally be mocked per-test via
     `make_mock_http_client` (real network calls are never made in tests)."""
     client.app.state.credential_store = fake_credential_store

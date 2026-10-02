@@ -1,4 +1,4 @@
-"""Pydantic request/response models for the Phase 8 action/skill API."""
+"""Pydantic request/response models for the action/skill API."""
 
 from __future__ import annotations
 

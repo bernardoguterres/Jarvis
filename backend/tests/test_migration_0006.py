@@ -3,7 +3,7 @@ Health provider replacement) renames the daily-summary table and the
 context_snapshots column, tightens the integration_connections provider
 CHECK constraint, and safely removes any pre-existing legacy 'fitbit'
 connection row (never reinterpreting its credentials, never reusing its
-tokens — none of which ever lived in this table anyway)."""
+tokens, none of which ever lived in this table anyway)."""
 
 from __future__ import annotations
 
@@ -62,7 +62,7 @@ def test_migration_0006_renames_table_and_column_and_preserves_data(data_dir: Pa
         row = conn.execute("SELECT steps FROM google_health_daily_summaries WHERE id='row-1'").fetchone()
         assert row == (9999,)
 
-        # The legacy fitbit connection row was removed — not selectable,
+        # The legacy fitbit connection row was removed: not selectable,
         # never reinterpreted as a Google credential (no tokens ever lived
         # in this table, so nothing to migrate there).
         remaining = conn.execute("SELECT provider FROM integration_connections").fetchall()

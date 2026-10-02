@@ -2,11 +2,11 @@ import { useMemo, useRef, type RefObject } from "react";
 
 export type WaveformTone = "violet" | "cyan";
 
-/** Odd bar counts only — a real center bar, symmetric on both sides, per
- * the Phase 6 voice-interface spec. */
+/** Odd bar counts only: a real center bar, symmetric on both sides, per
+ * the voice-interface spec. */
 export type WaveformBarCount = 7 | 9;
 
-// Center bars react more strongly than outer ones — a fixed symmetric
+// Center bars react more strongly than outer ones: a fixed symmetric
 // gain profile, peak at the center index, applied by useAudioLevels.
 const GAIN_PROFILES: Record<WaveformBarCount, number[]> = {
   7: [0.45, 0.65, 0.85, 1, 0.85, 0.65, 0.45],
@@ -26,12 +26,12 @@ interface WaveformProps {
   barRefs: RefObject<HTMLDivElement | null>[];
   tone: WaveformTone;
   /** A restrained CSS "breathing" fallback when Web Audio analysis isn't
-   * available — still a truthful listening/speaking indicator, never a
+   * available. Still a truthful listening/speaking indicator, never a
    * fake fine-grained reactive waveform. */
   fallback?: boolean;
 }
 
-/** A compact vertical waveform — narrow rounded bars, symmetric around the
+/** A compact vertical waveform: narrow rounded bars, symmetric around the
  * center. Bar heights are driven imperatively by useAudioLevels (direct
  * ref transforms, not React state) so a live 60fps waveform never forces
  * a re-render; this component only lays the bars out. */

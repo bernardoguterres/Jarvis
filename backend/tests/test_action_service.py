@@ -71,7 +71,7 @@ def test_interrupted_execution_is_recovered_at_startup_not_left_stuck_forever(db
     the startup recovery sweep resolves it to a truthful 'failed' state
     rather than leaving it stuck or fabricating 'succeeded'. memory.create
     is purely local, so its mutation lives in the same DB transaction as
-    the terminal commit — an interrupted one genuinely never happened,
+    the terminal commit, so an interrupted one genuinely never happened,
     which is why 'failed' (not 'needs_review') is the honest outcome here;
     see test_action_calendar_recovery.py for the external-effect case."""
     proposal = action_service.propose_action(
@@ -85,7 +85,7 @@ def test_interrupted_execution_is_recovered_at_startup_not_left_stuck_forever(db
 
     # Simulate exactly the state execute_action leaves behind the instant
     # after its first commit (proposal.status = "executing") but before
-    # spec.execute(...) has returned — i.e. the process was killed here.
+    # spec.execute(...) has returned, i.e. the process was killed here.
     stuck = action_service.get_proposal_or_404(db_session, approved.id)
     stuck.status = "executing"
     stuck.confirmation_used_at = datetime.now(timezone.utc)
@@ -100,12 +100,12 @@ def test_interrupted_execution_is_recovered_at_startup_not_left_stuck_forever(db
     event_types = [e.event_type for e in recovered.audit_events]
     assert event_types == ["proposed", "approved", "failed"]
 
-    # A second startup sweep must be a no-op — never re-flag an
+    # A second startup sweep must be a no-op, never re-flag an
     # already-resolved proposal or duplicate its audit trail.
     assert action_service.expire_interrupted_executions(db_session) == 0
     assert len(action_service.get_proposal_or_404(db_session, proposal.id).audit_events) == 3
 
-    # Still genuinely terminal — no path can execute or deny it now.
+    # Still genuinely terminal: no path can execute or deny it now.
     with pytest.raises(action_service.ActionError):
         action_service.execute_action(db_session, proposal.id, confirmation_token=approved.confirmation_token)
     with pytest.raises(action_service.ActionError):
@@ -123,7 +123,7 @@ def test_approval_rejects_tampered_payload_digest(db_session: Session) -> None:
     with pytest.raises(action_service.ActionError):
         action_service.approve_action(db_session, proposal.id, payload_digest="0" * 64)
 
-    # Still proposed — a rejected approval attempt doesn't corrupt state.
+    # Still proposed. A rejected approval attempt doesn't corrupt state.
     fresh = action_service.get_proposal_or_404(db_session, proposal.id)
     assert fresh.status == "proposed"
 
@@ -185,7 +185,7 @@ def test_expired_confirmation_is_rejected(db_session: Session) -> None:
 def test_cross_proposal_token_confusion_is_rejected(db_session: Session) -> None:
     """A confirmation token approved for proposal A must never work against
     a different proposal B's execute call, even if both are otherwise
-    valid/unexpired — this is the "cross-domain confirmation" rejection."""
+    valid/unexpired. This is the "cross-domain confirmation" rejection."""
     body = db_session.query(Domain).filter_by(slug="body").one()
     mind = db_session.query(Domain).filter_by(slug="mind").one()
 
@@ -269,7 +269,7 @@ def test_global_memory_proposal_must_not_carry_a_domain_id(db_session: Session) 
 
 def test_prompt_injection_text_in_reason_or_content_never_grants_approval(db_session: Session) -> None:
     """Model/memory/message text claiming an action is 'approved' must have
-    zero effect — only an exact payload-digest approval followed by a
+    zero effect. Only an exact payload-digest approval followed by a
     single-use token can move a proposal forward."""
     proposal = action_service.propose_action(
         db_session,

@@ -5,7 +5,7 @@ import * as api from "./api";
 import type { Domain } from "./api";
 import { DOMAIN_SLUG_ORDER, domainNumber } from "./domainOrder";
 
-/** Backend order (`GET /api/domains`, `order_by(Domain.slug)`) — this
+/** Backend order (`GET /api/domains`, `order_by(Domain.slug)`). This
  * fixture deliberately matches the real API's alphabetical ordering, the
  * same ordering `DOMAIN_SLUG_ORDER` encodes, so this test can assert
  * every surface agrees with the one shared source rather than merely

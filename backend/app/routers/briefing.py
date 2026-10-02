@@ -1,21 +1,12 @@
-"""Phase 12A/12B: the on-demand Home situational briefing's HTTP surface,
-plus its continuity endpoints (history, acknowledge, snooze, restore).
+"""Home briefing HTTP routes, plus continuity (history, acknowledge,
+snooze, restore).
 
-`GET /api/briefing/home` is a pure read from the caller's perspective —
-assembling it never calls a model, Hermes, or mutates any *external*
-source (see app/briefing_service.py); it does write to this module's own
-presentation-state tables (the continuity ledger, the snapshot audit
-trail). Acknowledge/snooze/restore are real, transactional local
-mutations, but — per CLAUDE.md §12 — they control only what Jarvis shows,
-never the Phase 8 external-action lifecycle, and never the original
-Calendar/task/action/integration/routine/Health record.
-
-There is no "Discuss with Jarvis" route here either, matching the Morning
-Briefing routine's own pattern (app/routers/routines.py): the frontend
-sends the briefing's own rendered text (now including each item's change
-label) into a normal conversation turn through the existing,
-already-model-using general-conversation endpoints — never a
-briefing-specific bypass.
+`GET /api/briefing/home` never calls a model or Hermes and never changes
+an external source; it only writes the briefing's own ledger and
+snapshot tables. Acknowledge, snooze and restore change only what Jarvis
+shows, never the underlying record. There is no "Discuss with Jarvis"
+route; the frontend sends the briefing text into a normal conversation
+turn instead.
 """
 
 from __future__ import annotations
@@ -147,7 +138,7 @@ def get_home_briefing(
     db: Session = Depends(get_db),
 ) -> HomeBriefingRead:
     """`trigger` distinguishes an ordinary view from an explicit Refresh
-    click for audit purposes only (`BriefingSnapshot.trigger`) — both use
+    click for audit purposes only (`BriefingSnapshot.trigger`). Both use
     the exact same 'home' comparison baseline, so refreshing can never
     itself manufacture a spurious change."""
     settings = briefing_service.get_or_create_settings(db)

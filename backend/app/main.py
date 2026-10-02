@@ -1,4 +1,4 @@
-"""Jarvis FastAPI controller entrypoint (Phase 1-2)."""
+"""Jarvis FastAPI controller entrypoint."""
 
 from __future__ import annotations
 
@@ -57,13 +57,9 @@ logger = logging.getLogger("jarvis")
 def _resolve_frontend_dist_dir() -> Path:
     """Locate the built frontend, whether running from source or frozen.
 
-    From source, it's repo root / frontend / dist — three levels up from
-    this file. Under the PyInstaller onefile native-packaging sidecar
-    (Stage 1), ``__file__`` resolves inside a path that no longer exists at
-    runtime, and bundled data (added via the spec's ``--add-data``) is
-    extracted at startup to ``sys._MEIPASS`` — a fresh temp directory each
-    run, never a fixed location relative to the executable itself — so the
-    build is located there instead (see
+    From source it is repo root / frontend / dist. In the PyInstaller
+    sidecar, bundled data is extracted to a fresh ``sys._MEIPASS`` temp
+    directory each run, so the build is found there instead (see
     backend/packaging/jarvis_backend.spec).
     """
     if getattr(sys, "frozen", False):
@@ -98,7 +94,7 @@ async def lifespan(app: FastAPI):
     )
     app.state.tts = EdgeTextToSpeech(voice=settings.edge_tts_voice)
 
-    # Phase 9: integrations. Credentials/tokens live only in the Keychain —
+    # Integrations: credentials/tokens live only in the Keychain,
     # never in this app's own database or config.
     app.state.credential_store = KeychainCredentialStore()
     app.state.oauth_flow_store = OAuthFlowStore()
@@ -110,7 +106,7 @@ async def lifespan(app: FastAPI):
         seed_example_skills(session)
 
     # Recover any action proposal a prior process left stuck in "executing"
-    # (a crash/kill mid-execution) — see action_service.expire_interrupted_executions
+    # (a crash/kill mid-execution). See action_service.expire_interrupted_executions
     # for why nothing else in this codebase ever resolves that state on an
     # ordinary restart. Must never block or fail startup.
     try:
@@ -129,7 +125,7 @@ async def lifespan(app: FastAPI):
         logger.exception("Startup interrupted-execution recovery failed; continuing without it.")
 
     # Remove any leftover export scratch file (.tmp-*/.dbsnapshot-*) a prior
-    # process left behind by being killed mid-export — see
+    # process left behind by being killed mid-export. See
     # export_service.cleanup_stale_export_temp_files. Must never block or
     # fail startup; a real completed export is never matched by this.
     try:
@@ -146,8 +142,8 @@ async def lifespan(app: FastAPI):
     except Exception:
         logger.exception("Startup backup due-check failed; continuing without it.")
 
-    # Phase 12B: bounded retention for old resolved briefing-ledger rows
-    # and restored/expired acknowledge/snooze rows — never touches an
+    # Bounded retention for old resolved briefing-ledger rows
+    # and restored/expired acknowledge/snooze rows. Never touches an
     # active row of any kind. Must never block or fail startup.
     try:
         with session_factory() as session:
@@ -158,7 +154,7 @@ async def lifespan(app: FastAPI):
         logger.exception("Startup briefing-continuity cleanup failed; continuing without it.")
 
     # Mission Control: bounded retention for old completed/abandoned focus
-    # sessions — never touches the current active/paused session. Must
+    # sessions. Never touches the current active/paused session. Must
     # never block or fail startup.
     try:
         with session_factory() as session:
@@ -168,10 +164,10 @@ async def lifespan(app: FastAPI):
     except Exception:
         logger.exception("Startup focus-session cleanup failed; continuing without it.")
 
-    # Phase 12D: backfill the recall index for an installation upgrading
+    # Backfill the recall index for an installation upgrading
     # from before migration 0016 (a fresh empty recall_fts table has
-    # nothing wrong with it — this only ever fires once per installation,
-    # the first startup after the migration). Never a periodic resync —
+    # nothing wrong with it, so this only fires once per installation,
+    # the first startup after the migration). Never a periodic resync:
     # every relevant write path calls recall_index_service.sync_recall()
     # directly, this is only the one-time backfill safety net. Must never
     # block or fail startup.
@@ -185,8 +181,8 @@ async def lifespan(app: FastAPI):
     except Exception:
         logger.exception("Startup recall-index backfill failed; continuing without it.")
 
-    # Phase 10: controller-owned automatic integration resync. A single
-    # background asyncio task, started/stopped with this same lifespan —
+    # Controller-owned automatic integration resync. A single
+    # background asyncio task, started/stopped with this same lifespan,
     # never a Hermes cron job, never a second process. See
     # docs/ARCHITECTURE.md and docs/DECISIONS.md.
     app.state.scheduler_runtime = SchedulerRuntime(
@@ -210,11 +206,11 @@ def create_app() -> FastAPI:
         allow_origins=[settings.cors_origin],
         allow_credentials=False,
         # PUT is required by real, already-shipped endpoints (domain summary,
-        # integration schedule, routine schedule) — omitting it only ever
+        # integration schedule, routine schedule). Omitting it only ever
         # broke `npm run dev`'s cross-origin (5173->8000) preflight for
-        # those specific calls, never production (Phase 7 serves the
+        # those specific calls, never production (the app serves the
         # frontend same-origin, where no preflight happens at all). Fixed
-        # per docs/DECISIONS.md D82 — still an explicit, non-wildcard list,
+        # per docs/DECISIONS.md D82. Still an explicit, non-wildcard list,
         # not "*".
         allow_methods=["GET", "POST", "PUT"],
         allow_headers=["Content-Type"],
@@ -241,7 +237,7 @@ def create_app() -> FastAPI:
     app.include_router(decisions.router)
 
     # A genuine 404 for any unmatched /api/* path, registered before the
-    # static mount below — otherwise a client typo'd or nonexistent API path
+    # static mount below. Otherwise a client typo'd or nonexistent API path
     # would silently fall through to the static-file app and come back as
     # its own 404/405 instead of this API's, once that mount exists.
     @app.api_route(
@@ -252,12 +248,12 @@ def create_app() -> FastAPI:
     async def api_not_found(full_path: str) -> None:
         raise HTTPException(status_code=404, detail="Not Found")
 
-    # Phase 7: serve the production frontend build from this same origin/port
+    # Serve the production frontend build from this same origin/port
     # when it exists, so ordinary use doesn't depend on Vite's dev server.
     # Registered last so none of it ever shadows the "/api/..." routes
-    # above — Starlette tries routes in registration order.
+    # above, since Starlette tries routes in registration order.
     if FRONTEND_DIST_DIR.is_dir():
-        # Vite's hashed JS/CSS bundle lives under /assets — mounted on its
+        # Vite's hashed JS/CSS bundle lives under /assets, mounted on its
         # own subpath (not "/") so a plain Mount("/") can never swallow the
         # catch-all route below before it gets a chance to run.
         app.mount(
@@ -268,9 +264,9 @@ def create_app() -> FastAPI:
 
         index_path = FRONTEND_DIST_DIR / "index.html"
 
-        # Phase 6 (D75-series diagnostic pass): a genuine SPA fallback.
+        # A genuine SPA fallback.
         # This is a single-URL frontend (no client-side URL routing at
-        # all) — the app itself decides what's a known route. Any GET not
+        # all); the app itself decides what's a known route. Any GET not
         # already matched above (not /api/*, not /assets/*) either names a
         # real file at the build root (favicon, etc.) and is served
         # verbatim, or is the frontend's own "unknown route" case, and

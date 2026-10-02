@@ -1,10 +1,10 @@
-"""Mission Control / Current Focus — export/restore safety. An ordinary
+"""Mission Control / Current Focus: export/restore safety. An ordinary
 restart preserves an active/paused focus session untouched (nothing in
 this module runs then); restoring an export into ANY installation (the
 same one or a genuinely different one) must force it into a safe
 terminal state first, exactly like Phase 8's in-flight action proposals,
 Phase 9's live integration connections, and Phase 10's routine/
-integration schedules — see `_interrupt_active_focus_sessions` in
+integration schedules; see `_interrupt_active_focus_sessions` in
 `app.import_service`."""
 
 from __future__ import annotations
@@ -118,7 +118,7 @@ def test_paused_session_folds_final_pause_window_on_restore(tmp_path: Path) -> N
 
 
 def test_ordinary_restart_preserves_an_active_session_untouched(restart_client_factory) -> None:
-    """A restart on the SAME installation is not a restore — the active
+    """A restart on the SAME installation is not a restore: the active
     session must survive exactly as-is (this is the counterpart to the
     restore-forced-interruption tests above: restart must NOT trigger the
     same safety measure)."""
@@ -142,13 +142,13 @@ def test_ordinary_restart_preserves_an_active_session_untouched(restart_client_f
 
 def test_restore_onto_a_pre_mission_control_database_is_a_noop(tmp_path: Path) -> None:
     """`_interrupt_active_focus_sessions` must no-op cleanly when the
-    restored database predates the `focus_sessions` table entirely — it
+    restored database predates the `focus_sessions` table entirely. It
     checks `sqlite_master` before touching anything."""
     from app.import_service import _interrupt_active_focus_sessions
 
     install = _make_installation(tmp_path / "installation-no-table")
     # Simulate an older schema by just calling the safety function against
-    # a fresh, already-migrated (current-head) database — the table exists
+    # a fresh, already-migrated (current-head) database, where the table exists
     # here, so this instead proves the "no active/paused rows" branch is
     # also a clean no-op.
     removed = _interrupt_active_focus_sessions(install.database_path)

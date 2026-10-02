@@ -1,6 +1,6 @@
-"""Phase 12B: briefing continuity (snapshots, the per-identity ledger,
+"""Briefing continuity (snapshots, the per-identity ledger,
 acknowledgements, and snoozes) survives export/restore, remains writable,
-and — since none of it is a live schedule/connection/proposal — needs no
+and (since none of it is a live schedule/connection/proposal) needs no
 restore-time safety-forcing the way routine/integration schedules and
 action proposals do (see docs/DECISIONS.md D87 for why)."""
 
@@ -74,7 +74,7 @@ def test_briefing_continuity_survives_export_restore_and_stays_writable(tmp_path
         snapshots = session.query(BriefingSnapshot).filter_by(consumer="home").all()
         assert len(snapshots) == 1
 
-        # A post-restore write succeeds — the restored installation is
+        # A post-restore write succeeds: the restored installation is
         # genuinely usable, not a read-only artifact.
         from app import briefing_service
 
@@ -86,7 +86,7 @@ def test_briefing_continuity_survives_export_restore_and_stays_writable(tmp_path
 
 def test_restore_never_reactivates_anything_briefing_related(tmp_path: Path) -> None:
     """No routine/schedule/integration/proposal exists anywhere in this
-    dataset, so restoring it must not create or enable one — a negative
+    dataset, so restoring it must not create or enable one: a negative
     check that the briefing-continuity restore path stays purely additive
     (its own tables only) and never reaches into unrelated subsystems."""
     install_a = _make_installation(tmp_path / "installation-a")

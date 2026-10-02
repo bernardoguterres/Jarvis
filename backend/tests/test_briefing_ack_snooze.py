@@ -1,4 +1,4 @@
-"""Phase 12B: acknowledge/snooze/restore — a local presentation
+"""Acknowledge/snooze/restore: a local presentation
 preference only, never a mutation of any underlying source. Fictional
 fixtures and an injected clock throughout; no real Google/Keychain/
 Hermes/model contact."""
@@ -81,7 +81,7 @@ def test_fingerprint_change_breaks_acknowledgement(db_session: Session) -> None:
     db_session.commit()
 
     b2 = _assemble(db_session, now + timedelta(minutes=2))
-    assert len(b2.items) == 1  # automatically resurfaced — the ack no longer matches the new fingerprint
+    assert len(b2.items) == 1  # automatically resurfaced, since the ack no longer matches the new fingerprint
     assert b2.items[0].change_state == "changed"
 
 
@@ -248,7 +248,7 @@ def test_snooze_and_acknowledge_timestamps_survive_db_round_trip_as_aware_utc(db
     """Regression: SQLite silently drops tzinfo on read-back even for a
     `DateTime(timezone=True)` column, so a naive datetime built straight
     from an ORM refresh gets serialized to the frontend with no UTC
-    offset — which `new Date(iso)` in the browser then misreads as local
+    offset, which `new Date(iso)` in the browser then misreads as local
     time rather than UTC. This only became visible once tests ran under a
     non-UTC system clock (a real Mac in BST), not in a UTC-only
     container. `acknowledge_item`/`snooze_item` must always return aware

@@ -1,14 +1,6 @@
-"""Phase 12A: persisted privacy settings for the on-demand Home
-situational briefing (see app/briefing_service.py).
-
-A single-row table — analogous in spirit to app/models_routines.py's
-RoutineSchedule, but simpler (no schedule/enable state, since the Home
-briefing is always assembled on demand, never run in the background).
-Only a per-sensitive-domain opt-in flag is stored; nothing here is a
-credential or personal content, just a boolean preference.
-
-Defaults match Bernardo's already-recorded Phase 10B privacy selection
-(CLAUDE.md, docs/ROADMAP.md): BODY included, MIND and PEOPLE excluded.
+"""Persisted privacy settings for the Home briefing (see
+app/briefing_service.py): a single-row table with one opt-in flag per
+sensitive domain. Defaults are BODY included, MIND and PEOPLE excluded.
 """
 
 from __future__ import annotations
@@ -23,11 +15,11 @@ from app.models import _new_uuid, _utcnow
 
 BRIEFING_SETTINGS_SINGLETON_ID = "singleton"
 
-# --- Phase 12B: briefing continuity (snapshots, per-identity ledger, ------
+# --- Briefing continuity (snapshots, per-identity ledger, ------
 # acknowledgements, snoozes). See app/briefing_service.py for the logic
-# that reads/writes these tables — nothing here is written to by anything
-# other than that module (and, for BriefingSnapshot only, the Phase 10B
-# Morning Briefing routine's own lightweight audit row — never the ledger
+# that reads/writes these tables. Nothing here is written to by anything
+# other than that module (and, for BriefingSnapshot only, the
+# Morning Briefing routine's own lightweight audit row, never the ledger
 # or ack/snooze tables, which are exclusively a Home-briefing concern).
 
 BRIEFING_SNAPSHOT_CONSUMERS = ("home", "morning_briefing")
@@ -45,14 +37,14 @@ BRIEFING_SNOOZE_DURATIONS = ("1h", "4h", "tomorrow_morning", "1w")
 
 
 class BriefingSnapshot(Base):
-    """One row per candidate-set comparison pass — an audit/history trail
+    """One row per candidate-set comparison pass: an audit/history trail
     and the spam-prevention dedup anchor (see
     `briefing_service.record_snapshot`). `consumer` is the baseline
     lineage ('home' vs 'morning_briefing') that `BriefingItemState` change
     detection is scoped to; `trigger` is a finer-grained audit label that
     never affects comparison logic. `content_digest` is a stable hash of
     the full candidate set's (stable_key, fingerprint) pairs (Home) or of
-    the routine's own rendered output (Morning Briefing) — never raw
+    the routine's own rendered output (Morning Briefing), never raw
     provider payloads or secrets."""
 
     __tablename__ = "briefing_snapshots"
@@ -71,7 +63,7 @@ class BriefingSnapshot(Base):
 
 
 class BriefingItemState(Base):
-    """The Home-briefing continuity ledger — one row per stable identity
+    """The Home-briefing continuity ledger: one row per stable identity
     ever seen by the Home assembler (across all its candidate-generating
     functions), independent of any single snapshot. This is what
     `new`/`changed`/`ongoing`/`resolved`/`reopened` classification is
@@ -110,7 +102,7 @@ class BriefingItemState(Base):
 
 class BriefingAcknowledgement(Base):
     """A local presentation preference, never a mutation of the
-    underlying source (CLAUDE.md, Phase 12B). Suppresses one exact
+    underlying source (CLAUDE.md). Suppresses one exact
     (stable_key, fingerprint) pair from the main briefing until the
     fingerprint changes or the item is explicitly restored. `*_snapshot`
     columns freeze the display text at acknowledge time so the compact
@@ -139,7 +131,7 @@ class BriefingSnooze(Base):
     """Same shape/rationale as `BriefingAcknowledgement`, but time-bounded
     (`snooze_until`) rather than indefinite, and drawn from a small
     server-validated `duration_key` enum rather than an arbitrary
-    client-supplied timestamp (CLAUDE.md §12 — never trust an unbounded
+    client-supplied timestamp (never trust an unbounded
     client payload for something that affects what's shown). Never
     executes or schedules any external action; purely a local suppression
     window."""
@@ -168,7 +160,7 @@ class BriefingSnooze(Base):
 class BriefingSettings(Base):
     """One fixed row. `include_body`/`include_mind`/`include_people` gate
     whether that sensitive domain's data may ever be considered by
-    app/briefing_service.py's Home briefing assembler — never a default,
+    app/briefing_service.py's Home briefing assembler. Never a default,
     always an explicit, persisted, restart-surviving choice."""
 
     __tablename__ = "briefing_settings"

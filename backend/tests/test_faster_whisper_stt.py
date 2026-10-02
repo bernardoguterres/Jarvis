@@ -14,7 +14,7 @@ class _FakeSegment:
 
 class _FakeWhisperModel:
     """Records how many times the real (heavy) WhisperModel constructor
-    would have been called, without actually loading any model weights —
+    would have been called, without actually loading any model weights;
     these tests are about construction/reuse lifecycle, not transcription
     accuracy or real timing."""
 
@@ -47,7 +47,7 @@ def test_model_is_constructed_lazily_on_first_transcribe(tmp_path: Path) -> None
 
 def test_repeated_transcribe_calls_reuse_the_same_model_instead_of_reconstructing(tmp_path: Path) -> None:
     # The lifecycle guarantee this whole module depends on: construction
-    # happens once, on first use, never again — see docs/DECISIONS.md D107
+    # happens once, on first use, never again. See docs/DECISIONS.md D107
     # for why an *eager* startup version of this guarantee was attempted
     # and reverted (it triggered a severe, reproducible runaway process
     # respawn in the real packaged app; this lazy, on-demand path was

@@ -1,7 +1,7 @@
-"""Phase 9: a credential-store abstraction backed by macOS Keychain.
+"""A credential-store abstraction backed by macOS Keychain.
 
 OAuth client credentials, access tokens, refresh tokens, and any token
-metadata that could grant access live ONLY here — never in SQLite, `.env`,
+metadata that could grant access live ONLY here, never in SQLite, `.env`,
 source files, frontend state, logs, exports, or backups (CLAUDE.md §5,
 docs/ARCHITECTURE.md). Automated tests must always use FakeCredentialStore,
 never the real Keychain.
@@ -37,8 +37,8 @@ class KeychainCredentialStore:
     def set(self, provider: str, key: str, value: str) -> None:
         # `keyring.set_password` deletes and recreates the Keychain item on
         # every write (see keyring.backends.macOS.api.set_generic_password),
-        # which resets the item's Access Control list — wiping any "Always
-        # Allow" grant — every time an OAuth token is refreshed. Update the
+        # which resets the item's Access Control list (wiping any "Always
+        # Allow" grant) every time an OAuth token is refreshed. Update the
         # item in place instead when it already exists; only fall back to
         # keyring's create path for a genuinely new item, which has no ACL
         # to preserve yet. Proven against a disposable, uniquely-named test
@@ -50,9 +50,9 @@ class KeychainCredentialStore:
         try:
             updated = update_generic_password_in_place(service, key, value)
         except KeychainUpdateNotSupported:
-            updated = False  # not on macOS (or Security framework unavailable) — fall back below
+            updated = False  # not on macOS (or Security framework unavailable); fall back below
         if updated:
-            # Never log `value` — provider/key names alone (e.g.
+            # Never log `value`. Provider/key names alone (e.g.
             # "google_calendar"/"access_token") are already visible via
             # GET /api/integrations and carry no secret.
             logger.info("Keychain write for %s/%s used in-place update (ACL preserved).", provider, key)
@@ -79,7 +79,7 @@ class KeychainCredentialStore:
         try:
             keyring.delete_password(self._service_name(provider), key)
         except PasswordDeleteError:
-            pass  # already absent — deletion is idempotent
+            pass  # already absent; deletion is idempotent
 
     def delete_all(self, provider: str, keys: list[str]) -> None:
         for key in keys:
@@ -87,7 +87,7 @@ class KeychainCredentialStore:
 
 
 class FakeCredentialStore:
-    """In-memory stand-in for automated tests — never touches the real
+    """In-memory stand-in for automated tests. Never touches the real
     Keychain. Also useful for asserting exactly what a test wrote/read."""
 
     def __init__(self) -> None:

@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
 
-/** Shared internal-console primitives (Phase 6 Part 3). Every domain
+/** Shared internal-console primitives. Every domain
  * conversation and every Centre is built from this small set of pieces so
- * they read as one interior of the same machine — near-black canvas, matte
+ * they read as one interior of the same machine: near-black canvas, matte
  * module surfaces, thin violet borders, cyan reserved for something that
  * is actually live right now. None of these fabricate data: every prop
  * that renders as a number or a status must come from the caller's real
@@ -15,13 +15,13 @@ interface ConsolePageProps {
 
 /** The near-black canvas every internal page renders onto, with the
  * faint fixed circuit-line texture and the shared entrance transition
- * (240-280ms fade/translate — see .console-page in index.css). */
+ * (240-280ms fade/translate; see .console-page in index.css). */
 export function ConsolePage({ children, className = "" }: ConsolePageProps) {
   return <div className={`console-page ${className}`.trim()}>{children}</div>;
 }
 
 interface ConsoleHeaderProps {
-  /** Compact circular system/domain indicator — a MiniCoreIndicator or a
+  /** Compact circular system/domain indicator: a MiniCoreIndicator or a
    * domain glyph. */
   indicator?: ReactNode;
   eyebrow?: string;
@@ -30,7 +30,7 @@ interface ConsoleHeaderProps {
   /** Full description, kept in secondary text rather than a large hero
    * paragraph. */
   description?: string;
-  /** Truthful metadata only — omit entirely rather than showing a zero or
+  /** Truthful metadata only. Omit entirely rather than showing a zero or
    * placeholder the API didn't actually supply. */
   meta?: ReactNode;
   actions?: ReactNode;
@@ -55,7 +55,7 @@ export function ConsoleHeader({ indicator, eyebrow, title, subtitle, description
 interface ConsoleModuleProps {
   children: ReactNode;
   title?: string;
-  /** Renders the cyan "live" treatment — reserve strictly for something
+  /** Renders the cyan "live" treatment. Reserve strictly for something
    * actually listening/syncing/executing/connected right now. */
   live?: boolean;
   className?: string;
@@ -64,7 +64,7 @@ interface ConsoleModuleProps {
   ariaLabel?: string;
 }
 
-/** The one reusable module surface. Deliberately plain — callers vary size
+/** The one reusable module surface. Deliberately plain: callers vary size
  * and internal layout freely via className/children rather than this
  * primitive trying to anticipate every shape a module might need. */
 export function ConsoleModule({ children, title, live = false, className = "", actions, as = "section", ariaLabel }: ConsoleModuleProps) {
@@ -82,7 +82,7 @@ export function ConsoleModule({ children, title, live = false, className = "", a
   );
 }
 
-/** Small uppercase/monospace section divider label — used both standalone
+/** Small uppercase/monospace section divider label, used both standalone
  * and inside ConsoleModule's head. */
 export function ConsoleSectionLabel({ children }: { children: ReactNode }) {
   return <span className="console-section-label">{children}</span>;
@@ -91,12 +91,12 @@ export function ConsoleSectionLabel({ children }: { children: ReactNode }) {
 interface TelemetryRowProps {
   label: string;
   value: ReactNode;
-  /** A small status point next to the value — only for a real state, never
+  /** A small status point next to the value, only for a real state, never
    * decorative. */
   tone?: "ok" | "warn" | "error" | "active" | "neutral";
 }
 
-/** One compact label/value line — the building block of a provider's
+/** One compact label/value line: the building block of a provider's
  * status header, a routine's config summary, an action's audit entry. */
 export function TelemetryRow({ label, value, tone }: TelemetryRowProps) {
   return (
@@ -112,7 +112,7 @@ export function TelemetryRow({ label, value, tone }: TelemetryRowProps) {
 
 interface MiniCoreIndicatorProps {
   /** Only "live" states (listening/syncing/executing/thinking/speaking)
-   * get the moving ring segment — everything else is static, per Phase 6's
+   * get the moving ring segment; everything else is static, per the
    * "no permanently-rotating decoration" rule. */
   active?: boolean;
   tone?: "violet" | "cyan";
@@ -120,7 +120,7 @@ interface MiniCoreIndicatorProps {
 }
 
 /** The small circular Jarvis-system glyph used in console headers in place
- * of a giant decorative core — a quiet echo of JarvisCore's ring language,
+ * of a giant decorative core: a quiet echo of JarvisCore's ring language,
  * not a competing centerpiece. Purely presentational; callers decide
  * `active` from real state only. */
 export function MiniCoreIndicator({ active = false, tone = "violet", size = "md" }: MiniCoreIndicatorProps) {
@@ -138,7 +138,7 @@ interface ContextRailProps {
 }
 
 /** The secondary column in a cockpit layout (conversation main + context
- * rail) — collapsible modules stacked vertically. On narrow viewports the
+ * rail): collapsible modules stacked vertically. On narrow viewports the
  * page layout moves this below the main column (see index.css). */
 export function ContextRail({ children, className = "" }: ContextRailProps) {
   return (

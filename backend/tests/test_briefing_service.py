@@ -1,6 +1,6 @@
-"""Phase 12A: the on-demand Home situational briefing's deterministic
+"""The on-demand Home situational briefing's deterministic
 assembler. Every test uses fictional fixtures seeded directly into the
-isolated test database — no real Google/Keychain/Hermes/model contact,
+isolated test database, with no real Google/Keychain/Hermes/model contact,
 matching app/briefing_service.py's own "no model call, ever" guarantee."""
 
 from __future__ import annotations
@@ -214,7 +214,7 @@ def test_mind_and_people_never_surface_regardless_of_flags(db_session: Session) 
     db_session.commit()
 
     # Even with both flags set True, no MIND/PEOPLE source exists in this
-    # module — a structural guarantee, not merely a flag check.
+    # module: a structural guarantee, not merely a flag check.
     briefing = briefing_service.assemble_home_briefing(
         db_session, include_body=False, include_mind=True, include_people=True, now=now
     )

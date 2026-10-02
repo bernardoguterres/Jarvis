@@ -1,4 +1,4 @@
-"""Idempotent seeding of the six fixed domains, and (Phase 8) a handful of
+"""Idempotent seeding of the six fixed domains, and a handful of
 example skill templates."""
 
 from __future__ import annotations
@@ -29,7 +29,7 @@ def seed_domains(session: Session) -> None:
     session.commit()
 
 
-# Fixed domain UUIDs from DOMAIN_SEEDS (app/models.py) — stable across
+# Fixed domain UUIDs from DOMAIN_SEEDS (app/models.py), stable across
 # reinstalls, same reasoning as seed_domains above.
 _BODY_ID = "11111111-1111-4111-8111-111111111111"
 _PATH_ID = "44444444-4444-4444-8444-444444444444"
@@ -37,7 +37,7 @@ _BUILD_ID = "55555555-5555-4555-8555-555555555555"
 _LIFE_ID = "66666666-6666-4666-8666-666666666666"
 
 # Clearly-labelled inactive example skill templates (CLAUDE.md §14). Seeded
-# as drafts only — never activated automatically; Bernardo must explicitly
+# as drafts only and never activated automatically; Bernardo must explicitly
 # review and activate each one before it can be invoked.
 EXAMPLE_SKILL_SEEDS = [
     {
@@ -122,6 +122,6 @@ def seed_example_skills(session: Session) -> None:
                 change_reason="Seeded example template.",
             )
         except SkillError:
-            # Domain not seeded yet, or some other transient ordering issue —
+            # Domain not seeded yet, or some other transient ordering issue:
             # never fatal to startup; the template just won't appear this run.
             session.rollback()

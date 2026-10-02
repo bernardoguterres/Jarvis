@@ -1,7 +1,7 @@
-"""Phase 8: controller-owned permissions, an auditable action lifecycle,
+"""Controller-owned permissions, an auditable action lifecycle,
 lifecycle hooks, and a local versioned skill system.
 
-Nothing here lets Hermes or any model call these tables directly — Hermes's
+Nothing here lets Hermes or any model call these tables directly. Hermes's
 own toolsets remain fully disabled (see docs/ARCHITECTURE.md §8c). Every
 mutation Jarvis itself proposes must pass through ActionProposal's
 propose -> approve -> execute lifecycle in app/action_service.py; there is
@@ -18,7 +18,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base
 from app.models import _new_uuid, _utcnow
 
-# Fixed, code-owned capability allowlist — never user- or model-extensible.
+# Fixed, code-owned capability allowlist, never user- or model-extensible.
 # Every capability here only ever proposes a controller-owned internal
 # record; none has an external side effect (CLAUDE.md §12 "Confirm" tier).
 CAPABILITY_IDS = (
@@ -54,7 +54,7 @@ class ActionProposal(Base):
     """One proposed Jarvis-initiated mutation and its full lifecycle state.
 
     `arguments_json`, `capability_id`, and `domain_id` are immutable after
-    creation — `payload_digest` is computed once from exactly those fields
+    creation. `payload_digest` is computed once from exactly those fields
     and never recomputed, so approval can be bound to "the exact proposed
     action" (CLAUDE.md §12) rather than to a mutable row.
     """
@@ -100,7 +100,7 @@ class ActionProposal(Base):
 
 class ActionAuditEvent(Base):
     """Append-only lifecycle audit trail for one ActionProposal. Never
-    updated or deleted once written — mirrors MemoryVersion's
+    updated or deleted once written, mirroring MemoryVersion's
     immutable-history pattern."""
 
     __tablename__ = "action_audit_events"

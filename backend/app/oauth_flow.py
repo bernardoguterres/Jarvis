@@ -1,16 +1,9 @@
-"""Phase 9: Authorization Code + PKCE flow bookkeeping.
+"""Authorization Code + PKCE flow bookkeeping.
 
-State and PKCE verifiers are transient, single-use, bounded-lifetime
-secrets tied to one in-progress OAuth attempt — not long-term credentials.
-They are kept only in memory (never in SQLite, so they're structurally
-never part of an export/backup — CLAUDE.md's export-exclusion list), and
-are gone the moment they're consumed or expire.
-
-The redirect target is this same FastAPI backend, on loopback only
-(127.0.0.1), at a fixed path per provider — never a separately-bound
-listener and never a non-loopback host, satisfying "loopback-only
-callbacks" and "exact redirect validation" (an OAuth provider is
-configured with this exact URL and will refuse any other).
+State values and PKCE verifiers are short-lived, single-use secrets for
+one OAuth attempt. They live only in memory, so they never reach SQLite,
+exports or backups. The redirect target is this backend on 127.0.0.1 at a
+fixed path per provider, and the provider rejects any other URL.
 """
 
 from __future__ import annotations
@@ -59,7 +52,7 @@ class PendingOAuthFlow:
 
 class OAuthFlowStore:
     """In-memory, single-use, bounded-lifetime store for in-progress OAuth
-    flows. Not persisted — a backend restart mid-flow simply fails that one
+    flows. Not persisted: a backend restart mid-flow simply fails that one
     attempt cleanly, which is the correct behavior for a transient secret."""
 
     def __init__(self) -> None:
@@ -79,12 +72,12 @@ class OAuthFlowStore:
         return flow
 
     def consume(self, state: str, *, provider: str) -> PendingOAuthFlow:
-        """Validates and immediately invalidates `state` — a second call
+        """Validates and immediately invalidates `state`, so a second call
         with the same state always fails (replay rejection)."""
         flow = self._flows.get(state)
         if flow is None:
             raise OAuthFlowError("Unknown or already-used OAuth state.")
-        # Remove immediately — single-use regardless of what happens next.
+        # Remove immediately: single-use regardless of what happens next.
         del self._flows[state]
 
         if flow.used:

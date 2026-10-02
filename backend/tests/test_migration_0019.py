@@ -3,7 +3,7 @@ status) preserves existing action_proposals rows, allows needs_review to
 be stored and read back, still rejects an invalid status, and that a
 fresh migration chain reaches the current real head (never a hardcoded
 revision literal). Uses only temporary databases (pytest's `data_dir`
-fixture) — never ~/JarvisData or any real database."""
+fixture), never ~/JarvisData or any real database."""
 
 from __future__ import annotations
 
@@ -58,7 +58,7 @@ def test_migration_0019_preserves_existing_action_rows(data_dir: Path) -> None:
         conn.close()
 
     command.upgrade(_alembic_config(settings.database_url), "head")
-    # Deliberately never a hardcoded "head is exactly 0019" literal — the
+    # Deliberately never a hardcoded "head is exactly 0019" literal; the
     # next phase's migration would immediately make that stale.
     assert read_db_revision(settings.database_path) == get_head_revision()
 
@@ -144,7 +144,7 @@ def test_invalid_action_status_still_rejected_after_migration(data_dir: Path) ->
 
 def test_application_starts_against_an_upgraded_database(data_dir: Path) -> None:
     """Migrating an existing (pre-0019) database to head must leave the
-    app able to start normally — not just the schema, the full FastAPI
+    app able to start normally: not just the schema, the full FastAPI
     app construction (route registration, etc.). The `data_dir` fixture
     already points JARVIS_DATA_DIR at this exact isolated path."""
     from alembic import command
@@ -162,7 +162,7 @@ def test_application_starts_against_an_upgraded_database(data_dir: Path) -> None
 
 def test_application_starts_against_a_fresh_head_database(data_dir: Path) -> None:
     """A brand-new install (never at 0018) must also reach head and start
-    cleanly — not only the upgrade path from an existing database."""
+    cleanly, not only the upgrade path from an existing database."""
     from app.migration_info import upgrade_database_to_head
 
     settings = Settings(jarvis_data_dir=str(data_dir))

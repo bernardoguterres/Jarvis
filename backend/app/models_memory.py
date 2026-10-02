@@ -1,8 +1,8 @@
-"""Phase 4: model-independent local memory, structured records, domain
+"""Model-independent local memory, structured records, domain
 summaries, and auditable context snapshots.
 
 The Jarvis Controller's SQLite database (these tables) is the only
-authoritative personal-memory system — see CLAUDE.md §7 and
+authoritative personal-memory system; see CLAUDE.md §7 and
 docs/ARCHITECTURE.md. Nothing here depends on which reasoning model or
 agent harness is active.
 """
@@ -218,7 +218,7 @@ class StructuredRecord(Base):
 
 class ContextSnapshot(Base):
     """Auditable record of exactly what local data was assembled into a
-    turn's context. Not model reasoning — a source audit only."""
+    turn's context. Not model reasoning, just a source audit."""
 
     __tablename__ = "context_snapshots"
 
@@ -226,7 +226,7 @@ class ContextSnapshot(Base):
     agent_run_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("agent_runs.id", ondelete="CASCADE"), nullable=False, unique=True
     )
-    # NULL for a general-conversation turn — no domain was active. See
+    # NULL for a general-conversation turn, when no domain was active. See
     # migration 0011.
     active_domain_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("domains.id", ondelete="CASCADE"), nullable=True

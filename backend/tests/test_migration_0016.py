@@ -2,7 +2,7 @@
 new `recall_fts` table with no data loss to existing tables, that
 existing installations get backfilled automatically at startup, and that
 a fresh migration chain reaches the current real head (never a hardcoded
-revision literal — see D95/D96's own correction of that exact mistake)."""
+revision literal; see D95/D96's own correction of that exact mistake)."""
 
 from __future__ import annotations
 
@@ -79,7 +79,7 @@ def test_full_fresh_migration_chain_reaches_head(data_dir: Path) -> None:
 def test_startup_backfills_recall_index_for_a_pre_0016_installation(data_dir: Path, monkeypatch) -> None:
     """A database migrated only to 0015 (recall_fts does not exist), then
     upgraded to head by the app's own startup path, must end up with its
-    existing content backfilled into recall_fts — never left empty just
+    existing content backfilled into recall_fts, never left empty just
     because the installation predates Phase 12D."""
     import json as _json
     from datetime import datetime, timezone
@@ -104,7 +104,7 @@ def test_startup_backfills_recall_index_for_a_pre_0016_installation(data_dir: Pa
     engine.dispose()
 
     # Mirrors the real deployment order (scripts/jarvisctl.sh runs
-    # `alembic upgrade head` as its own step before starting uvicorn) —
+    # `alembic upgrade head` as its own step before starting uvicorn);
     # the FastAPI app's own lifespan never runs migrations itself, only
     # the one-time backfill-if-empty sweep against whatever schema is
     # already at head by the time it starts.

@@ -1,7 +1,7 @@
-"""Phase 8: local, versioned, schema-validated declarative skills.
+"""Local, versioned, schema-validated declarative skills.
 
 A skill is a named, reusable sequence of workflow steps, each naming one
-allowlisted capability — never arbitrary executable code. Invoking a skill
+allowlisted capability, never arbitrary executable code. Invoking a skill
 only ever creates ActionProposals through the same propose/approve/execute
 lifecycle as a manually-created proposal (app/action_service.py); a skill
 cannot expand its own permissions because it can only reference capabilities
@@ -119,7 +119,7 @@ def edit_skill(
     workflow_steps: list[dict],
     change_reason: str | None = None,
 ) -> Skill:
-    """Creates a new immutable version. Modifying a skill — active or not —
+    """Creates a new immutable version. Modifying a skill, active or not,
     always demotes it back to 'draft', requiring explicit re-activation
     review (CLAUDE.md §14: activation/modification require explicit review;
     Jarvis cannot silently update an active skill)."""
@@ -163,7 +163,7 @@ def activate_skill(session: Session, skill_id: str) -> Skill:
     if skill.current_version is None:
         raise SkillError("Skill has no version to activate.")
 
-    # Validate before activation — required even for a skill restored from
+    # Validate before activation. This is required even for a skill restored from
     # an export/import, in case it references a capability that no longer
     # exists in this codebase's registry.
     steps = json.loads(skill.current_version.workflow_steps_json)
@@ -190,7 +190,7 @@ def invoke_skill(
     step_arguments: list[dict],
     reason: str | None = None,
 ) -> list[ActionProposal]:
-    """Only ever creates ActionProposals — the same propose/approve/execute
+    """Only ever creates ActionProposals, through the same propose/approve/execute
     lifecycle any other proposal goes through. Never mutates anything
     directly, and never expands a step's capability beyond what the
     skill's own (already-validated) definition names."""
@@ -210,7 +210,7 @@ def invoke_skill(
         proposal = action_service.propose_action(
             session,
             capability_id=step["capability_id"],
-            domain_id=skill.domain_id,  # forced from the skill's own scope — never per-invocation
+            domain_id=skill.domain_id,  # forced from the skill's own scope, never per-invocation
             arguments=arguments,
             reason=step_reason,
             source=f"skill:{skill.id}:v{skill.current_version.version_number}",

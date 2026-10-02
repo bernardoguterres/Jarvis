@@ -1,4 +1,4 @@
-"""Mission Control / Current Focus — privacy boundaries and the no-model-
+"""Mission Control / Current Focus: privacy boundaries and the no-model-
 call guarantee. Mirrors `test_mission_focus_briefing.py`'s equivalent
 checks: MIND/PEOPLE must never surface as a candidate regardless of any
 settings flag, and none of this module's code paths may ever import a
@@ -57,7 +57,7 @@ def test_body_excluded_by_default_setting(db_session: Session) -> None:
         db_session, include_body=False, include_mind=False, include_people=False, now=NOW, trigger="home_view"
     )
     assert briefing.include_body is False
-    # No BODY source is read at all when the flag is off — nothing here
+    # No BODY source is read at all when the flag is off; nothing here
     # asserts a specific candidate exists, only that the flag round-trips
     # into the assembled briefing Mission Control then partitions as-is.
 

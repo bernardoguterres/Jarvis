@@ -1,4 +1,4 @@
-"""Phase 4: memory items/versions, domain summaries, structured records,
+"""Memory items/versions, domain summaries, structured records,
 context snapshots, and the FTS5 memory index.
 
 Revision ID: 0003
@@ -232,7 +232,7 @@ def upgrade() -> None:
     )
 
     # Derived, rebuildable FTS5 index over memory title/content. Never
-    # authoritative — memory_items/memory_versions are the source of truth.
+    # authoritative: memory_items/memory_versions are the source of truth.
     op.execute(
         """
         CREATE VIRTUAL TABLE memory_fts USING fts5(

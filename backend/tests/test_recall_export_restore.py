@@ -1,5 +1,5 @@
-"""Phase 12D: Recall survives export/restore. `recall_fts` is a derived,
-rebuildable index — never authoritative — so it travels with the raw
+"""Recall survives export/restore. `recall_fts` is a derived,
+rebuildable index (never authoritative), so it travels with the raw
 SQLite file copy exactly like `memory_fts`/`document_fts` already do; no
 special restore-time handling is required, but this proves it actually
 works end-to-end rather than merely asserting the design intent."""
@@ -64,7 +64,7 @@ def test_recall_search_works_after_export_and_restore(tmp_path: Path) -> None:
 
 def test_recall_index_is_not_included_as_a_separate_export_component(tmp_path: Path) -> None:
     """The exported manifest's `included_components` names only real
-    ground-truth data ("database") — recall_fts is a derived index
+    ground-truth data ("database"); recall_fts is a derived index
     living inside that same database file, never its own tracked
     component, exactly like memory_fts/document_fts."""
     install_a = _make_installation(tmp_path / "installation-a")

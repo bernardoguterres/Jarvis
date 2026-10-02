@@ -1,7 +1,7 @@
-"""Phase 12A/12B: request/response models for the on-demand Home
+"""Request/response models for the on-demand Home
 situational briefing and its continuity (change detection, acknowledge,
 snooze). Never includes a credential, a raw token, a scope string, or any
-provider payload — every field here is already-normalized display data."""
+provider payload. Every field here is already-normalized display data."""
 
 from __future__ import annotations
 
@@ -86,7 +86,7 @@ class BriefingSettingsRead(BaseModel):
 
 
 class BriefingSettingsUpdateRequest(BaseModel):
-    """MIND/PEOPLE are deliberately not settable here — Phase 12A defines
+    """MIND/PEOPLE are deliberately not settable here. There is
     no permitted MIND/PEOPLE source for the Home briefing at all (see
     app/briefing_service.py's module docstring), so the only real toggle
     is BODY. include_mind/include_people always persist as False."""
@@ -102,7 +102,7 @@ class BriefingSnapshotRead(BaseModel):
     item_count: int
 
 
-# The exact fixed, server-validated set of snooze durations — see
+# The exact fixed, server-validated set of snooze durations. See
 # app.briefing_service.SNOOZE_DURATION_LABELS, the single source of truth
 # this schema's Literal type is derived from at import time, so the two
 # can never silently drift apart.
@@ -114,7 +114,7 @@ class BriefingSnoozeRequest(BaseModel):
     duration: SnoozeDurationKey
     # Only meaningful for "tomorrow_morning"; ignored otherwise. Defaults
     # to app.briefing_service.DEFAULT_BRIEFING_TIMEZONE server-side when
-    # omitted — never required from the client.
+    # omitted, so it is never required from the client.
     timezone: str | None = None
 
 

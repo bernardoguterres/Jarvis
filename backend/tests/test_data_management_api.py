@@ -112,7 +112,7 @@ def test_import_validate_endpoint_rejects_garbage(client: TestClient) -> None:
 
 def test_restore_endpoint_requires_confirm_when_target_has_data(client: TestClient) -> None:
     # The target (this same client's own data dir) already has real seeded
-    # data (domains etc.) — restoring without confirm=true must be refused,
+    # data (domains etc.), so restoring without confirm=true must be refused,
     # mirroring the CLI's own --confirm requirement exactly.
     created = client.post("/api/export").json()
     archive_bytes = client.get(f"/api/exports/{created['filename']}/download").content
@@ -129,8 +129,8 @@ def test_restore_endpoint_restores_over_the_live_database(client: TestClient) ->
     # This is the actual scenario the native app's "Restore from Jarvis
     # export" action performs: restoring an export back onto this exact
     # running process's own live database. It must succeed without
-    # corrupting the process's ability to keep serving requests afterward
-    # — the real regression test for disposing the shared engine's pooled
+    # corrupting the process's ability to keep serving requests afterward.
+    # This is the real regression test for disposing the shared engine's pooled
     # connections before the database file underneath it is replaced.
     created = client.post("/api/export").json()
     archive_bytes = client.get(f"/api/exports/{created['filename']}/download").content
@@ -148,7 +148,7 @@ def test_restore_endpoint_restores_over_the_live_database(client: TestClient) ->
     assert body["rollback_dir"] is not None
 
     # The same process must still be able to serve requests against the
-    # (now-restored) database afterward — proves the engine handed live
+    # (now-restored) database afterward. This proves the engine handed live
     # requests transparently, rather than needing a process restart.
     health = client.get("/api/health")
     assert health.status_code == 200

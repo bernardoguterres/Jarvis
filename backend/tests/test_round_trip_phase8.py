@@ -1,5 +1,5 @@
 """Phase 8 round-trip: skills, skill versions, and completed action audit
-history must survive export/restore — and a pending/approved action must
+history must survive export/restore, and a pending/approved action must
 never become executable merely because it was restored (see D-series
 decisions on the post-restore expiry safety measure)."""
 
@@ -60,7 +60,7 @@ def test_phase8_data_survives_export_and_restore(tmp_path: Path) -> None:
         action_service.execute_action(session, completed.id, confirmation_token=approved.confirmation_token)
         completed_id = completed.id
 
-        # A still-pending (never executed) proposal — must not become
+        # A still-pending (never executed) proposal must not become
         # executable just because it was restored.
         pending = action_service.propose_action(
             session,
@@ -71,7 +71,7 @@ def test_phase8_data_survives_export_and_restore(tmp_path: Path) -> None:
         )
         pending_id = pending.id
 
-        # An approved-but-not-executed proposal — same requirement.
+        # An approved-but-not-executed proposal: same requirement.
         approved_only = action_service.propose_action(
             session,
             capability_id="memory.create",
@@ -100,7 +100,7 @@ def test_phase8_data_survives_export_and_restore(tmp_path: Path) -> None:
         skill_after = session.get(Skill, skill_id)
         assert skill_after is not None
         # Editing after activation demotes to draft by design (skill_service
-        # requires re-review after any modification) — this is unrelated to
+        # requires re-review after any modification). This is unrelated to
         # restore itself, just the setup above editing post-activation.
         assert skill_after.status == "draft"
         assert len(skill_after.versions) == 2
@@ -116,7 +116,7 @@ def test_phase8_data_survives_export_and_restore(tmp_path: Path) -> None:
         ]
 
         # The safety measure: neither the pending nor the approved-only
-        # proposal is executable after restore — both are expired.
+        # proposal is executable after restore: both are expired.
         pending_after = session.get(ActionProposal, pending_id)
         assert pending_after.status == "expired"
 

@@ -18,7 +18,7 @@ class CapabilityError(Exception):
 
 class CapabilityNeedsReviewError(Exception):
     """Raised by a capability's execute() when it genuinely cannot tell
-    whether its real-world effect succeeded or failed — e.g. Google
+    whether its real-world effect succeeded or failed, e.g. Google
     Calendar returned a conflicting event ID whose own `jarvis_action_id`
     metadata doesn't match this action, so treating it as either success or
     failure would be a guess. Deliberately NOT a CapabilityError subclass:

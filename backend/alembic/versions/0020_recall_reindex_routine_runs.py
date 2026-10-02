@@ -1,17 +1,10 @@
-"""Privacy fix: routine runs are indexed in `recall_fts` as global, and
-before this revision their indexed text included BODY/MIND/PEOPLE sections
-whenever Bernardo had opted those domains into a routine. That made the
-text searchable from default Recall and from Research/Decision evidence
-search. `app/recall_index_service.py` now indexes only LIFE/PATH/BUILD
-sections, but rows written by the old renderer would stay searchable.
+"""Empties `recall_fts` so routine runs are re-indexed without their
+BODY/MIND/PEOPLE sections, which the old renderer included and which
+were therefore searchable from Recall, Research and Decisions.
 
-`recall_fts` is derived and never authoritative, so this migration empties
-it. The existing startup backfill in `app/main.py` (which runs
-`rebuild_recall_index()` whenever the table is empty) then re-renders every
-row with the current renderers. Routine outputs themselves
-(`routine_runs.output_json`) are untouched and stay fully visible in the
-Routine Centre. A restore of an older archive passes through this same
-migration, so it cannot bring the old rows back either.
+The index is derived data. The startup backfill in `app/main.py` rebuilds
+an empty index with the current renderers. Routine outputs are not
+touched, and restoring an older archive runs this same migration.
 
 Revision ID: 0020
 Revises: 0019

@@ -1,4 +1,4 @@
-"""SQLAlchemy ORM models for Phase 1: Domain, Conversation, Message."""
+"""SQLAlchemy ORM models: Domain, Conversation, Message."""
 
 from __future__ import annotations
 
@@ -84,7 +84,7 @@ class Conversation(Base):
     __tablename__ = "conversations"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_new_uuid)
-    # NULL means a general Jarvis conversation — not a seventh domain, just
+    # NULL means a general Jarvis conversation: not a seventh domain, just
     # the absence of one. See docs/DECISIONS.md and migration 0011.
     domain_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("domains.id", ondelete="CASCADE"), nullable=True, index=True

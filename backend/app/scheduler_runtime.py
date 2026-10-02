@@ -1,16 +1,7 @@
-"""Phase 10: the actual background loop — a single asyncio task started
-and stopped by FastAPI's lifespan (app/main.py), never a Hermes cron job,
-never a sub-agent, never a second process. Deliberately not a heavyweight
-scheduling library (APScheduler et al.): the whole requirement is "check
-every N seconds whether either of two providers is due, and if so run the
-existing sync once" — a single `asyncio.Task` with a sleep loop is simpler,
-has zero new dependencies, and is trivially bounded/cancellable on
-shutdown. See docs/DECISIONS.md for the fuller rationale.
-
-Phase 10B's proactive routines (app/routine_service.py) reuse this exact
-same loop/session/tick cycle rather than a second background task — each
-tick and each startup catch-up checks both integration schedules and
-routine schedules in the same pass.
+"""The background scheduler: one asyncio task started and stopped by
+FastAPI's lifespan (app/main.py), not a cron job or separate process.
+Each tick checks whether an integration sync or a routine is due and runs
+it once. A plain sleep loop is enough here and adds no dependencies.
 """
 
 from __future__ import annotations
@@ -39,7 +30,7 @@ def _utcnow() -> datetime:
 class SchedulerRuntime:
     """One instance per running backend process, held on `app.state`. Its
     own `_task` field is the only thing that could ever create a second
-    concurrent loop — `start()` refuses to run twice."""
+    concurrent loop, so `start()` refuses to run twice."""
 
     def __init__(
         self,
@@ -59,7 +50,7 @@ class SchedulerRuntime:
 
     async def start(self) -> None:
         if self._task is not None:
-            return  # already running — never a second concurrent loop
+            return  # already running; never a second concurrent loop
         await asyncio.to_thread(self._run_startup_catchup)
         self._task = asyncio.create_task(self._loop(), name="jarvis-integration-scheduler")
 

@@ -1,12 +1,12 @@
-"""Phase 12C: Mission Focus — pin/unpin/edit/reorder logic.
+"""Mission Focus: pin/unpin/edit/reorder logic.
 
 Every mutation here is a direct, explicit user-interface action, never
-the Phase 8 propose->approve->execute lifecycle: pinning/unpinning only
+the propose->approve->execute lifecycle: pinning/unpinning only
 ever changes this module's own presentation/prioritization state, never
 Calendar, memory, Health, or any other external source (CLAUDE.md §12).
 No function here ever calls a model or Hermes, and none of them mutate
-the underlying source row in any way — validated explicitly by tests that
-assert the source is byte-for-byte unchanged after every operation here.
+the underlying source row in any way. Tests check that the source is
+byte-for-byte unchanged after every operation here.
 """
 
 from __future__ import annotations
@@ -24,8 +24,8 @@ from app.models_mission_focus import (
 )
 
 # MIND/PEOPLE must remain structurally excluded from Home/Mission Focus,
-# exactly like Phase 12A's Home briefing (app/briefing_service.py's module
-# docstring) — enforced here, server-side, not merely by hiding a
+# exactly like the Home briefing (app/briefing_service.py's module
+# docstring), enforced here, server-side, not merely by hiding a
 # frontend control, since a pin's domain is always resolved and stored
 # from the real source, never accepted from the client.
 _FORBIDDEN_DOMAIN_SLUGS = ("mind", "people")
@@ -42,7 +42,7 @@ def _clock() -> datetime:
 def validate_and_resolve_for_pin(session: Session, source_type: str, source_id: str, now: datetime) -> PinnedSourceInfo:
     """Raises `MissionFocusError` for anything that isn't a genuinely
     eligible, existing, non-sensitive source. Never trusts the caller for
-    domain — always resolved fresh from the real row."""
+    domain; it is always resolved fresh from the real row."""
     if source_type not in MISSION_FOCUS_SOURCE_TYPES:
         raise MissionFocusError(f"source_type must be one of {MISSION_FOCUS_SOURCE_TYPES}, got {source_type!r}.")
     if not source_id:
@@ -142,7 +142,7 @@ def update_pin_metadata(
     target_at: datetime | None,
     blocker: str | None,
 ) -> MissionFocusPin:
-    """Edits ONLY Mission Focus's own metadata — next_action/target_at/
+    """Edits ONLY Mission Focus's own metadata: next_action/target_at/
     blocker. There is no code path here that writes to the underlying
     source row at all."""
     pin = session.get(MissionFocusPin, pin_id)
@@ -160,8 +160,8 @@ def update_pin_metadata(
 
 def unpin(session: Session, pin_id: str, clock=_clock) -> MissionFocusPin:
     """Removes an item from Mission Focus. Never deletes the row (kept
-    for history, mirroring Phase 12B's acknowledge/snooze retention
-    pattern) and — critically — never touches the underlying source in
+    for history, mirroring the acknowledge/snooze retention
+    pattern) and, critically, never touches the underlying source in
     any way: no archive, no completion, no deletion of the real
     StructuredRecord/CalendarEventCache/ActionProposal row."""
     pin = session.get(MissionFocusPin, pin_id)
@@ -176,7 +176,7 @@ def unpin(session: Session, pin_id: str, clock=_clock) -> MissionFocusPin:
 
 def reorder_pins(session: Session, ordered_pin_ids: list[str]) -> list[MissionFocusPin]:
     """Reassigns rank 1..N (in the given order) to exactly the current
-    set of active pins — `ordered_pin_ids` must name each active pin
+    set of active pins. `ordered_pin_ids` must name each active pin
     exactly once, nothing more, nothing less, so a stale/partial client
     payload can never silently drop a pin from view."""
     active = {pin.id: pin for pin in list_active_pins(session)}
@@ -184,7 +184,7 @@ def reorder_pins(session: Session, ordered_pin_ids: list[str]) -> list[MissionFo
         raise MissionFocusError("The reorder list must contain exactly the current active pins, no more and no fewer.")
     # Two-phase assignment (temporary, safely-out-of-the-way ranks first)
     # avoids transiently colliding with `uq_mission_focus_active_rank`
-    # while permuting ranks among the very same active rows — SQLite has
+    # while permuting ranks among the very same active rows, since SQLite has
     # no deferrable UNIQUE constraint to lean on instead. 1000+ is always
     # well clear of any real 1-5 rank; the model's CHECK constraint only
     # requires `>= 1`, so this remains valid at every intermediate step.

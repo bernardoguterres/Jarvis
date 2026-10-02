@@ -6,10 +6,10 @@ describe("useVoiceCapture", () => {
   it("cancel() clears a stuck error state back to idle", async () => {
     // jsdom has no navigator.mediaDevices.getUserMedia, so start() hits
     // the exact same real "not supported"/permission-failure path a
-    // genuine microphone access failure does — no mocking needed. This
+    // genuine microphone access failure does, with no mocking needed. This
     // is the regression test for a real bug: Escape (and every surface's
     // own cancel button) called cancel() unconditionally, but cancel()
-    // itself silently no-op'd unless voiceState was "listening" — so a
+    // itself silently no-op'd unless voiceState was "listening", so a
     // voice error, once shown, had no way to be dismissed short of
     // quitting the app.
     const { result } = renderHook(() =>

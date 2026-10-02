@@ -44,7 +44,7 @@ def test_unmatched_api_path_still_returns_a_genuine_404_even_with_static_mount(
     monkeypatch: pytest.MonkeyPatch, data_dir: Path, tmp_path: Path, memory_settings
 ) -> None:
     # Regression check: mounting StaticFiles at "/" must never shadow the
-    # API's own 404 for a path under /api/ that matches no real route —
+    # API's own 404 for a path under /api/ that matches no real route.
     # StaticFiles returns 405 (not 404) for a non-GET/HEAD method on an
     # unmatched path, which would otherwise leak through.
     dist_dir = tmp_path / "fake-dist"
@@ -63,8 +63,8 @@ def test_unknown_frontend_path_falls_back_to_index_html_not_a_bare_404(
 ) -> None:
     """A genuine SPA fallback (Phase 6 diagnostic pass, D75-series): this
     frontend has exactly one real client route, so any other path reaching
-    the backend must still get the real app shell (200, index.html) —
-    never a bare framework 404 — so the SPA's own NotFoundDiagnostic can
+    the backend must still get the real app shell (200, index.html),
+    never a bare framework 404, so the SPA's own NotFoundDiagnostic can
     mount and render truthfully instead of the browser showing an
     unstyled error page."""
     dist_dir = tmp_path / "fake-dist"

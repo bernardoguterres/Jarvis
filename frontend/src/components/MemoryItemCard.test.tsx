@@ -38,7 +38,7 @@ describe("MemoryItemCard — status/title layout", () => {
     const title = container.querySelector(".memory-card-title")!;
     expect(header).not.toBeNull();
     expect(title).not.toBeNull();
-    // The title is not inside the metadata row — it's its own row below it.
+    // The title is not inside the metadata row; it's its own row below it.
     expect(header.contains(title)).toBe(false);
     expect(title.textContent).toBe("Ship the release");
   });

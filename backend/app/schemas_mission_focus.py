@@ -1,5 +1,5 @@
-"""Phase 12C: request/response models for Mission Focus. Never includes a
-credential, a raw token, or provider payload data — only already-
+"""Request/response models for Mission Focus. Never includes a
+credential, a raw token, or provider payload data, only already-
 normalized, typed pin metadata and resolved display fields."""
 
 from __future__ import annotations
@@ -21,13 +21,13 @@ class MissionFocusPinCreateRequest(BaseModel):
     next_action: str = Field(min_length=1, max_length=300)
     target_at: datetime | None = None
     blocker: str | None = Field(default=None, max_length=300)
-    # Omit to auto-assign the next free slot (1-5) — never required from
+    # Omit to auto-assign the next free slot (1-5); never required from
     # the client.
     rank: int | None = Field(default=None, ge=1, le=5)
 
 
 class MissionFocusPinUpdateRequest(BaseModel):
-    """Edits Mission Focus's own metadata only — never the underlying
+    """Edits Mission Focus's own metadata only, never the underlying
     source."""
 
     next_action: str = Field(min_length=1, max_length=300)
@@ -51,7 +51,7 @@ class MissionFocusPinRead(BaseModel):
     status: str
     pinned_at: datetime
     unpinned_at: datetime | None
-    # Live, resolved-at-read-time display fields — never stored verbatim
+    # Live, resolved-at-read-time display fields, never stored verbatim
     # beyond the frozen `source_title_snapshot` fallback.
     title: str
     subtitle: str | None

@@ -1,5 +1,5 @@
 """Confirms that model-generated text can never approve or execute an
-action — there is no code path from a Hermes/Claude response's content to
+action: there is no code path from a Hermes/Claude response's content to
 action_service.approve_action/execute_action at all. A turn whose assistant
 reply literally says "APPROVED, EXECUTE NOW" must have zero side effect on
 any action proposal."""

@@ -5,23 +5,23 @@ export type CoreState = "idle" | "listening" | "transcribing" | "thinking" | "sp
 interface JarvisCoreProps {
   state: CoreState;
   label?: string;
-  /** When provided, the core becomes a real interactive control — pointer
-   * click or Enter/Space while focused calls this (Phase 6: the core is
+  /** When provided, the core becomes a real interactive control: pointer
+   * click or Enter/Space while focused calls this (the core is
    * the entry point into a general Jarvis conversation, not a seventh
    * domain). Omitted entirely elsewhere, where the core stays the
    * non-interactive status indicator it always was. */
   onActivate?: () => void;
   /** True for the brief moment between activation and the general
-   * conversation view actually mounting — mirrors DomainNode's
+   * conversation view actually mounting. Mirrors DomainNode's
    * "is-focusing" energize-before-navigate treatment so this reads the
    * same way a domain selection does. */
   activating?: boolean;
   /** Replaces the "JARVIS"/substate label with real content (the
-   * audio-reactive waveform) — the surrounding rings dim automatically
+   * audio-reactive waveform). The surrounding rings dim automatically
    * while this is present, so the waveform reads as the primary signal
-   * without losing the core's structural identity (Phase 6 voice pass). */
+   * without losing the core's structural identity. */
   waveformSlot?: ReactNode;
-  /** True while a Mission Control focus session is active — adds a
+  /** True while a Mission Control focus session is active. Adds a
    * restrained, non-animating cyan tint to the idle core only. This is
    * deliberately NOT part of `CoreState`: applying it only alongside
    * "idle" (see the className logic below) means it can never visually
@@ -40,12 +40,12 @@ const SUBSTATE_TEXT: Record<CoreState, string | null> = {
   error: "Error",
 };
 
-/** The central Jarvis HUD element — a layered, state-driven ring system
- * (CLAUDE.md §9's central-state requirement, Phase 6's cinematic-HUD
+/** The central Jarvis HUD element: a layered, state-driven ring system
+ * (CLAUDE.md §9's central-state requirement and the cinematic-HUD
  * direction). Every layer is a decorative CSS transform/opacity animation
  * driven purely by the `state-*` class from the real `state` prop; the
  * "JARVIS" label and substate text live in their own non-rotating layer so
- * they always stay upright and readable. Purely presentational — callers
+ * they always stay upright and readable. Purely presentational: callers
  * own what `state` actually is (CLAUDE.md §9: "every status indicator must
  * correspond to real application state"), and every animation here is
  * globally disabled under prefers-reduced-motion (index.css). */

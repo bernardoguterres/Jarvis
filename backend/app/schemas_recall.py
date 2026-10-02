@@ -1,6 +1,6 @@
-"""Phase 12D: Unified Recall and Provenance — request/response models.
+"""Recall request/response models.
 Never includes raw document/content beyond an already-escaped,
-highlighted snippet — see `app.recall_service.make_snippet_html`."""
+highlighted snippet (see `app.recall_service.make_snippet_html`)."""
 
 from __future__ import annotations
 
@@ -34,7 +34,7 @@ class RecallResultRead(BaseModel):
     source_id: str
     domain_slug: RecallDomainSlug | None
     title: str
-    # Already HTML-escaped with <mark> highlight spans applied — render
+    # Already HTML-escaped with <mark> highlight spans applied. Render
     # verbatim, never re-escape and never treat as executable/instructive.
     snippet_html: str
     occurred_at: str | None
@@ -51,7 +51,7 @@ class RecallSearchRead(BaseModel):
     offset: int
     has_more: bool
     # Names of FTS families ("memory_item", "document_chunk", "recall_fts")
-    # whose query failed this pass — an empty list means every source that
+    # whose query failed this pass. An empty list means every source that
     # was actually queried succeeded; never silently dropped.
     partial_failures: list[str]
 

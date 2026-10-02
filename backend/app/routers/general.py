@@ -1,11 +1,11 @@
-"""Phase 6: general Jarvis conversation scope — a real, explicit,
+"""General Jarvis conversation scope: a real, explicit,
 persisted conversation shape with no fixed domain, not a seventh domain
 and not an arbitrary assignment to one of the six existing ones. See
 migration 0011 and docs/DECISIONS.md.
 
 Messages/turns for a general conversation reuse the existing
 domain-agnostic `/api/conversations/{id}/messages` and
-`/api/conversations/{id}/turns` endpoints unchanged — only creation and
+`/api/conversations/{id}/turns` endpoints unchanged; only creation and
 listing need a home that isn't scoped under a domain slug.
 """
 

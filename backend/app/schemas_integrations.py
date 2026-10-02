@@ -1,4 +1,4 @@
-"""Pydantic request/response models for the Phase 9 integrations/documents
+"""Pydantic request/response models for the integrations/documents
 API. Never includes a token/credential field anywhere."""
 
 from __future__ import annotations

@@ -1,15 +1,9 @@
-"""Export, backup, import-validation, and (Stage 1 native packaging) restore
-API endpoints.
+"""Export, backup, import-validation and restore endpoints.
 
-Restoration is a genuinely destructive, confirmation-gated operation — it
-can replace a live database — so `POST /api/restore` requires an explicit
-`confirm=true` before it will overwrite a target that already has data,
-mirroring the CLI's own `--confirm` flag exactly (`import_service.py`'s
-`restore_archive`, the same function `jarvis-cli restore` calls — there is
-only ever one restore implementation). It is exposed here specifically so
-the installed native app can offer a guarded, in-product "Restore from
-Jarvis export" action (Mac-migration support — see docs/ARCHITECTURE.md
-and docs/DECISIONS.md) without requiring a terminal.
+Restore is destructive, so `POST /api/restore` needs an explicit
+`confirm=true` before replacing a target that already has data, just like
+the CLI's `--confirm`. Both call the same `restore_archive`, so there is
+only one restore implementation.
 """
 
 from __future__ import annotations
@@ -47,7 +41,7 @@ def get_settings_dep() -> Settings:
 
 @router.get("/api/data-dir", response_model=DataDirRead)
 def data_dir_endpoint(settings: Settings = Depends(get_settings_dep)) -> DataDirRead:
-    """The resolved, absolute JARVIS_DATA_DIR path — non-secret (a local
+    """The resolved, absolute JARVIS_DATA_DIR path. Non-secret (a local
     filesystem path, already shown in Data Management's own UI copy).
     Used to display the real path and to back the native app's "Reveal
     Jarvis Data Folder" menu action."""
@@ -94,7 +88,7 @@ def list_exports(settings: Settings = Depends(get_settings_dep)) -> list[ExportL
 @router.get("/api/exports/{filename}/download")
 def download_export(filename: str, settings: Settings = Depends(get_settings_dep)) -> FileResponse:
     # Only a recognised export filename pattern is ever accepted, and the
-    # resolved path must land inside exports_dir — no path traversal via the
+    # resolved path must land inside exports_dir, so no path traversal via the
     # filename parameter.
     if not _EXPORT_FILENAME_RE.match(filename):
         raise HTTPException(status_code=404, detail="Export not found")
@@ -157,7 +151,7 @@ async def restore_import(
     settings: Settings = Depends(get_settings_dep),
 ) -> RestoreRead:
     """Restore a validated export archive onto this machine's own real
-    JARVIS_DATA_DIR — the guarded action behind the native app's "Restore
+    JARVIS_DATA_DIR. This is the guarded action behind the native app's "Restore
     from Jarvis export" UI. `confirm` must be explicitly true to overwrite
     an existing non-empty target, exactly mirroring `jarvis-cli restore
     --confirm`; every other safety behavior (schema/checksum/manifest
@@ -172,8 +166,8 @@ async def restore_import(
 
         # This request's own DB dependency (if any) already released its
         # session by the time this handler body runs; disposing the shared
-        # engine's connection pool here — before the database file on disk
-        # is replaced — is what lets every *later* checkout (this process
+        # engine's connection pool here, before the database file on disk
+        # is replaced, is what lets every *later* checkout (this process
         # never rebuilds the Engine/sessionmaker objects themselves, only
         # clears their pooled connections) transparently open the restored
         # file instead of a stale handle to the file that used to be there.

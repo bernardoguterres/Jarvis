@@ -25,7 +25,7 @@ def test_explicit_empty_domain_ids_matches_nothing(
 ) -> None:
     """Regression: every document belongs to exactly one domain (there is
     no "global" document), so an explicit empty scope must match zero
-    documents — never silently fall back to "no filter" and leak MIND/
+    documents, never silently falling back to "no filter" and leaking MIND/
     PEOPLE document content into an unrelated context."""
     mind = db_session.query(Domain).filter_by(slug="mind").one()
     document_service.import_document(

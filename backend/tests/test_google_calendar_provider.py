@@ -1,4 +1,4 @@
-"""Google Calendar provider — all HTTP mocked via httpx.MockTransport, no
+"""Google Calendar provider: all HTTP mocked via httpx.MockTransport, no
 real network calls. Covers timezone/all-day event normalization."""
 
 from __future__ import annotations

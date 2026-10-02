@@ -5,7 +5,7 @@ interface ConfirmDialogProps {
   heading: string;
   warning: string;
   busy?: boolean;
-  /** "danger" gets a red accent border/glow — reserved for an action that
+  /** "danger" gets a red accent border/glow, reserved for an action that
    * actually severs a connection or otherwise can't be trivially undone,
    * never applied just to make a dialog look more serious. */
   tone?: "default" | "danger";
@@ -15,7 +15,7 @@ interface ConfirmDialogProps {
 
 /** A real confirmation gate (CLAUDE.md §12 "Confirm" tier) for a
  * consequential local configuration change named by a typed or spoken
- * command (disconnect an integration, export data, etc.) — the command
+ * command (disconnect an integration, export data, etc.). The command
  * registry only ever identifies *which* action was requested; nothing
  * executes until a person explicitly accepts it here. */
 function ConfirmDialog({ heading, warning, busy = false, tone = "default", onConfirm, onCancel }: ConfirmDialogProps) {

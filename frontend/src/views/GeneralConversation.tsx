@@ -28,14 +28,14 @@ interface GeneralConversationProps {
   ) => void;
 }
 
-/** The general Jarvis conversation opened from the core itself (Phase 6).
+/** The general Jarvis conversation opened from the core itself.
  * This is deliberately NOT a domain view with a domain stripped out: there
  * is no domain summary/memories/records rail, because a general turn never
- * auto-retrieves any domain-scoped material by default — see
+ * auto-retrieves any domain-scoped material by default. See
  * docs/ARCHITECTURE.md and backend/app/context_builder.py. The only way
  * domain context enters a general turn is the explicit per-turn chip
  * selection below, which is the exact same `additional_domain_ids`
- * mechanism DomainView uses for cross-domain inclusion — general
+ * mechanism DomainView uses for cross-domain inclusion: general
  * conversation is that same mechanism with no "home" domain of its own. */
 function GeneralConversation({ onBack, onSystemCommand }: GeneralConversationProps) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -167,7 +167,7 @@ function GeneralConversation({ onBack, onSystemCommand }: GeneralConversationPro
     if (ok) setDraftMessage("");
   }
 
-  // --- push-to-talk voice (shared machine — see hooks/useVoiceCapture.ts) -
+  // --- push-to-talk voice (shared machine, see hooks/useVoiceCapture.ts) -
 
   const voice = useVoiceCapture({
     guard: () => {
@@ -203,14 +203,14 @@ function GeneralConversation({ onBack, onSystemCommand }: GeneralConversationPro
     function onKeyDown(event: KeyboardEvent) {
       if (event.code === "Space" && !isTypingTarget(event.target)) {
         // preventDefault on every repeated keydown the OS fires while the
-        // key stays held, not just the first — otherwise Space's native
+        // key stays held, not just the first. Otherwise Space's native
         // "scroll the page down" kicks in once auto-repeat starts on a
         // long hold. startPushToTalk() itself still only fires once.
         event.preventDefault();
         if (!event.repeat) startPushToTalk();
       } else if (event.code === "Escape" && !isTypingTarget(event.target)) {
         // Must clear a stuck "error" state (e.g. a failed microphone
-        // permission check) back to idle, not just "listening" —
+        // permission check) back to idle, not just "listening";
         // otherwise there is no way to dismiss a displayed voice error
         // short of quitting the app.
         if (voiceState === "listening" || voiceState === "error") {
@@ -263,7 +263,7 @@ function GeneralConversation({ onBack, onSystemCommand }: GeneralConversationPro
   async function handleConfirmRemember(title: string, kind: MemoryItem["kind"]) {
     if (!rememberDraft) return;
     try {
-      // scope: "global" — a general conversation's Remember action creates
+      // scope: "global". A general conversation's Remember action creates
       // a global-profile memory, never a domain-assigned one, since there
       // is no domain here to assign it to.
       await createMemory({

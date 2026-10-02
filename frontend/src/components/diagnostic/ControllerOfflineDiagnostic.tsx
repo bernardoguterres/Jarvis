@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { DiagnosticPage, type DiagnosticTone } from "./Diagnostic";
 import { isRunningInNativeApp } from "../../nativeShell";
 
-// 5, 10, 20, then 30s — bounded (never shorter, never keeps escalating
+// 5, 10, 20, then 30s: bounded (never shorter, never keeps escalating
 // faster), so a real outage never gets hammered with requests.
 const RETRY_DELAYS_MS = [5000, 10000, 20000, 30000];
 
@@ -12,10 +12,10 @@ const RECOVERY_STEP_MS = 260;
 const RECOVERY_HANDOFF_MS = 650;
 
 interface ControllerOfflineDiagnosticProps {
-  /** Resolves true/false for whether the controller answered — never
+  /** Resolves true/false for whether the controller answered. Never
    * throws; App.tsx's own health check already normalizes that. */
   checkHealth: () => Promise<boolean>;
-  /** Called once the recovery flash has played — App.tsx owns what
+  /** Called once the recovery flash has played. App.tsx owns what
    * "recovered" actually means (re-fetching domains, etc.), not this
    * component. */
   onRecovered: () => void;
@@ -33,7 +33,7 @@ function ControllerOfflineDiagnostic({ checkHealth, onRecovered }: ControllerOff
   const recoveryTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   const playRecoveryAndHandOff = useCallback(() => {
-    // Red -> violet -> cyan, then the real hand-off to Home — never
+    // Red -> violet -> cyan, then the real hand-off to Home, never
     // claims success before checkHealth has already resolved true.
     setRecoveryTone("recovered");
     recoveryTimeoutsRef.current.push(

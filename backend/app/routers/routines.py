@@ -1,10 +1,10 @@
-"""Phase 10B: the fixed routine catalogue's HTTP surface. Configuring a
-schedule or requesting a manual run is an explicit local UI action — it
-never goes through the Phase 8 proposal lifecycle (no external side
+"""The fixed routine catalogue's HTTP routes. Configuring a
+schedule or requesting a manual run is an explicit local UI action that
+never goes through the proposal lifecycle (no external side
 effect of its own). "Discuss with Jarvis" is deliberately NOT a route
 here: the frontend sends a completed routine's own text into a normal
 conversation turn through the existing, already-model-using
-`POST /api/conversations/{id}/turns` endpoint — the same context boundary
+`POST /api/conversations/{id}/turns` endpoint: the same context boundary
 every other conversation goes through, never a routine-specific bypass.
 """
 
@@ -138,8 +138,8 @@ def record_checkin_responses(
     run_id: str, payload: RoutineCheckinResponseRequest, db: Session = Depends(get_db)
 ) -> RoutineRunRead:
     """Records Bernardo's own typed Evening Check-in answers on that run
-    only — local, domain-scoped, never auto-promoted to a permanent
-    memory (Phase 4's `memory_items`). A deliberate future "Remember this"
+    only: local, domain-scoped, never auto-promoted to a permanent
+    memory (`memory_items`). A deliberate future "Remember this"
     on a specific answer is a separate, explicit action, not implied here."""
     run = db.get(RoutineRun, run_id)
     if run is None:

@@ -1,6 +1,6 @@
 """Validates and restores a Jarvis export archive.
 
-Validation always happens against a freshly created temporary directory —
+Validation always happens against a freshly created temporary directory:
 an untrusted archive is never extracted directly into JARVIS_DATA_DIR (see
 docs/ARCHITECTURE.md). Restoration is a separate, explicit step that only
 proceeds once validation has fully passed.
@@ -475,8 +475,8 @@ def _count_restored_rows(db_path: Path) -> dict[str, int]:
 
 
 def _expire_stale_action_proposals(db_path: Path) -> int:
-    """Phase 8 safety measure: a pending/approved action proposal must never
-    become executable merely because an archive was restored — restoring
+    """Safety measure: a pending/approved action proposal must never
+    become executable merely because an archive was restored. Restoring
     resumes stored data, not an in-flight approval from a different session.
     No-ops cleanly against a pre-Phase-8 database that has no such table."""
     conn = sqlite3.connect(str(db_path))
@@ -512,8 +512,8 @@ def _expire_stale_action_proposals(db_path: Path) -> int:
 
 
 def _disconnect_all_integrations(db_path: Path) -> int:
-    """Phase 9 safety measure: restoring cached integration data must never
-    imply the integration is still connected — the real OAuth tokens live
+    """Safety measure: restoring cached integration data must never
+    imply the integration is still connected. The real OAuth tokens live
     only in this machine's Keychain (never in the exported database), so a
     restored installation always requires reauthorization. No-ops cleanly
     against a pre-Phase-9 database that has no such table."""
@@ -536,9 +536,9 @@ def _disconnect_all_integrations(db_path: Path) -> int:
 
 
 def _disable_all_integration_schedules(db_path: Path) -> int:
-    """Phase 10 safety measure: a restored installation must never resume
+    """Safety measure: a restored installation must never resume
     automatic sync against a provider that's simultaneously been forced
-    disconnected by `_disconnect_all_integrations` above — Bernardo must
+    disconnected by `_disconnect_all_integrations` above. Bernardo must
     explicitly reconnect and re-enable automatic sync after a restore.
     No-ops cleanly against a pre-Phase-10 database with no such table."""
     conn = sqlite3.connect(str(db_path))
@@ -558,10 +558,10 @@ def _disable_all_integration_schedules(db_path: Path) -> int:
 
 
 def _disable_all_routine_schedules(db_path: Path) -> int:
-    """Phase 10B safety measure: a restored installation must preserve
+    """Safety measure: a restored installation must preserve
     historical routine outputs (they're just local text with source
     references, no credential involved) but never resume proactive
-    routines automatically — Bernardo must explicitly re-enable each one.
+    routines automatically. Bernardo must explicitly re-enable each one.
     No-ops cleanly against a pre-Phase-10B database with no such table."""
     conn = sqlite3.connect(str(db_path))
     try:
@@ -580,19 +580,12 @@ def _disable_all_routine_schedules(db_path: Path) -> int:
 
 
 def _interrupt_active_focus_sessions(db_path: Path) -> int:
-    """Mission Control safety measure: an active or paused focus session
-    must never silently keep running on a *different* installation than
-    the one it was started on — an ordinary restart on the SAME
-    installation preserves it (nothing here runs then), but restoring
-    into any installation (the same one or a new one) always forces it
-    into a safe terminal state first, exactly like Phase 8's in-flight
-    action proposals above. `abandoned_reason` records this was a
-    restore-forced interruption, distinct from a genuine user abandon.
-    Folds any in-progress pause into `accumulated_paused_seconds` row by
-    row in Python (rather than fragile in-SQL date-string arithmetic) so
-    the final historical `elapsed_seconds` reading for an interrupted-
-    while-paused session stays accurate. No-ops cleanly against a
-    pre-Mission-Control database with no such table."""
+    """Restoring always moves an active or paused focus session into a
+    safe terminal state, since a timer must not keep running on a
+    different installation. `abandoned_reason` marks it as a
+    restore-forced interruption. Any open pause is folded into
+    `accumulated_paused_seconds` first so elapsed time stays accurate.
+    No-op on a database without the table."""
     conn = sqlite3.connect(str(db_path))
     try:
         table_exists = conn.execute(

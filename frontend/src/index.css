@@ -1,5 +1,5 @@
 /* =========================================================================
-   Jarvis Phase 6 visual system — design tokens.
+   Jarvis visual system: design tokens.
    "Direction B geometry with Direction C lighting and atmosphere"
    (docs/DESIGN_DIRECTION.md): circular domain/core geometry, spacious
    orbital proportions and readable labels (B) rendered in a deep
@@ -41,7 +41,7 @@
   --text-secondary: #bcb6d8;
   /* WCAG AA contrast correction: #85809f measured 4.466:1 against the
      lightest panel background this token is ever paired with
-     (--bg-panel-hover, #1e1a33) — a genuine miss of the 4.5:1 normal-text
+     (--bg-panel-hover, #1e1a33), a genuine miss of the 4.5:1 normal-text
      threshold, found via axe-core on Research Centre's brief-version
      ledger (.ledger-row-meta) but present on every other already-shipped
      surface using this token too (44 usages across ~29 selectors:
@@ -50,12 +50,12 @@
      +4/+4/+4 (the smallest RGB step that clears 4.5:1 with a real margin,
      not exactly 4.50) raises the worst case to 4.712:1 against
      --bg-panel-hover, with every other background this token is ever used
-     on landing at 5:1 or higher — see tests/contrast.test.ts. */
+     on landing at 5:1 or higher. See tests/contrast.test.ts. */
   --text-tertiary: #8984a3;
   --text-disabled: #6b6690;
   --text-on-accent: #0a0714;
 
-  /* --- status colors (never the only signal — always paired with text) --- */
+  /* --- status colors (never the only signal; always paired with text) --- */
   --status-ok: #3fdb9a;
   --status-ok-soft: rgba(63, 219, 154, 0.16);
   --status-error: #ff6b7a;
@@ -66,7 +66,7 @@
   --status-neutral-soft: rgba(138, 132, 171, 0.14);
 
   /* --- glow (reserved for the core, active domain, voice activity,
-     meaningful state — never decorative/constant) --- */
+     meaningful state, never decorative/constant) --- */
   --glow-violet-sm: 0 0 14px rgba(139, 107, 242, 0.4), 0 0 2px rgba(139, 107, 242, 0.6);
   --glow-violet-md: 0 0 32px rgba(139, 107, 242, 0.45), 0 0 6px rgba(139, 107, 242, 0.5);
   --glow-violet-lg: 0 0 64px rgba(139, 107, 242, 0.5), 0 0 12px rgba(139, 107, 242, 0.55);
@@ -114,7 +114,7 @@
   /* Ring/node presence: entering (fading/growing in) reads better slightly
      slower than leaving, so a hover ring never feels like it's lagging on
      the way out. Split so CSS can give each direction its own duration
-     without any JS animation loop — see .node-ring below. */
+     without any JS animation loop. See .node-ring below. */
   --motion-ring-enter: 260ms;
   --motion-ring-exit: 190ms;
 
@@ -124,7 +124,7 @@
 }
 
 /* Disable all non-essential motion/glow animation when requested. Static
-   state (color, static glow, opacity) is preserved — only movement and
+   state (color, static glow, opacity) is preserved; only movement and
    pulsing stop. */
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -192,7 +192,7 @@ h4 {
 }
 
 /* =========================================================================
-   App shell — reserves real layout space for top/bottom chrome; the main
+   App shell: reserves real layout space for top/bottom chrome; the main
    content area never sits underneath either bar.
    ========================================================================= */
 
@@ -228,7 +228,7 @@ h4 {
 
 /* At narrow widths the top bar scrolls internally rather than the page
    gaining a horizontal scrollbar (App.tsx toggles this class only when
-   the bar is actually overflowing) — fade the trailing edge so content
+   the bar is actually overflowing), fade the trailing edge so content
    off-screen reads as "more here, scroll for it", not as clipped/missing. */
 .top-bar.is-scrollable {
   mask-image: linear-gradient(90deg, black calc(100% - 28px), transparent 100%);
@@ -352,7 +352,7 @@ h4 {
 .systems-menu-panel {
   /* position/top/right are set inline (SystemsMenu.tsx) from the trigger
      button's real measured position, since this renders through a portal
-     into document.body — see that component's comment for why. */
+     into document.body; see that component's comment for why. */
   min-width: 200px;
   background: var(--bg-panel-raised);
   border: 1px solid var(--border-subtle);
@@ -407,7 +407,7 @@ h4 {
   box-shadow: 0 0 8px rgba(245, 185, 85, 0.5);
 }
 
-/* Hermes/model reduced-but-usable state — same amber as ModelLinkBanner's
+/* Hermes/model reduced-but-usable state: same amber as ModelLinkBanner's
    degraded treatment, never the red used for a genuinely unavailable
    controller. */
 .health-dot.degraded {
@@ -446,7 +446,7 @@ h4 {
 }
 
 /* =========================================================================
-   Shared buttons, inputs, panels — used by every internal screen so the
+   Shared buttons, inputs, panels, used by every internal screen so the
    product reads as one system.
    ========================================================================= */
 
@@ -538,7 +538,7 @@ button:disabled {
 }
 
 /* A "danger" convention for destructive actions. Applied additively via
-   className — no existing accessible name changes. */
+   className, so no existing accessible name changes. */
 button.danger {
   border-color: var(--status-error);
   color: var(--status-error);
@@ -611,7 +611,7 @@ details > summary {
    ========================================================================= */
 
 /* Internal pages get a near-black operational canvas of their own, deliberately
-   flatter than Home's atmospheric violet glow — an interior console, not a
+   flatter than Home's atmospheric violet glow: an interior console, not a
    continuation of the hero screen. The grid is a fixed, near-invisible
    texture (never scrolls with content, never implies activity). */
 .console-canvas {
@@ -632,7 +632,7 @@ details > summary {
   flex-direction: column;
   gap: var(--space-5);
   overflow-x: hidden;
-  /* Inherited — a safety net so long scope URIs, audit values, filenames,
+  /* Inherited as a safety net so long scope URIs, audit values, filenames,
      and IDs anywhere in a centre wrap instead of forcing horizontal
      overflow, without every screen needing its own rule. */
   overflow-wrap: anywhere;
@@ -657,7 +657,7 @@ details > summary {
   overflow-x: auto;
 }
 
-/* Console header — near-black, matte, a thin 1px violet border instead of
+/* Console header: near-black, matte, a thin 1px violet border instead of
    the old gradient-and-glow hero card. A fine bottom divider stands in for
    the decorative purple blob this used to carry. */
 .domain-header {
@@ -695,7 +695,7 @@ details > summary {
 
 /* Generic panel/card primitives, reused across every centre. Matte,
    near-black, thin 1px violet border, smaller radius than Home's circular
-   language — a module surface, not a decorative card. */
+   language: a module surface, not a decorative card. */
 
 .panel {
   background: var(--bg-panel-sunken);
@@ -797,7 +797,7 @@ section[aria-label].panel {
 }
 
 /* A truthful, transient result line for a command executed from anywhere
-   (Home, a Centre page, or the palette) — a safe action's real outcome, or
+   (Home, a Centre page, or the palette): a safe action's real outcome, or
    an ambient voice question's real answer. Never decorative: it always
    states what actually happened. */
 .command-feedback-banner {
@@ -830,12 +830,12 @@ section[aria-label].panel {
 }
 
 /* =========================================================================
-   Status chips — a single consistent way to show lifecycle/connection
+   Status chips: a single consistent way to show lifecycle/connection
    state as text + color (never color alone).
    ========================================================================= */
 
 /* Applied briefly to whatever control a safe/sensitive interface command
-   points at (see commands/highlight.ts) — never a click, just "look here". */
+   points at (see commands/highlight.ts). Never a click, just "look here". */
 .command-highlight {
   animation: command-highlight-pulse 1.8s var(--ease-hud);
   outline: 2px solid var(--accent-cyan-strong) !important;
@@ -905,7 +905,7 @@ section[aria-label].panel {
 }
 
 /* =========================================================================
-   Home — orbital HUD (Phase 6A).
+   Home: orbital HUD.
    ========================================================================= */
 
 .home {
@@ -929,7 +929,7 @@ section[aria-label].panel {
 }
 
 /* =========================================================================
-   Jarvis HUD — a layered, state-driven ring system (Phase 6 cinematic
+   Jarvis HUD: a layered, state-driven ring system (cinematic
    direction). Every ring is a decorative, compositor-friendly
    transform/opacity animation; only .jc-core carries real text, and it
    never rotates, so the label stays upright regardless of what the
@@ -953,10 +953,10 @@ section[aria-label].panel {
   z-index: 2;
 }
 
-/* The core as a real control (Phase 6: entry point to a general Jarvis
+/* The core as a real control (the entry point to a general Jarvis
    conversation). Reset button chrome first so it's visually identical to
    the non-interactive .jarvis-hud; hover/focus then add a restrained,
-   local response — a touch of scale and glow — without disturbing any of
+   local response (a touch of scale and glow) without disturbing any of
    the existing ring animations or shifting layout. */
 .jarvis-hud-interactive {
   background: none;
@@ -983,7 +983,7 @@ section[aria-label].panel {
   transform: scale(0.99);
 }
 
-/* Brief energize before the general conversation view actually mounts —
+/* Brief energize before the general conversation view actually mounts:
    the same "focusing a subsystem" treatment DomainNode gives a selected
    domain, so opening the core into a conversation reads consistently with
    opening a domain. */
@@ -1068,7 +1068,7 @@ section[aria-label].panel {
 }
 
 .jc-spin-cw-fast {
-  /* Was 16s — the most frantic ambient layer relative to the others;
+  /* Was 16s, the most frantic ambient layer relative to the others;
      slowed ~25% so the idle core reads as calm rather than busy, while
      staying visibly faster than .jc-spin-cw's 34s. */
   animation: jc-spin-cw calc(20s / var(--spin-speed)) linear infinite;
@@ -1114,7 +1114,7 @@ section[aria-label].panel {
   border-radius: 50%;
   background: radial-gradient(circle, color-mix(in srgb, var(--ring-color) 55%, transparent), transparent 72%);
   filter: blur(2px);
-  /* Was 2.4s — slowed ~25% to match the rest of the calmer idle core. */
+  /* Was 2.4s; slowed ~25% to match the rest of the calmer idle core. */
   animation: jc-halo-pulse calc(3s / var(--spin-speed)) ease-in-out infinite;
 }
 
@@ -1198,10 +1198,10 @@ section[aria-label].panel {
   --spin-speed: 1;
 }
 
-/* Mission Control's restrained "focus active" tint — only ever combined
+/* Mission Control's restrained "focus active" tint, only ever combined
    with state-idle (see JarvisCore.tsx's focusActive prop), so it can
    never visually compete with a real voice state. Deliberately no change
-   to --spin-speed or any animation — a color/glow shift only, calm enough
+   to --spin-speed or any animation: a color/glow shift only, calm enough
    to sit behind the six-domain orbit without drawing attention away from
    it. */
 .jarvis-hud.state-idle.is-focus-active {
@@ -1250,7 +1250,7 @@ section[aria-label].panel {
   opacity: 0.3;
 }
 
-/* A faint shared orbit ring at the domains' own radius — brightens as a
+/* A faint shared orbit ring at the domains' own radius. Brightens as a
    whole when any node is hovered/focused, reading as "the orbit path
    energizes" without needing a fragile per-node line to the core. */
 .orbit-path {
@@ -1267,13 +1267,13 @@ section[aria-label].panel {
 }
 
 /* Deliberately no whole-ring reaction to any single node's hover/focus
-   anymore — "illuminate only the relevant portion," not the entire
+   anymore: "illuminate only the relevant portion," not the entire
    six-domain orbit. Per-node feedback (.domain-connector, .node-ring)
    carries all of that signal now; this stays a constant, quiet backdrop. */
 
 @keyframes home-enter {
   from {
-    /* Never a full fade from 0 — a slow first paint should never read as a
+    /* Never a full fade from 0: a slow first paint should never read as a
        blank/broken page, only as a quick settle-in. */
     opacity: 0.55;
     transform: scale(0.96);
@@ -1316,11 +1316,11 @@ section[aria-label].panel {
   transition: transform 90ms var(--ease-hud), border-color 90ms var(--ease-hud), box-shadow 90ms var(--ease-hud);
 }
 
-/* A short stub pointing toward the core, invisible at rest — the
+/* A short stub pointing toward the core, invisible at rest. The
    "orbital connection" that energizes only for the node being interacted
    with, rather than redrawing the whole shared ring per node. A slow
    flowing gradient (not a discrete extra element) stands in for an
-   outward energy pulse during the genuine activation moment only —
+   outward energy pulse during the genuine activation moment only;
    hover/focus stay a calmer static glow. */
 .domain-connector {
   position: absolute;
@@ -1333,10 +1333,10 @@ section[aria-label].panel {
   /* translateY first pushes the bar's start point out to just past the
      outer ring's edge (in the element's own pre-rotation frame), then
      rotate() carries that whole offset segment around to point toward the
-     layout centre — so the visible 16px stub starts right at the ring
+     layout centre, so the visible 16px stub starts right at the ring
      boundary and extends outward from there, rather than starting at the
      node's centre and being hidden entirely behind the node/ring (which
-     is what the original top:50%/left:50%-anchored short stub did — the
+     is what the original top:50%/left:50%-anchored short stub did; the
      button and rings, painted above it, fully hid a 22px stub that never
      reached past their own ~70px radius). */
   transform: rotate(var(--connector-angle, 0deg)) translateY(66px);
@@ -1367,7 +1367,7 @@ section[aria-label].panel {
   }
 }
 
-/* The node's own small, quiet echo of JarvisCore's ring language — fully
+/* The node's own small, quiet echo of JarvisCore's ring language, fully
    dormant (no paint, no animation) until activated. At most two layers,
    per the design brief: one segmented rotating ring, one thin
    counter-rotating ring. Reduced-motion's existing global rule (index.css
@@ -1376,23 +1376,23 @@ section[aria-label].panel {
 /* Centering technique note: the previous version used `inset:0; margin:
    auto` to center a percentage-sized box within `.domain-node`. That
    relies on the browser splitting the width/height deficit evenly across
-   both auto margins — which measurably failed on this exact combination
+   both auto margins, which measurably failed on this exact combination
    (a `position:absolute` parent whose own width is content-derived/auto,
    not explicit, holding a percentage-sized absolutely-positioned child):
    Chromium resolved margin-left to 0 and dumped the entire deficit into
    margin-right, offsetting the ring's centre by 13-22px instead of
    centering it. `top/left: 50%` + `transform: translate(-50%, -50%)` does
    not depend on margin auto-resolution at all and centers correctly
-   regardless of how the parent's own size was computed — verified via a
-   focused browser assertion (ringCentering.spec) comparing each ring's
-   measured centre against its node's measured centre. */
+   regardless of how the parent's own size was computed (verified via a
+   focused browser assertion, ringCentering.spec, comparing each ring's
+   measured centre against its node's measured centre). */
 .node-ring {
   position: absolute;
   top: 50%;
   left: 50%;
   border-radius: 50%;
   pointer-events: none;
-  /* 0.001, not a literal 0 — WebKit throttles/freezes a running CSS
+  /* 0.001, not a literal 0: WebKit throttles/freezes a running CSS
      animation on an element it considers fully invisible (opacity:0 with
      nothing else keeping it "live"), which is what made the rotation
      look like it always restarted from the same spot on hover: the
@@ -1403,21 +1403,21 @@ section[aria-label].panel {
      still-animating element throughout. */
   opacity: 0.001;
   /* Deliberately the SAME translate/scale as every other state below
-     (hover, focus-within, is-focusing) — never overridden by them. The
+     (hover, focus-within, is-focusing), never overridden by them. The
      rotation keyframes (bottom of this block) animate `transform` too;
      if hover also changed `transform` (it used to, via a 0.96→1 hover
      "grow" effect), the browser recomputes the animation's implicit
      from-state against the new static value on every hover, which reads
      as the rotation restarting even though the animation's own elapsed
      time never actually reset. Keeping every non-animated state's
-     `transform` identical removes that interaction entirely — only
+     `transform` identical removes that interaction entirely; only
      `opacity` changes on hover now. */
   transform: translate(-50%, -50%) scale(1);
   /* Exit duration lives on the base rule (applies whenever :hover/
      :focus-within stops matching); entrance gets its own longer duration
      below so appearing reads calmer than disappearing. */
   transition: opacity var(--motion-ring-exit) var(--ease-hud);
-  /* Runs continuously regardless of hover/focus state — never toggled by
+  /* Runs continuously regardless of hover/focus state, never toggled by
      :hover/:focus-within, which only change opacity (below). At
      opacity:0 it's invisible but never paused, so it's already mid-turn
      the next time it becomes visible, rather than restarting from frame
@@ -1425,7 +1425,7 @@ section[aria-label].panel {
   animation: node-ring-cw 10s linear infinite;
 }
 
-/* The closer/first layer — a restrained violet segmented circumference,
+/* The closer/first layer: a restrained violet segmented circumference,
    hugging the node with roughly an 8-12px gap at the node's largest
    (1440px-class) size. Segments and stroke are deliberately smaller/
    thinner than JarvisCore's own rings (10deg/26deg, ~3px stroke) so the
@@ -1438,7 +1438,7 @@ section[aria-label].panel {
   mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1px));
 }
 
-/* The further/second layer — thinner and sparser again, reading as a
+/* The further/second layer: thinner and sparser again, reading as a
    scanning sweep once it counter-rotates. */
 .node-ring-outer {
   width: 121%;
@@ -1446,9 +1446,9 @@ section[aria-label].panel {
   background: repeating-conic-gradient(var(--accent-violet-strong) 0deg 2deg, transparent 2deg 38deg);
   -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 1.5px), #000 calc(100% - 0.5px));
   mask: radial-gradient(farthest-side, transparent calc(100% - 1.5px), #000 calc(100% - 0.5px));
-  /* 0.001, not 0 — see .node-ring's own comment above (WebKit throttling). */
+  /* 0.001, not 0. See .node-ring's own comment above (WebKit throttling). */
   opacity: 0.001;
-  /* See .node-ring's own comment above — continuous regardless of hover,
+  /* See .node-ring's own comment above: continuous regardless of hover,
      so the ring is already mid-rotation, never restarting, whenever it
      becomes visible. */
   animation: node-ring-ccw 14s linear infinite;
@@ -1465,7 +1465,7 @@ section[aria-label].panel {
   opacity: 0.55;
 }
 
-/* Activation ("selected" / command-highlighted, see DomainNode.tsx) —
+/* Activation ("selected" / command-highlighted, see DomainNode.tsx):
    same two layers, switched to the cyan "active signal" colour and slowed
    down noticeably relative to the hover/focus preview above, so a genuine
    activation reads as calmer and more deliberate, not more excited. */
@@ -1543,7 +1543,7 @@ section[aria-label].panel {
 
 .domain-button:hover,
 .domain-button:focus-visible {
-  /* Deliberately no transform here — the activation rings now carry the
+  /* Deliberately no transform here. The activation rings now carry the
      hover/focus signal, and the node itself must stay pixel-stable so the
      rings (measured/centered on the node's own static box) never appear
      to drift relative to it. Resizing is reserved for the brief, distinct
@@ -1564,19 +1564,19 @@ section[aria-label].panel {
   transform: scale(0.98);
 }
 
-/* Phase 6, D91: the dominant central visual inside each Home node —
+/* The dominant central visual inside each Home node,
    scaled off the node's own `--node-size` (≈36-44px at the largest
    supported node size, scaling down with it on narrower viewports so it
    never crowds the name/subtitle below). Default colour follows the
    button's own text colour; hover/focus turns violet exactly like the
    button's own border/glow, and `.is-focusing` turns cyan with a small
-   glow — the same signal vocabulary the button already uses, just also
+   glow: the same signal vocabulary the button already uses, just also
    reflected in the glyph. The glyph itself never rotates or scales on
    its own; only the button's existing hover/focus/is-focusing treatments
    (border, glow, brief scale) move around it. */
 /* `.domain-button .domain-node-glyph` (not just `.domain-node-glyph`)
    deliberately outranks `.domain-glyph`'s own base sizing below,
-   regardless of source order — two same-specificity class rules would
+   regardless of source order. Two same-specificity class rules would
    otherwise let whichever is later in the file win by accident. */
 .domain-button .domain-node-glyph {
   width: calc(var(--node-size) * 0.36);
@@ -1611,7 +1611,7 @@ section[aria-label].panel {
   letter-spacing: 0.01em;
 }
 
-/* The full domain description, shown only for the hovered/focused node —
+/* The full domain description, shown only for the hovered/focused node,
    never inside the circle itself. */
 .domain-info-panel {
   position: absolute;
@@ -1657,7 +1657,7 @@ section[aria-label].panel {
 }
 
 /* =========================================================================
-   Domain emblem — the small circular identity badge in a domain view's own
+   Domain emblem: the small circular identity badge in a domain view's own
    header (DomainEmblem.tsx). Deliberately much smaller than Home's orbital
    node and carries no ring/sweep animation of its own; it exists as the
    landing target for the Home→domain shared View Transition below, not as
@@ -1679,20 +1679,20 @@ section[aria-label].panel {
   flex: none;
 }
 
-/* Phase 6, D91: the bespoke inline-SVG icon family (DomainGlyph.tsx) that
+/* D91: the bespoke inline-SVG icon family (DomainGlyph.tsx) that
    replaced the previous plain first-letter mark. `currentColor`-driven so
    one shared rule set covers every context the glyph appears in; the SVG
-   itself never rotates or scales — only its `color` (and, in
+   itself never rotates or scales. Only its `color` (and, in
    `.domain-button`, a drop-shadow glow) ever changes. In the header
    emblem specifically, cyan reads as "this is the domain you're
-   currently in," matching the emblem's existing cyan ring border — not a
+   currently in," matching the emblem's existing cyan ring border, not a
    hover/focus state, since this element is decorative and non-interactive. */
 .domain-glyph {
   width: 60%;
   height: 60%;
   color: var(--accent-cyan-strong);
   overflow: visible;
-  /* Per-icon optical-size correction (DomainGlyph.tsx's `OPTICAL_SCALE`) —
+  /* Per-icon optical-size correction (DomainGlyph.tsx's `OPTICAL_SCALE`):
      paint-only, so it never moves a count bubble or shifts layout, and
      `transform-origin` keeps every icon centered in its own fixed square
      canvas regardless of size or color/selection state. */
@@ -1701,7 +1701,7 @@ section[aria-label].panel {
 }
 
 /* Explicit semantic sizes (DomainGlyph's `size` prop) for every context
-   that isn't Home's own responsive orbital node — a fixed square canvas
+   that isn't Home's own responsive orbital node: a fixed square canvas
    shared identically by all six domains at a given size, independent of
    whatever container happens to hold it (a selector chip, a result row,
    a header emblem). Declared after the base rule above so they win
@@ -1758,7 +1758,7 @@ section[aria-label].panel {
 
   /* Replaces the default fade-in keyframe with one that also carries the
      destination content upward by a few pixels, starting slightly after
-     the shared emblem begins moving — the "short deliberate stagger"
+     the shared emblem begins moving: the "short deliberate stagger"
      between the identity morph and the rest of the page resolving. */
   ::view-transition-new(root) {
     animation-name: jarvis-domain-reveal;
@@ -1781,7 +1781,7 @@ section[aria-label].panel {
 /* Fallback for browsers without the View Transitions API (Safari <18,
    older Firefox): `runDomainViewTransition` calls `commit()` immediately
    with no artificial wait either way, so this is purely a short CSS
-   crossfade riding the natural remount — never a JS-timed animation. */
+   crossfade riding the natural remount, never a JS-timed animation. */
 @media (prefers-reduced-motion: no-preference) {
   .no-view-transitions .home,
   .no-view-transitions .domain-view {
@@ -2117,7 +2117,7 @@ section[aria-label].panel {
   overflow-wrap: anywhere;
 }
 
-/* A normal-flow metadata row — the record-type badge (and sensitivity tag,
+/* A normal-flow metadata row: the record-type badge (and sensitivity tag,
    if any) on the left, the status badge on the right via `margin-left:
    auto` on `.memory-status` rather than absolute positioning, so it can
    never overlap the title (which lives in its own row below, not here)
@@ -2153,7 +2153,7 @@ section[aria-label].panel {
   margin-left: auto;
 }
 
-/* The title sits on its own row immediately below the metadata row —
+/* The title sits on its own row immediately below the metadata row,
    never squeezed inline next to the type/status badges, so a long title
    can never displace or collide with either of them. */
 .memory-card-title {
@@ -2305,7 +2305,7 @@ section[aria-label].panel {
 }
 
 /* =========================================================================
-   Responsive behaviour — no horizontal scrollbar, all six orbit nodes
+   Responsive behaviour: no horizontal scrollbar, all six orbit nodes
    remain visible, chrome always reserves its own space.
    ========================================================================= */
 
@@ -2343,7 +2343,7 @@ section[aria-label].panel {
   }
 }
 
-/* body-only (never html) — setting this on both elements makes the root
+/* body-only (never html). Setting this on both elements makes the root
    element create its own clipped 100%-height scrollport instead of
    deferring vertical scrolling to the viewport, which silently trapped
    any content taller than one screen (e.g. a domain page with several
@@ -2353,13 +2353,13 @@ body {
 }
 
 /* =========================================================================
-   Console design system (Phase 6 Part 3) — the shared interior language
+   Console design system: the shared interior language
    every internal page (a domain conversation, the general conversation,
    every Centre) is built from: near-black, matte, thin 1px violet
    borders, cyan reserved strictly for something live right now. See
    components/console/Console.tsx for the primitives that emit these
    classes. Motion here is calmer than Home's: entrance only, no
-   permanent per-card rotation — see .mini-core-ring below for the one
+   permanent per-card rotation. See .mini-core-ring below for the one
    exception, gated on real activity.
    ========================================================================= */
 
@@ -2442,7 +2442,7 @@ body {
   flex: none;
 }
 
-/* One reusable module surface. Deliberately unopinionated about size —
+/* One reusable module surface. Deliberately unopinionated about size:
    callers vary width/height/grid placement via className, so a page reads
    as "several differently-sized instruments" rather than a stack of
    identical cards. */
@@ -2459,7 +2459,7 @@ body {
   border-color: var(--border-default);
 }
 
-/* The one state that earns the cyan accent — something actually
+/* The one state that earns the cyan accent: something actually
    listening/syncing/executing/connected right now, never decorative. */
 .console-module.is-live {
   border-color: color-mix(in srgb, var(--accent-cyan) 45%, var(--border-subtle));
@@ -2482,7 +2482,7 @@ body {
   color: var(--text-tertiary);
 }
 
-/* Compact label/value telemetry line — providers, routines, audit rows. */
+/* Compact label/value telemetry line: providers, routines, audit rows. */
 .telemetry-row {
   display: flex;
   align-items: baseline;
@@ -2539,8 +2539,8 @@ body {
 }
 
 /* The small circular system glyph used in console headers instead of a
-   giant decorative core. Static unless `active` — only then does its one
-   ring segment slowly rotate, exactly the "live status" case Phase 6
+   giant decorative core. Static unless `active`; only then does its one
+   ring segment slowly rotate, exactly the "live status" case the HUD spec
    calls out, never a permanent decoration. */
 .mini-core {
   position: relative;
@@ -2667,7 +2667,7 @@ body {
   display: none;
 }
 
-/* A single chevron, driven only by the native <details> [open] state —
+/* A single chevron, driven only by the native <details> [open] state:
    one source of truth, never a second independent toggle control. */
 .technical-details summary::before {
   content: "";
@@ -2697,7 +2697,7 @@ body {
 }
 
 /* =========================================================================
-   Diagnostic system — truthful, distinct fault states, in the same visual
+   Diagnostic system: truthful, distinct fault states, in the same visual
    language as JarvisCore but never confusable with it: every ring here is
    deliberately incomplete or interrupted (a missing segment, a connector
    that never reaches the core, a scan that fails to complete), because a
@@ -2732,7 +2732,7 @@ body {
   }
 }
 
-/* Recovery transition — swapping the diagnostic page back out once the
+/* Recovery transition: swapping the diagnostic page back out once the
    underlying condition clears. Applied to whatever mounts in its place. */
 .diagnostic-recovered-enter {
   animation: diagnostic-recovered 300ms var(--ease-hud);
@@ -2760,10 +2760,10 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  /* No background/border here — the core floats on the bare canvas. */
+  /* No background/border here; the core floats on the bare canvas. */
 }
 
-/* ~10% larger — the Controller Offline core specifically (this is the
+/* ~10% larger: the Controller Offline core specifically (this is the
    diagnostic Bernardo spends the most real time looking at, waiting on a
    genuine outage). Text/buttons are untouched. */
 .diag-core.is-large {
@@ -2786,7 +2786,7 @@ body {
 }
 
 /* The middle step of a recovery color transition (red -> violet ->
-   cyan) — explicit rather than relying on "no tone class" defaulting to
+   cyan), explicit rather than relying on "no tone class" defaulting to
    the same violet, so the sequence reads clearly in the component. */
 .diag-core.tone-recovered {
   --diag-color: var(--accent-violet-strong);
@@ -2801,7 +2801,7 @@ body {
 }
 
 /* The segmented outer ring, identical technique to JarvisCore's own, but
-   with one wedge permanently cut away by `.diag-ring-gap` below — "one
+   with one wedge permanently cut away by `.diag-ring-gap` below: "one
    missing segment" rather than a uniform, healthy-looking ring. */
 .diag-ring-outer {
   background: repeating-conic-gradient(var(--diag-color) 0deg 22deg, transparent 22deg 45deg);
@@ -2811,7 +2811,7 @@ body {
 }
 
 /* A wedge of the page's own canvas color, laid over the ring at a fixed
-   angle — this is what makes a segment read as genuinely *missing* rather
+   angle. This is what makes a segment read as genuinely *missing* rather
    than just dim, regardless of which ring pattern sits underneath it. */
 .diag-ring-gap {
   background: var(--diag-gap-color, var(--bg-void));
@@ -2822,8 +2822,8 @@ body {
   animation: diag-spin-interrupted calc(14s / var(--diag-spin)) linear infinite;
 }
 
-/* A rotation that stutters rather than spinning smoothly — pauses,
-   advances, pauses again — reading as a mechanism failing to complete a
+/* A rotation that stutters rather than spinning smoothly (pauses,
+   advances, pauses again), reading as a mechanism failing to complete a
    sweep, not as a slower version of a healthy spin. */
 @keyframes diag-spin-interrupted {
   0%,
@@ -2840,12 +2840,12 @@ body {
 }
 
 .diag-core.variant-gap .diag-ring-outer {
-  /* Static — a navigational fault (404) is not "the system" failing, so
+  /* Static: a navigational fault (404) is not "the system" failing, so
      nothing here spins or stutters. */
   animation: none;
 }
 
-/* Controller Offline's own variant: the mechanism visibly keeps trying —
+/* Controller Offline's own variant: the mechanism visibly keeps trying,
    a smooth continuous (not stuttering) outer rotation, a counter-rotating
    inner diagnostic trace, a breathing core, and a probe that extends and
    retracts as if attempting a handshake. Distinct from the plain
@@ -2891,7 +2891,7 @@ body {
   }
 }
 
-/* A gentle extend/retract — never fully reaching the core at rest,
+/* A gentle extend/retract, never fully reaching the core at rest,
    "attempting" rather than "connected." */
 @keyframes diag-probe-idle {
   0%,
@@ -2946,7 +2946,7 @@ body {
 
 /* One-shot success transition: the missing segment reconnects, one
    controlled sweep plays, and the color shift (red -> violet -> cyan) is
-   driven by the component swapping --diag-color/--diag-glow in sequence —
+   driven by the component swapping --diag-color/--diag-glow in sequence;
    these are ordinary CSS custom properties consumed by real transitioned
    properties (border-color/box-shadow below), so the browser genuinely
    interpolates between the concrete colors rather than jumping. */
@@ -3023,7 +3023,7 @@ body {
   z-index: 1;
 }
 
-/* A short signal/connector line that fades out before reaching the core —
+/* A short signal/connector line that fades out before reaching the core:
    "the connection path ends before it gets there." Purely decorative,
    aria-hidden. */
 .diag-connector {
@@ -3037,7 +3037,7 @@ body {
   opacity: 0.55;
 }
 
-/* Occasional restrained scan attempt — a brief brighter pulse along the
+/* Occasional restrained scan attempt: a brief brighter pulse along the
    outer ring that decays back to the interrupted resting state, standing
    in for "the system just tried again and it didn't reach." */
 .diag-core.is-scanning .diag-ring-outer {
@@ -3066,7 +3066,7 @@ body {
   padding: 0.2rem 0.6rem;
   border-radius: var(--radius-full);
   display: inline-block;
-  /* .diag-code is a sibling of .diag-core, not a descendant — it can't
+  /* .diag-code is a sibling of .diag-core, not a descendant, so it can't
      inherit --diag-color from it, so each tone gets its own explicit
      color here rather than silently falling back to neutral gray. */
   color: var(--text-tertiary);
@@ -3133,7 +3133,7 @@ body {
   min-width: 9rem;
 }
 
-/* Compact, inline degraded-state banner (Hermes down, backend up) — never
+/* Compact, inline degraded-state banner (Hermes down, backend up), never
    a full-page takeover, since local functionality remains available. */
 .model-link-banner {
   display: flex;
@@ -3176,7 +3176,7 @@ body {
   flex: none;
 }
 
-/* Compact module-level failure — a single failed request must never
+/* Compact module-level failure: a single failed request must never
    replace an otherwise-healthy page. */
 .module-error-state {
   display: flex;
@@ -3219,9 +3219,9 @@ body {
 }
 
 /* =========================================================================
-   Voice waveform + capture overlay (Phase 6 voice-interface pass). The
+   Voice waveform + capture overlay. The
    waveform's bar heights are driven imperatively via JS (useAudioLevels
-   sets `transform` directly on each bar every animation frame) — no CSS
+   sets `transform` directly on each bar every animation frame), so no CSS
    transition on transform here, since the JS side already interpolates;
    stacking a CSS transition on top would just add lag on top of real
    audio data. Everything else here (ring dimming, glow, overlay entrance,
@@ -3271,7 +3271,7 @@ body {
   background: var(--accent-cyan);
 }
 
-/* Restrained CSS breathing fallback — only when Web Audio analysis is
+/* Restrained CSS breathing fallback, only when Web Audio analysis is
    genuinely unavailable, still a truthful (if coarser) listening/speaking
    indicator rather than a static bar. */
 .voice-waveform.is-fallback .voice-waveform-bar {
@@ -3288,7 +3288,7 @@ body {
   }
 }
 
-/* The "transcribing" state's controlled local-processing scan — replaces
+/* The "transcribing" state's controlled local-processing scan. Replaces
    the waveform bars entirely (not analyzing anything real once the
    recording has stopped). */
 .voice-transcribe-scan {
@@ -3320,7 +3320,7 @@ body {
   justify-content: center;
   gap: var(--space-4);
   background: rgba(4, 2, 7, 0.9);
-  /* Never intercepts pointer events — the release gesture that stops a
+  /* Never intercepts pointer events: the release gesture that stops a
      recording must always reach the real push-to-talk control beneath
      this overlay, for mouse, touch, and keyboard alike. */
   pointer-events: none;
@@ -3330,7 +3330,7 @@ body {
 
 /* The one exception to "never intercepts pointer events" above: the error
    state has nothing left to release into, so it accepts a click/tap
-   anywhere on it to dismiss (see VoiceCaptureOverlay.tsx's onDismiss) —
+   anywhere on it to dismiss (see VoiceCaptureOverlay.tsx's onDismiss);
    otherwise a viewer with no keyboard handy had no way to clear a stuck
    error short of Escape. */
 .voice-capture-overlay.is-dismissible {
@@ -3435,7 +3435,7 @@ body {
 }
 
 /* =========================================================================
-   Confirm dialog (Phase 6 global-voice pass) — the real "Confirm" tier
+   Confirm dialog: the real "Confirm" tier
    gate (CLAUDE.md §12) for a named, consequential local configuration
    change reached via a typed or spoken command. Pointer-events are fully
    active here (unlike the voice capture overlay) since this genuinely is
@@ -3490,7 +3490,7 @@ body {
 }
 
 /* =========================================================================
-   Operational component library (Phase 6 Part 4) — the vocabulary the six
+   Operational component library: the vocabulary the six
    Centres and every structured list are built from instead of repeating
    .memory-card / stacked <section> composition everywhere. Nothing here
    changes an existing accessible name, role, or text: these are wrapper/
@@ -3498,7 +3498,7 @@ body {
    content and semantics, so restyling never requires touching a test.
    ========================================================================= */
 
-/* Native checkbox/radio treatment — consistent across every screen instead
+/* Native checkbox/radio treatment, consistent across every screen instead
    of the bare browser default, using the platform's own accessible control
    (no custom SVG replacement, so no change to semantics or keyboard
    behavior). */
@@ -3533,7 +3533,7 @@ details > summary:focus-visible {
    Visually turns an existing radio-button filter/tab group (Actions'
    status filter, Skills' draft/active/archived tabs) into a segmented
    control, without changing the underlying <input type="radio"> markup,
-   labels, or accessible names — text-transform is purely presentational
+   labels, or accessible names. text-transform is purely presentational
    and never alters the computed accessible name. */
 .tab-row {
   display: flex;
@@ -3579,7 +3579,7 @@ details > summary:focus-visible {
   outline-offset: 1px;
 }
 
-/* Hide the native radio dot itself — the pill background already
+/* Hide the native radio dot itself; the pill background already
    communicates the checked state, and CLAUDE.md requires state never rely
    on color alone, which the bold/background shift plus checked semantics
    (still announced to assistive tech) already satisfies. */
@@ -3599,7 +3599,7 @@ details > summary:focus-visible {
 
 /* --- Compact ledger rows -------------------------------------------------
    A dense, scan-friendly row for a list of like items (calendars, cached
-   events, health summaries/sessions, documents, skills, exports/backups) —
+   events, health summaries/sessions, documents, skills, exports/backups),
    used instead of a stack of full-width .memory-card blocks when every
    item shares the same 2-4 fields. */
 .ledger {
@@ -3659,7 +3659,7 @@ details > summary:focus-visible {
 
 /* --- Timeline -------------------------------------------------------------
    A vertical connected-dot history (action audit trail, routine run
-   history, export/backup archive history) — reads as a sequence of real
+   history, export/backup archive history). Reads as a sequence of real
    events, not another bulleted list. */
 .timeline {
   list-style: none;
@@ -3714,7 +3714,7 @@ details > summary:focus-visible {
 
 /* --- Priority queue --------------------------------------------------------
    Pending action proposals get a distinct left accent from resolved/
-   historical ones — never casual, per CLAUDE.md's Confirm-tier language. */
+   historical ones, never casual, per CLAUDE.md's Confirm-tier language. */
 .queue-item {
   border-left: 3px solid var(--border-subtle);
 }
@@ -3727,14 +3727,14 @@ details > summary:focus-visible {
   border-left-color: var(--accent-cyan);
 }
 
-/* Deliberately no opacity dimming here — resolved items are already
+/* Deliberately no opacity dimming here: resolved items are already
    distinguished by living in the History module and by a neutral (not
    warn/cyan) left border; fading text toward the canvas would drop below
    WCAG AA contrast for anything using --text-tertiary inside (confirmed
-   via axe-core during the Phase 6 operational-redesign QA pass). */
+   via axe-core during the operational-redesign QA pass). */
 
 /* --- Status cluster --------------------------------------------------------
-   A provider/system status header row — compact identity + chip + meta,
+   A provider/system status header row: compact identity + chip + meta,
    for Integrations Centre's per-provider header and Routine Centre's
    schedule overview strip. */
 .status-cluster {
@@ -3803,7 +3803,7 @@ details > summary:focus-visible {
 
 /* --- Builder surface --------------------------------------------------------
    A deliberate, collapsed-by-default authoring surface (Skills Centre's
-   new-draft form) — a <details> so opening it is an explicit action, not
+   new-draft form), a <details> so opening it is an explicit action, not
    another form competing with the registry for attention by default. */
 .builder-surface {
   border: 1px solid var(--border-subtle);
@@ -3851,7 +3851,7 @@ details > summary:focus-visible {
 }
 
 /* --- Vault hierarchy --------------------------------------------------------
-   Data Management's storage/export/backup/restore tiers — a clear ordered
+   Data Management's storage/export/backup/restore tiers: a clear ordered
    hierarchy rather than four equally-weighted paragraphs of prose. */
 .vault-tier {
   display: flex;
@@ -3890,7 +3890,7 @@ details > summary:focus-visible {
 
 /* --- Ask vs. note action distinction ----------------------------------------
    "Save as note" and "Send to Jarvis" must never look like two equally-
-   weighted primary actions — only sending to Jarvis reaches the model. */
+   weighted primary actions; only sending to Jarvis reaches the model. */
 button.action-note {
   background: transparent;
   border: 1px solid var(--border-default);
@@ -3919,12 +3919,12 @@ button.action-note:disabled {
 }
 
 /* =========================================================================
-   Phase 12A — Home situational briefing ("mission strip"). Deliberately not
+   Home situational briefing ("mission strip"). Deliberately not
    another large rounded card of bullet points: a slim, dense list of real,
    source-backed items sitting quietly below the orbit, in the same near-
    black/matte/thin-violet-border language as the console interior (D75),
    kept small enough on Home that it never competes with the core/orbit for
-   attention. Tone is never colour-only — every item also carries an
+   attention. Tone is never colour-only: every item also carries an
    explicit NOW/NEXT/WATCH text badge.
    ========================================================================= */
 
@@ -4095,8 +4095,8 @@ button.briefing-strip-button:disabled {
   color: var(--text-tertiary);
 }
 
-/* Phase 12C: a restrained indicator that this exact briefing item also
-   corresponds to an active Mission Focus pin — violet (Jarvis/ongoing
+/* A restrained indicator that this exact briefing item also
+   corresponds to an active Mission Focus pin: violet (Jarvis/ongoing
    context), deliberately unobtrusive since the Mission Focus rail itself
    is where a pin's full detail belongs, not the unified feed. */
 .pinned-badge {
@@ -4110,9 +4110,9 @@ button.briefing-strip-button:disabled {
   border: 1px solid var(--accent-violet-soft);
 }
 
-/* --- Phase 12B: change-state badges ----------------------------------------
+/* --- Change-state badges -----------------------------------------------
    A second, independent badge dimension from the NOW/NEXT/WATCH category
-   above — never colour alone: every state also carries its own short text
+   above. Never colour alone: every state also carries its own short text
    label. "ongoing" is deliberately the quietest (no fill, no border) since
    most items settle there after the first pass and it must never compete
    for attention with a genuinely new or changed one. */
@@ -4173,7 +4173,7 @@ button.briefing-item-control:disabled {
 }
 
 /* A native <details> used as an accessible disclosure for the snooze
-   duration list — no custom ARIA menu logic needed. */
+   duration list, so no custom ARIA menu logic is needed. */
 .snooze-menu {
   position: relative;
 }
@@ -4292,8 +4292,8 @@ button.briefing-item-control:disabled {
 }
 
 /* =========================================================================
-   Phase 12C — Mission Focus rail. A compact, dense ledger sitting beside
-   the situational briefing — deliberately not a second grid of large
+   Mission Focus rail. A compact, dense ledger sitting beside
+   the situational briefing, deliberately not a second grid of large
    cards. Rank is the primary visual anchor (a small numbered badge, not a
    drag handle or a decorative icon); tone/urgency is communicated only
    through the shared change-state badge, never a new colour language.
@@ -4405,7 +4405,7 @@ button.briefing-item-control:disabled {
   }
 }
 
-/* --- Phase 12C: "Add to Mission Focus" on eligible source screens --------- */
+/* --- "Add to Mission Focus" on eligible source screens --------- */
 
 .mission-focus-pin-state {
   display: inline-flex;
@@ -4440,7 +4440,7 @@ button.briefing-item-control:disabled {
 }
 
 /* =========================================================================
-   Mission Control / Current Focus — reuses .briefing-strip/.briefing-item
+   Mission Control / Current Focus: reuses .briefing-strip/.briefing-item
    structure verbatim for its candidate list; these rules cover only the
    parts genuinely unique to it (the domain glyph chip, the duration/domain
    pickers, and the active-session timer panel). Cyan/teal marks the
@@ -4579,7 +4579,7 @@ button.mc-duration-selected {
 }
 
 /* =========================================================================
-   Phase 12F: Decision Room — a stacked-field form layout for the multi-label
+   Decision Room: a stacked-field form layout for the multi-label
    forms this Centre needs (details, decide, add-option, add-factor, outcome
    review) that no earlier Centre required, since every prior Centre's forms
    were either a single field or used .message-form-actions' flex row.

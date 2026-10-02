@@ -7,8 +7,8 @@ import type { ActionProposal } from "./api";
 
 beforeEach(() => {
   vi.restoreAllMocks();
-  // Phase 12C: Mission Focus's own fetch, not what any of these tests are
-  // about — default it to a harmless empty state rather than letting an
+  // Mission Focus's own fetch, not what any of these tests are
+  // about, so default it to a harmless empty state rather than letting an
   // unmocked network call resolve unpredictably.
   vi.spyOn(api, "fetchMissionFocus").mockResolvedValue({ active_pins: [], max_active_pins: 5, default_visible: 3 });
 });
@@ -43,7 +43,7 @@ function byExactText(text: string) {
   return (_: string, el: Element | null) => el?.textContent === text;
 }
 
-/** A minimal stateful fake standing in for the backend — every mock reads
+/** A minimal stateful fake standing in for the backend. Every mock reads
  * and writes the same mutable proposal object, so this test is immune to
  * exactly how many times the component happens to call listActionProposals
  * (e.g. on mount), unlike a queued mockResolvedValueOnce chain. */
@@ -104,11 +104,11 @@ describe("ActionsCentre", () => {
     render(<ActionsCentre onBack={() => {}} />);
 
     expect(await screen.findByText(byExactText("google_calendar.event.create · needs_review"))).toBeInTheDocument();
-    // The explanatory detail must be visible, not merely a status label —
+    // The explanatory detail must be visible, not merely a status label:
     // it's what tells Bernardo the real-world Calendar result needs
     // manual verification.
     expect(await screen.findByText(/verify the calendar directly/i)).toBeInTheDocument();
-    // needs_review must never offer an execute/retry path — it is not a
+    // needs_review must never offer an execute/retry path. It is not a
     // settled 'failed' that's simply done, and not an 'approved' that's
     // safe to run again.
     expect(screen.queryByRole("button", { name: /^execute$/i })).not.toBeInTheDocument();

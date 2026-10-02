@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     # (it lives only in backend/.env, outside JARVIS_DATA_DIR entirely).
     #
     # hermes_model is a human-readable label only (recorded in
-    # Message.model_used and agent_runs.model) — it is NEVER sent to Hermes.
+    # Message.model_used and agent_runs.model). It is NEVER sent to Hermes.
     # Hermes's API server only understands its own virtual per-profile model
     # alias, so the actual model/provider is entirely owned by however the
     # 'jarvis' Hermes profile itself is configured (`jarvis config set
@@ -41,7 +41,7 @@ class Settings(BaseSettings):
     hermes_profile_name: str = "jarvis"
     hermes_cli_command: str = "hermes"
 
-    # Voice (Phase 5): local faster-whisper transcription and Edge TTS
+    # Voice: local faster-whisper transcription and Edge TTS
     # synthesis. Both run entirely outside the model-independence boundary
     # above (they are not the reasoning model) but are configured here for
     # the same reason: nothing about the provider should be hardcoded deep
@@ -51,9 +51,9 @@ class Settings(BaseSettings):
     whisper_compute_type: str = "int8"
     edge_tts_voice: str = "en-GB-RyanNeural"
 
-    # Phase 9: this backend's own loopback base URL, used to construct
+    # This backend's own loopback base URL, used to construct
     # OAuth redirect URIs (e.g. http://127.0.0.1:8000/api/integrations/
-    # google_calendar/oauth/callback) — must exactly match what's registered
+    # google_calendar/oauth/callback). Must exactly match what's registered
     # in each provider's OAuth client console.
     backend_base_url: str = "http://127.0.0.1:8000"
 

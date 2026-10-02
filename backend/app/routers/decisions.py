@@ -1,16 +1,10 @@
-"""Phase 12F: Evidence-Based Decision Room HTTP surface, built on top of
-Phase 12D Unified Recall and Phase 12E Research Workspaces. Evidence
-search is read-only (delegates to `app.recall_service.search()`); every
-other route here only ever mutates this feature's own local decision
-state — never a Calendar/Health/memory mutation, never a tool, never
-Hermes toolset configuration, never something that finalizes or executes
-a decision on Jarvis's own initiative. `POST .../briefs/critique` is the
-one route that reaches a model, and only via a single
-`provider.send_turn()` call — see `app.decision_service.draft_critique_with_model`.
-Every mutating route uses `PUT`/explicit `POST .../action` only — never
-`PATCH`/`DELETE` — matching the backend's restricted, non-wildcard CORS
-`allow_methods` (`GET`, `POST`, `PUT` — see D82/D99) and every other
-Phase 8-12 router's own established convention.
+"""Decision Room HTTP routes. Evidence search is read-only and delegates
+to `app.recall_service.search()`. Other routes only change the decision's
+own local state, never Calendar, Health or memory, and never finalize a
+decision on Jarvis's initiative. `POST .../briefs/critique` is the only
+route that reaches a model (one `send_turn()` call). Mutating routes use
+`PUT` or an explicit `POST .../action`, never `PATCH`/`DELETE`, to match
+the backend's CORS method list.
 """
 
 from __future__ import annotations

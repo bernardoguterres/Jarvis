@@ -1,9 +1,9 @@
-"""Phase 12C: Mission Focus's HTTP surface. Every mutation here is a
+"""Mission Focus's HTTP surface. Every mutation here is a
 direct, explicit user-interface action (CLAUDE.md §12 "Read"-tier
-presentation state) — never the Phase 8 propose->approve->execute
+presentation state), never the propose->approve->execute
 lifecycle, since nothing here ever touches Calendar, memory, Health, or
 any other external source. There is no "Discuss Mission Focus with
-Jarvis" route here either, matching the existing Phase 10B/12A pattern:
+Jarvis" route here either, matching the routines and briefing pattern:
 the frontend sends the current pins into a normal conversation turn
 through the existing, already-model-using general-conversation endpoints.
 """

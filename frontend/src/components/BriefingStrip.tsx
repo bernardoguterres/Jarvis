@@ -18,7 +18,7 @@ interface BriefingStripProps {
   onSnooze: (stableKey: string, duration: BriefingSnoozeDuration) => void;
   onRestore: (stableKey: string) => void;
   /** The stable_key currently mid-action (acknowledge/snooze/restore),
-   * so its controls disable rather than allow a double-submit — never a
+   * so its controls disable rather than allow a double-submit, never a
    * global loading flag, so unrelated rows stay interactive. */
   busyKey?: string | null;
   actionError?: string | null;
@@ -41,13 +41,13 @@ function formatSince(iso: string): string {
 }
 
 /** The compact, real-state-only "mission strip" version of a situational
- * briefing (Phase 12A/12B) — deliberately not another generic rounded
+ * briefing, deliberately not another generic rounded
  * card full of bullet points (CLAUDE.md's frontend aesthetics doctrine).
  * Every item here comes straight from the backend's deterministic
  * assembler (app/briefing_service.py) with real provenance and a real
  * change-state classification; nothing is invented, decorative, or
  * computed client-side. Acknowledge/snooze only ever change what this
- * strip shows — never the underlying Calendar/task/action/integration/
+ * strip shows, never the underlying Calendar/task/action/integration/
  * routine/Health record itself. */
 function BriefingStrip({
   briefing,
@@ -158,7 +158,7 @@ function BriefingStrip({
                             type="button"
                             disabled={isBusy}
                             onClick={(e) => {
-                              // Close the native disclosure before firing —
+                              // Close the native disclosure before firing;
                               // otherwise it stays open over the next render.
                               (e.currentTarget.closest("details") as HTMLDetailsElement | null)?.removeAttribute("open");
                               onSnooze(item.id, opt.duration);

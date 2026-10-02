@@ -1,9 +1,7 @@
-"""Phase 9 correction: extend Google Health beyond a narrow daily-summary
-shape into a provider-independent metric ingestion layer (steps, distance,
-floors, active zone minutes, calories, heart rate, resting HR, HRV, SpO2,
-respiratory rate, VO2 max, weight, body fat, blood glucose as daily
-summaries; sleep and exercise as full sessions). Forward-only — 0005 and
-0006 are left untouched.
+"""Extend Google Health from a daily summary to a general metric layer:
+daily summaries for activity, heart rate, HRV, SpO2, respiratory rate,
+VO2 max, weight, body fat and blood glucose, plus full sleep and exercise
+sessions.
 
 Revision ID: 0007
 Revises: 0006
@@ -38,7 +36,7 @@ def upgrade() -> None:
         batch_op.add_column(sa.Column("blood_glucose_mg_dl", sa.Float(), nullable=True))
         batch_op.add_column(sa.Column("source_platforms_json", sa.Text(), nullable=True))
         # calories_out was declared Integer in 0005 but the real API's
-        # totalCalories.kcalSum is not necessarily a whole number — widen
+        # totalCalories.kcalSum is not necessarily a whole number, so widen
         # to Float. Existing (always-NULL, per the bug fixed this session)
         # values are unaffected.
         batch_op.alter_column("calories_out", type_=sa.Float(), existing_type=sa.Integer())

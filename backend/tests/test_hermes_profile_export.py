@@ -1,4 +1,4 @@
-"""Tests for optional Hermes profile export/import — using a small fake
+"""Tests for optional Hermes profile export/import, using a small fake
 `hermes` script so these tests are hermetic and never depend on (or touch)
 whatever real Hermes installation exists on the machine running them."""
 
@@ -14,7 +14,7 @@ from app.config import Settings
 from app.export_service import create_export
 from app.import_service import restore_archive, validate_archive
 
-# Deliberately no "#!/usr/bin/env python3" shebang in these templates — see
+# Deliberately no "#!/usr/bin/env python3" shebang in these templates; see
 # _install_fake_hermes, which prepends a shebang pointing at sys.executable
 # (the exact interpreter running this test suite) instead. A bare "python3"
 # shebang resolves through the *subprocess's inherited PATH*, not through
@@ -22,7 +22,7 @@ from app.import_service import restore_archive, validate_archive
 # have a full standard library: this was found to genuinely break here,
 # where PATH resolves "python3" to Ubuntu's python3.14-minimal package (its
 # stdlib deliberately excludes tarfile, among other modules) rather than the
-# project's own uv-managed venv — a real, reproducible environment gap, not
+# project's own uv-managed venv: a real, reproducible environment gap, not
 # a flaky test. Pinning to sys.executable makes the fake CLI hermetic
 # against that gap the same way the rest of this file is already hermetic
 # against a real Hermes installation.
@@ -55,7 +55,7 @@ sys.exit(1)
 
 def _install_fake_hermes(tmp_path: Path, script_contents: str) -> str:
     script_path = tmp_path / "fake-hermes"
-    # sys.executable, not a bare "#!/usr/bin/env python3" — see the module
+    # sys.executable, not a bare "#!/usr/bin/env python3". See the module
     # docstring comment above FAKE_HERMES_CLEAN for why.
     script_path.write_text(f"#!{sys.executable}\n{script_contents}")
     script_path.chmod(script_path.stat().st_mode | stat.S_IEXEC)
@@ -125,7 +125,7 @@ def test_validate_rejects_archive_with_secrets_in_hermes_payload(
 ) -> None:
     """Simulates a hand-crafted (tampered) archive that claims a clean Hermes
     export but actually embeds one containing secrets, to prove the
-    independent Jarvis-side scan — not just trust in the export step."""
+    independent Jarvis-side scan, not just trust in the export step."""
     populated_settings.hermes_cli_command = _install_fake_hermes(tmp_path, FAKE_HERMES_CLEAN)
     result = create_export(populated_settings)
 
@@ -194,7 +194,7 @@ def test_older_phase2_style_archive_still_validates(
 ) -> None:
     """An export produced with no Hermes profile available (the Phase 2
     shape: hermes_profile_export.included == False) must still validate and
-    restore fine — Phase 3 must not break Phase 2 archives."""
+    restore fine. Newer code must not break older archives."""
     populated_settings.hermes_cli_command = "definitely-not-a-real-command-xyz"
     result = create_export(populated_settings)
 

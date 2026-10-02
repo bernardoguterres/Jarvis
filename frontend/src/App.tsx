@@ -56,7 +56,7 @@ import { requestHighlight } from "./commands/highlight";
 
 // A single, real, persistent general conversation reused for every voice
 // question asked from Home or a Centre page (no conversation is "selected"
-// there the way GeneralConversation.tsx lets you pick one) — it appears in
+// there the way GeneralConversation.tsx lets you pick one). It appears in
 // GeneralConversation's own conversation list like any other, is
 // global-profile-only, and never auto-includes a domain (see
 // docs/DECISIONS.md D79).
@@ -64,7 +64,7 @@ const AMBIENT_CONVERSATION_TITLE = "Quick questions (voice)";
 
 // This app has exactly one real frontend route ("/"). Every other path
 // reaching the client means the backend's SPA fallback (app/main.py)
-// served index.html for something this interface doesn't recognize —
+// served index.html for something this interface doesn't recognize;
 // see NotFoundDiagnostic.tsx. A `?open=` query param on the root path is
 // a deep link (e.g. from the OAuth callback page's "Return to
 // Integrations Centre" link), not an unknown route.
@@ -84,10 +84,10 @@ const DEEP_LINK_CENTRES: Record<string, CentreTarget> = {
 export type HealthStatus = "checking" | "ok" | "error";
 
 // Dev-only diagnostic fault injection (`?diag=offline|degraded|crash`),
-// active only when `import.meta.env.DEV` — never compiled into a
+// active only when `import.meta.env.DEV`, never compiled into a
 // production build. Lets every diagnostic state be inspected safely from
 // the running preview without stopping the real backend, disconnecting a
-// real integration, or making a real model call. See the Phase 6
+// real integration, or making a real model call. See the
 // diagnostic-system pass in docs/DECISIONS.md.
 const DIAG_QA_PARAM = import.meta.env.DEV ? new URLSearchParams(window.location.search).get("diag") : null;
 
@@ -107,7 +107,7 @@ function isTypingTarget(target: EventTarget | null): boolean {
 
 function App() {
   const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
-  // The general Jarvis conversation opened from the core itself — a scope,
+  // The general Jarvis conversation opened from the core itself: a scope,
   // not a seventh domain (see GeneralConversation.tsx / docs/DECISIONS.md).
   const [showGeneral, setShowGeneral] = useState(false);
   const [showDataManagement, setShowDataManagement] = useState(false);
@@ -121,7 +121,7 @@ function App() {
   const [showDecisionCentre, setShowDecisionCentre] = useState(false);
   // Set only by a voice/palette `open_recall` command (App.tsx's
   // `executeSafeAction`) so Recall Centre opens pre-seeded with that
-  // query/domain — `token` changes on every command so RecallCentre's own
+  // query/domain. `token` changes on every command so RecallCentre's own
   // effect re-applies it even if the same query is searched twice in a
   // row, and it's `null` for every other way of opening Recall (Systems
   // menu, palette's static action, the keyboard shortcut), which starts
@@ -139,14 +139,14 @@ function App() {
   const [isKnownRoute, setIsKnownRoute] = useState(() => KNOWN_PATHS.has(window.location.pathname));
 
   // A real, visible confirm dialog for a `confirm_required` command
-  // (CLAUDE.md §12's "Confirm" tier) — set by runParsedCommand, never
+  // (CLAUDE.md §12's "Confirm" tier). Set by runParsedCommand, never
   // executed until a person explicitly accepts it here.
   const [pendingConfirm, setPendingConfirm] = useState<Extract<ParsedCommand, { kind: "confirm_required" }> | null>(null);
   const [confirmBusy, setConfirmBusy] = useState(false);
 
   // A brief, truthful status line for a command's real outcome (a safe
   // action's result, a confirmed action's result, or an ambient voice
-  // question's answer) — never decorative, always the actual result of a
+  // question's answer). Never decorative, always the actual result of a
   // real request. See §9's "no fake activity" rule.
   const [commandFeedback, setCommandFeedback] = useState<{ text: string; tone: "ok" | "error" } | null>(null);
   const commandFeedbackTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -157,7 +157,7 @@ function App() {
   }, []);
 
   // The ambient general conversation used for voice questions asked from
-  // Home or a Centre page — created (or reused) lazily on first use, never
+  // Home or a Centre page, created (or reused) lazily on first use, never
   // eagerly, so opening Jarvis doesn't silently create a conversation
   // nobody asked for.
   const [ambientConversationId, setAmbientConversationId] = useState<string | null>(null);
@@ -218,7 +218,7 @@ function App() {
   }, [checkHealth]);
 
   // While the controller is unavailable, ControllerOfflineDiagnostic owns
-  // retry scheduling (bounded 5/10/20/30s) — this recurring check pauses
+  // retry scheduling (bounded 5/10/20/30s). This recurring check pauses
   // itself rather than racing it, so the backend is never polled by two
   // independent loops at once.
   useEffect(() => {
@@ -246,14 +246,14 @@ function App() {
   // second internal attempt render clean, silently swallowing the
   // simulated fault. "Try again" only truly escapes this by navigating
   // away (Return to Jarvis / Reload), which drops the `?diag=crash` param
-  // — an accurate simulation of "a still-present bug isn't fixed by
+  // and is an accurate simulation of "a still-present bug isn't fixed by
   // simply re-rendering."
   if (DIAG_QA_PARAM === "crash") {
     throw new Error("Diagnostics QA: simulated interface fault (?diag=crash)");
   }
 
   // A deep link into a specific centre (e.g. from the OAuth callback
-  // page's "Return to Integrations Centre" link, `/?open=integrations`) —
+  // page's "Return to Integrations Centre" link, `/?open=integrations`),
   // consumed once on mount and then stripped from the URL so a refresh
   // doesn't repeat it.
   useEffect(() => {
@@ -312,10 +312,10 @@ function App() {
 
   // The one shared entry point for every Home→domain navigation path
   // (pointer click, keyboard activation, number shortcuts, and a typed/
-  // spoken command that names a domain) — each just calls this instead of
+  // spoken command that names a domain). Each just calls this instead of
   // setting `selectedSlug` directly, so they all get the same real browser
   // View Transition (a continuous morph when Home's node for `slug` is on
-  // screen, or a plain crossfade when it isn't — e.g. from a Centre page)
+  // screen, or a plain crossfade when it isn't, e.g. from a Centre page)
   // rather than each path growing its own bespoke delay/animation.
   const selectDomainWithTransition = useCallback((slug: string) => {
     runDomainViewTransition(slug, () => {
@@ -324,12 +324,12 @@ function App() {
     });
   }, [closeAllOverlays]);
 
-  // The mirror of the above for DomainView's own "Back to Jarvis" — reuses
+  // The mirror of the above for DomainView's own "Back to Jarvis". Reuses
   // the exact same shared-element mechanism in reverse, so leaving a
   // domain morphs its header emblem back into its orbital position instead
   // of an instant cut. Other ways of returning home (Escape from a Centre,
   // the 404/offline diagnostics recovering, etc.) intentionally keep their
-  // existing plain `goHome()` — this is specifically the domain↔Home path.
+  // existing plain `goHome()`; this is specifically the domain↔Home path.
   const goHomeFromDomainWithTransition = useCallback(() => {
     if (selectedSlug === null) {
       goHome();
@@ -376,7 +376,7 @@ function App() {
         if (onHomeNow) {
           // A command targeting a domain while Home is actually visible
           // gets the same brief cyan activation highlight a manual click
-          // gets, so the node's ring is genuinely seen — but, like a click,
+          // gets, so the node's ring is genuinely seen, but, like a click,
           // it no longer gates navigation behind a fixed wait: the
           // highlight and the shared View Transition both start on this
           // same synchronous call.
@@ -418,7 +418,7 @@ function App() {
     ],
   );
 
-  // Safe direct actions (CLAUDE.md §12 "Read" tier) — read-only or
+  // Safe direct actions (CLAUDE.md §12 "Read" tier): read-only or
   // trivially reversible, so the registry already identified exactly which
   // one; this just calls the real API and reports the real result. Never
   // guesses, never retries silently, never fabricates success.
@@ -436,7 +436,7 @@ function App() {
           showCommandFeedback(`Ran ${action.routineLabel}.`, "ok");
         } else if (action.kind === "focus_start") {
           // No specific source is named by a bare voice/typed command
-          // ("start a focus session") — reuse Home's own deterministic
+          // ("start a focus session"). Reuse Home's own deterministic
           // candidate assembler (never a second ranking engine) so this
           // starts the same thing Home's Mission Control strip would
           // currently recommend; falls back to a manual, untitled-source
@@ -505,7 +505,7 @@ function App() {
             "ok",
           );
         } else if (action.kind === "open_recall") {
-          // Purely local navigation — Recall Centre itself performs the
+          // Purely local navigation. Recall Centre itself performs the
           // real search once mounted with this seed; nothing here ever
           // calls the backend directly.
           closeAllOverlays();
@@ -522,7 +522,7 @@ function App() {
   );
 
   // Confirmation-required actions (CLAUDE.md §12 "Confirm" tier) only ever
-  // reach here — the real disconnect/export call happens only once a
+  // reach here. The real disconnect/export call happens only once a
   // person explicitly accepts the ConfirmDialog rendered below.
   const handleConfirmAction = useCallback(async () => {
     if (!pendingConfirm) return;
@@ -546,11 +546,11 @@ function App() {
 
   // The single execution path shared by the Command Palette (typed input)
   // and every surface's voice transcript handling (spoken input, via
-  // useVoiceCapture) — see commands/registry.ts. Parsing is deterministic
+  // useVoiceCapture); see commands/registry.ts. Parsing is deterministic
   // and identical everywhere; this is just where the resulting
   // target/action gets wired to App's real state, since only App owns
   // navigation, the confirm dialog, and the real API calls. A safe_action
-  // executes immediately; a confirm_required action never executes here —
+  // executes immediately; a confirm_required action never executes here:
   // it only opens the confirm dialog, which calls the real action itself.
   const runParsedCommand = useCallback(
     (parsed: ParsedCommand): void => {
@@ -564,7 +564,7 @@ function App() {
       } else if (parsed.kind === "confirm_required") {
         setPendingConfirm(parsed);
       }
-      // "blocked" and "none" never navigate, execute, or confirm anything —
+      // "blocked" and "none" never navigate, execute, or confirm anything;
       // the caller (CommandPalette / a conversation surface) is responsible
       // for displaying the heard/interpreted/explanation text to the user.
     },
@@ -572,7 +572,7 @@ function App() {
   );
 
   // Lazily creates (once) or reuses the single ambient general conversation
-  // behind Home/Centre voice questions — see AMBIENT_CONVERSATION_TITLE.
+  // behind Home/Centre voice questions. See AMBIENT_CONVERSATION_TITLE.
   const ensureAmbientConversation = useCallback(async (): Promise<string> => {
     if (ambientConversationId) return ambientConversationId;
     if (!ambientConversationPromiseRef.current) {
@@ -587,7 +587,7 @@ function App() {
     return ambientConversationPromiseRef.current;
   }, [ambientConversationId]);
 
-  // An ordinary question asked by voice from Home or a Centre page — the
+  // An ordinary question asked by voice from Home or a Centre page. The
   // exact same sendTurn mechanism GeneralConversation.tsx uses, with an
   // explicitly empty domain array so a general turn never mixes in a
   // domain automatically, from any surface.
@@ -614,7 +614,7 @@ function App() {
 
   // The one shared voice state machine (useVoiceCapture) for every surface
   // that doesn't already own its own instance (DomainView and
-  // GeneralConversation each instantiate their own) — Home and every
+  // GeneralConversation each instantiate their own). Home and every
   // Centre page. Only ever started while `ambientVoiceEligible` (below) is
   // true, so there is never more than one active microphone session.
   const ambientVoice = useVoiceCapture({
@@ -634,7 +634,7 @@ function App() {
       if (parsed.kind === "safe_action") {
         // Pre-existing gap fixed here as part of wiring Mission Control's
         // seven safe actions into the typed Command Palette: safe_action
-        // never had a palette dispatch path at all before this — only
+        // never had a palette dispatch path at all before this, only
         // voice transcripts reached executeSafeAction via runParsedCommand.
         // This one addition also makes "sync calendar"/"run morning
         // briefing" etc. work when typed, not just spoken.
@@ -765,7 +765,7 @@ function App() {
   }, [domains, goHome, closeAllOverlays]);
 
   // Home and every Centre page (never a domain conversation or the general
-  // conversation — those each own their own push-to-talk instance via the
+  // conversation, since those each own their own push-to-talk instance via the
   // same useVoiceCapture hook) and never a diagnostic page (404 / offline),
   // where there is no live controller to send a question to.
   const ambientVoiceEligible =
@@ -773,7 +773,7 @@ function App() {
 
   // Navigating away from Home/a Centre (into a domain or the general
   // conversation, each with their own separate voice instance) only ever
-  // masked the overlay's display here — `ambientVoice`'s own internal state
+  // masked the overlay's display here. `ambientVoice`'s own internal state
   // kept whatever it was, "error" included. Returning to Home later made a
   // stale error reappear with no new failure behind it at all: the real
   // bug behind "the error persists no matter what I press." Clearing it the
@@ -805,7 +805,7 @@ function App() {
         return;
       }
 
-      // Cmd/Ctrl+Shift+F ("Find") opens Recall — Shift-modified so it
+      // Cmd/Ctrl+Shift+F ("Find") opens Recall. Shift-modified so it
       // never collides with the browser's own Cmd+F "find in page".
       if (mod && event.shiftKey && event.key.toLowerCase() === "f") {
         event.preventDefault();
@@ -835,14 +835,14 @@ function App() {
         return;
       }
 
-      // Global push-to-talk for Home/Centre pages — DomainView and
+      // Global push-to-talk for Home/Centre pages. DomainView and
       // GeneralConversation each own their own identical Space handling via
       // the same useVoiceCapture hook while they're mounted, so this never
       // double-starts a capture: ambientVoiceEligible is false whenever
       // either of those is showing.
       if (!mod && !event.altKey && event.code === "Space" && ambientVoiceEligible) {
         // preventDefault on every repeated keydown the OS fires while the
-        // key stays held, not just the first — Space's native "scroll the
+        // key stays held, not just the first. Space's native "scroll the
         // page down" action fires on those later auto-repeat events too, so
         // guarding this behind `!event.repeat` (as `start()` below still
         // must be, to avoid restarting capture) let a long hold scroll the
@@ -854,7 +854,7 @@ function App() {
 
       if (event.key === "Escape") {
         // Must clear a stuck "error" state (e.g. a failed microphone
-        // permission check) back to idle, not just "listening" — otherwise
+        // permission check) back to idle, not just "listening". Otherwise
         // there is no way to dismiss a displayed voice error short of
         // quitting the app.
         if (
@@ -865,7 +865,7 @@ function App() {
           return;
         }
         // Domain view and the general conversation each own their own
-        // Escape (cancel voice, then return home) — see DomainView.tsx /
+        // Escape (cancel voice, then return home). See DomainView.tsx /
         // GeneralConversation.tsx. Here we only handle the other top-level
         // views.
         if (
@@ -933,7 +933,7 @@ function App() {
         : `Jarvis: ${displayAgentStatus.model}`;
 
   // Hermes/model unavailable while the backend controller stays up is a
-  // degraded (amber) state, not a critical (red) one — the same "reduced
+  // degraded (amber) state, not a critical (red) one: the same "reduced
   // but usable" condition ModelLinkBanner already shows in amber. Red is
   // reserved for a genuinely unavailable/unrecoverable controller, which
   // ControllerOfflineDiagnostic owns separately.
@@ -955,7 +955,7 @@ function App() {
     !showDecisionCentre &&
     !showGeneral;
   // A diagnostic page (404 or controller offline) is never "Home" for
-  // shell-chrome purposes — the bottom-bar shortcut hints and the top-bar
+  // shell-chrome purposes: the bottom-bar shortcut hints and the top-bar
   // palette/systems controls don't apply while diagnosing a fault.
   const isDiagnosticPage = !isKnownRoute || displayHealth === "error";
   const onHome = noOverlayActive && selectedSlug === null && !isDiagnosticPage;

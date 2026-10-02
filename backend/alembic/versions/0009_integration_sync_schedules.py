@@ -1,6 +1,6 @@
-"""Phase 10: controller-owned automatic integration resync. Adds
+"""Automatic integration resync. Adds
 per-provider schedule configuration (disabled by default) and a bounded
-local sync-run history. Forward-only — 0001-0008 are untouched.
+local sync-run history.
 
 Revision ID: 0009
 Revises: 0008
@@ -69,7 +69,7 @@ def upgrade() -> None:
     )
     op.create_index("ix_integration_sync_runs_provider", "integration_sync_runs", ["provider"])
 
-    # Both schedules start disabled — Bernardo must explicitly enable each
+    # Both schedules start disabled; Bernardo must explicitly enable each
     # one; nothing here is ever turned on automatically by this migration.
     op.execute(
         "INSERT INTO integration_sync_schedules "

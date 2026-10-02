@@ -1,8 +1,8 @@
-"""Phase 12E: export/restore/restart safety. Research workspaces,
+"""Export/restore/restart safety. Research workspaces,
 evidence references, notes, brief versions, and citation mappings survive
 an ordinary restart and a full export/restore round trip via the whole-
 database SQLite backup mechanism (no per-table export/import code was
-added — nothing new is required there). Restore must never trigger
+added; nothing new is required there). Restore must never trigger
 regeneration or a model call, must preserve historical briefs, and must
 mark a missing source reference unavailable rather than erasing its
 citation. No credentials/tokens/raw payloads ever enter a research
@@ -85,7 +85,7 @@ def test_research_data_survives_export_and_restore(tmp_path: Path) -> None:
 
 def test_restore_never_regenerates_a_brief_or_calls_a_model(tmp_path: Path, monkeypatch) -> None:
     """Restoring must never trigger a new brief version or reach out to a
-    provider — restore only replays the SQLite database file itself."""
+    provider. Restore only replays the SQLite database file itself."""
     from app import research_service as rs
 
     install_a = _make_installation(tmp_path / "installation-a")
@@ -116,7 +116,7 @@ def test_restore_never_regenerates_a_brief_or_calls_a_model(tmp_path: Path, monk
     engine_b = build_engine(Settings(jarvis_data_dir=str(install_b)).database_url)
     with build_sessionmaker(engine_b)() as session:
         versions = rs.list_brief_versions(session, workspace_id)
-        # Restore did not create a second/regenerated version — exactly
+        # Restore did not create a second/regenerated version: exactly
         # the one deterministic version from before the export.
         assert len(versions) == 1
         assert versions[0].source == "deterministic"
@@ -163,7 +163,7 @@ def test_removed_source_after_restore_reports_unavailable_without_erasing_citati
         reads = rs.citation_reads(session, version)
         assert reads[0]["available"] is False
         assert reads[0]["unavailable_reason"] is not None
-        # The citation itself is never erased — it stays fully readable.
+        # The citation itself is never erased; it stays fully readable.
         assert reads[0]["title_snapshot"]
         assert reads[0]["snippet_snapshot"]
     engine_b.dispose()

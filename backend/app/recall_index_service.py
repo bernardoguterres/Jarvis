@@ -1,35 +1,13 @@
-"""Phase 12D: the write side of the unified Recall index — one small,
-idempotent adapter per source type, all funneling into `recall_fts`
-(migration 0016). Never authoritative: every row here is a rebuildable
-derivative of a real row somewhere else, exactly like `app/fts_service.py`
-and `app/document_fts_service.py` before it.
+"""Write side of the Recall index: one small, idempotent adapter per
+source type, all writing to `recall_fts` (migration 0016). The index is
+derived data and can always be rebuilt from the real tables.
 
-Design rules enforced by construction here:
-
-  * `sync_recall(session, source_type, source_id)` always re-fetches and
-    re-renders the real source row fresh — it never trusts a caller-
-    supplied title/content, so it can never drift from what the source
-    actually says (the same "resolve fresh, never trust a cached copy"
-    principle `briefing_service.resolve_pin_source()` already uses).
-  * `sync_recall` is idempotent and upsert-or-remove in one call: if the
-    source no longer exists, or is archived/superseded/not-ready, it
-    deletes any existing recall row instead of leaving a stale one —
-    exactly `app/fts_service.py::upsert_memory_fts`'s existing pattern
-    for `MemoryItem.status != "active"`, generalized to every source
-    type. This is what makes it safe to call from both a create path and
-    an archive/delete path with the same one function.
-  * Every adapter only reads already-vetted, human-readable fields — never
-    `arguments_json`/`confirmation_token`/`result_json` (action
-    proposals), never `output_json`'s raw shape beyond its own documented
-    plain-text `lines[].text` of LIFE/PATH/BUILD-tagged sections (routine
-    runs), never OAuth/Keychain/
-    credential data, never a raw provider payload.
-  * `domain_slug` is resolved once here, at write time, and stored as a
-    plain slug string (never a domain_id) — see migration 0016's own
-    docstring for why. A source with no single owning domain gets
-    `domain_slug=None` — the "global/system" classification the product
-    spec calls for, never silently defaulted to some domain, and never
-    read by the search layer as "excluded" or "sensitive".
+`sync_recall` re-renders the real row every time and deletes the index
+row when the source is gone, archived or not ready, so one call serves
+create, update and archive paths. Adapters only read display-safe
+fields, never tokens, credentials, raw provider payloads or routine
+output outside LIFE/PATH/BUILD sections. A source with no single owning
+domain is stored with `domain_slug=None` (global).
 """
 
 from __future__ import annotations
@@ -54,7 +32,7 @@ from app.models_mission_control import FocusSession
 from app.models_routines import RoutineRun
 
 # The fixed set of source types this module knows how to index. Kept in
-# sync with `app/schemas_recall.py`'s `RecallSourceType` Literal — a
+# sync with `app/schemas_recall.py`'s `RecallSourceType` Literal. A
 # mismatch there is a real defect, not a config typo, since an unlisted
 # type could otherwise silently never get indexed or never get removed.
 RECALL_SOURCE_TYPES = (
@@ -73,7 +51,7 @@ RECALL_SOURCE_TYPES = (
 
 def _as_aware(dt: datetime | None) -> datetime | None:
     """SQLite drops tzinfo on round-trip even through a `DateTime(timezone=
-    True)` column (docs/DECISIONS.md D89) — normalize before formatting."""
+    True)` column, so normalize before formatting."""
     if dt is None:
         return None
     return dt if dt.tzinfo is not None else dt.replace(tzinfo=timezone.utc)
@@ -98,7 +76,7 @@ def _domain_slug(session: Session, domain_id: str | None) -> str | None:
 def _recall_fts_table_exists(session: Session) -> bool:
     """A handful of tests (and, in principle, any service-layer code
     invoked mid-migration) deliberately run against a schema revision
-    older than 0016, where `recall_fts` does not exist yet — checked via
+    older than 0016, where `recall_fts` does not exist yet. Checked via
     `sqlite_master` (never itself capable of raising "no such table")
     rather than a try/except around the real DML, since a failed DBAPI
     statement would otherwise poison the caller's whole transaction and
@@ -145,7 +123,7 @@ def _insert_recall_row(
 
 class _NotIndexable(Exception):
     """Raised by an adapter to mean 'this row exists but should not (or no
-    longer) appear in recall' — caught by `sync_recall`, which then only
+    longer) appear in recall'. Caught by `sync_recall`, which then only
     ever deletes, never inserts a hollow row."""
 
 
@@ -188,7 +166,7 @@ def _render_structured_record(session: Session, record_id: str) -> dict:
         payload = {}
     title = payload.get("title") or record.record_type.replace("_", " ").title()
     # A flat, deterministic rendering of every string-valued payload field
-    # — never the raw JSON braces/keys as searchable noise, and never a
+    # without the raw JSON braces/keys as searchable noise, and never a
     # field this record type doesn't actually have.
     content_parts = [str(v) for v in payload.values() if isinstance(v, (str, int, float)) and str(v).strip()]
     return {
@@ -242,7 +220,7 @@ def _render_calendar_event(session: Session, event_id: str) -> dict:
     content_parts = [event.title, event.description, event.location]
     return {
         # Calendar events are always LIFE, by the same established
-        # convention `briefing_service.py`/Mission Control already use —
+        # convention `briefing_service.py`/Mission Control already use,
         # never stored per-row on CalendarEventCache itself.
         "domain_slug": "life",
         "occurred_at": _iso(occurred),
@@ -278,7 +256,7 @@ _INDEXABLE_ROUTINE_SECTION_DOMAINS = frozenset({"life", "path", "build"})
 
 def _routine_output_text(output_json: str | None) -> str:
     """Extracts only the documented plain-text `lines[].text` values from
-    a routine run's structured, deterministic `output_json` — never the
+    a routine run's structured, deterministic `output_json`, never the
     raw shape/keys, and safe against any malformed/unexpected JSON. Only
     sections tagged with an allowlisted domain are included (see
     `_INDEXABLE_ROUTINE_SECTION_DOMAINS`)."""
@@ -312,7 +290,7 @@ def _render_routine_run(session: Session, run_id: str) -> dict:
     content = " ".join(p for p in (run.reason, _routine_output_text(run.output_json)) if p)
     return {
         # A routine run has no single owning domain (it may touch several
-        # selected domains) — global/system classification, documented.
+        # selected domains), so it is classified global/system.
         "domain_slug": None,
         "occurred_at": _iso(run.started_at),
         "title": title,
@@ -334,20 +312,11 @@ def _render_mission_control_session(session: Session, focus_session_id: str) -> 
 
 
 def _render_decision(session: Session, decision_id: str) -> dict:
-    """Phase 12F: indexes only safe, useful fields — the decision's own
-    question/title, active option names, the current final version's own
-    rationale (Bernardo's own words, never the model critique), open
-    assumption/risk content, and any outcome review's summary/lessons.
-    Deliberately never indexes a model-critique's own text (that lives
-    only in `decision_brief_versions`, never synced here), provider
-    metadata, raw evidence duplicated from its own original source, or
-    any audit/internal data — available (like the deterministic brief
-    itself) without ever needing to touch a model. A decision is always
-    indexed regardless of lifecycle status (draft through abandoned) —
-    unlike an archived MemoryItem, a superseded/abandoned Decision is not
-    "retired content" but a first-class historical record this whole
-    feature exists to keep auditable and findable; nothing here is ever
-    hard-deleted, so there is no "ghost" risk this policy could create."""
+    """Indexes the decision's title, active option names, the final
+    rationale (Bernardo's words, never the model critique), open
+    assumptions/risks and outcome-review lessons. Decisions are indexed
+    at every status, since abandoned or superseded ones are still history
+    worth finding, and they are never hard-deleted."""
     decision = session.get(Decision, decision_id)
     if decision is None:
         raise _NotIndexable
@@ -412,7 +381,7 @@ _RENDERERS = {
 def sync_recall(session: Session, source_type: str, source_id: str) -> bool:
     """Re-derives and upserts (or removes, if no longer indexable) exactly
     one recall row from the real source row. Call this after every
-    create/update/archive of a recall-eligible row — see the module
+    create/update/archive of a recall-eligible row; see the module
     docstring for why this single function safely covers all three.
     Returns True if a row was (re-)indexed, False if it was removed/
     skipped as not currently indexable."""
@@ -431,7 +400,7 @@ def sync_recall(session: Session, source_type: str, source_id: str) -> bool:
 
 
 def remove_recall(session: Session, source_type: str, source_id: str) -> None:
-    """For a genuine hard delete (the source row itself is gone) — a
+    """For a genuine hard delete (the source row itself is gone): a
     thin, explicitly-named wrapper so call sites read as "this was
     deleted", not "this happened to fail re-indexing"."""
     if not _recall_fts_table_exists(session):
@@ -441,7 +410,7 @@ def remove_recall(session: Session, source_type: str, source_id: str) -> None:
 
 def rebuild_recall_index(session: Session) -> int:
     """Drops and repopulates the entire recall index from current
-    ground-truth tables — the backfill path for an installation upgrading
+    ground-truth tables. This is the backfill path for an installation upgrading
     from before migration 0016, and the manual repair path if the index
     is ever suspected stale or corrupt. Safe to call at any time; never
     touches `memory_fts`/`document_fts`, which remain independently

@@ -2,7 +2,7 @@
 
 Retention is a simple grandfather-father-son scheme with three independent
 categories (daily/weekly/monthly), each pruned to its own target count. This
-is a lightweight due-check invoked on application startup, not a scheduler —
+is a lightweight due-check invoked on application startup, not a scheduler;
 see docs/ARCHITECTURE.md for why a heavier scheduler is deferred.
 """
 
@@ -27,7 +27,7 @@ DUE_INTERVALS = {
 }
 
 # 'pre_delete' is a separate category, never created by the startup due-check
-# and never subject to DUE_INTERVALS — it's only created explicitly, right
+# and never subject to DUE_INTERVALS. It's only created explicitly, right
 # before a permanent memory deletion (see app/memory_service.py), as a
 # rollback safety net.
 ALL_CATEGORIES = CATEGORIES + ("pre_delete",)

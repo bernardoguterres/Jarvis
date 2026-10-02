@@ -1,42 +1,13 @@
-"""Phase 12F: Evidence-Based Decision Room — service logic. Completes
-Recall -> Research -> Decide -> Focus, built entirely on
-`app.recall_service` (evidence discovery/availability/link resolution)
-and `app.research_service`'s established patterns (versioned briefs,
-frozen citation-safe snapshots, idempotent evidence linking) — never a
-parallel search, scoring, or evidence system.
+"""Decision Room service logic, built on Recall for evidence and on
+Research's patterns (versioned briefs, frozen citation snapshots).
 
-Structural rules enforced by construction here (mirrors CLAUDE.md's
-Decision Room requirements and the discipline every Phase 12 module
-before it already established):
-
-  * No tool, action-proposal, Calendar/Health/memory mutation, routine/
-    schedule, terminal, filesystem, browser-automation, or cron
-    capability anywhere in this module.
-  * Jarvis supports the decision; it never makes it. Only `decide()` — an
-    explicit user action — ever creates a `DecisionFinalVersion` row. A
-    model critique (`draft_critique_with_model`, `source='model'`) is
-    structurally a different table (`DecisionBriefVersion`) with no
-    lifecycle authority at all: it cannot set status, cannot choose an
-    option, cannot create a `DecisionFinalVersion`.
-  * A Decision's own domain policy and a linked Research workspace's
-    policy combine as an INTERSECTION, never a union
-    (`_effective_domain_slugs`) — linking a workspace can only narrow or
-    preserve access, never widen it.
-  * `generate_deterministic_brief` never calls a model. The one function
-    that does, `draft_critique_with_model`, makes exactly one
-    `provider.send_turn()` call, builds its own tightly-bounded evidence
-    packet, and never loops, retries automatically, performs a further
-    Recall/Research search, or enables any tool.
-  * A citation is only ever trusted if its number was assigned by this
-    module from evidence genuinely linked to the decision — every bracket
-    number a model response contains is checked against that fixed set
-    before being treated as real.
-  * A model-call failure never persists a new brief version — the
-    decision, its options/criteria/evidence/factors, and every existing
-    version are left completely untouched.
-  * No lifecycle transition ever mutates a linked Research workspace,
-    Recall source, Calendar event, Mission Control session, memory,
-    integration, routine, or action proposal.
+Jarvis supports a decision but never makes it: only `decide()`, an
+explicit user action, creates a `DecisionFinalVersion`. A model critique
+is stored separately and cannot change status or pick an option. The
+decision's domain policy and a linked Research workspace's policy combine
+as an intersection, so linking can only narrow access. The model path
+makes exactly one call with no tools, citation numbers are checked
+against the decision's real evidence, and a failed call saves nothing.
 """
 
 from __future__ import annotations
@@ -78,7 +49,7 @@ _MAX_EVIDENCE_FOR_CRITIQUE = 40
 _DEFAULT_MODEL_TIMEOUT_SECONDS = 45.0
 _CITATION_PATTERN = re.compile(r"\[(\d+)\]")
 
-# A genuinely small sample can't support a real statistic — a documented,
+# A genuinely small sample can't support a real statistic, so this is a documented,
 # fixed minimum rather than inventing statistical meaning from 1-2
 # reviewed decisions. Chosen for this app's personal (single-user) scale,
 # not a general statistical best practice.
@@ -121,7 +92,7 @@ class DecisionNotFoundError(DecisionError):
 
 class DecisionModelError(DecisionError):
     """Raised when 'Ask Jarvis to challenge this decision' cannot be
-    fulfilled — no evidence/options to critique, or a provider failure.
+    fulfilled: no evidence/options to critique, or a provider failure.
     Never persists a new brief version; see the module docstring."""
 
 
@@ -159,7 +130,7 @@ def included_domain_slugs(decision: Decision) -> list[str]:
 
 def _effective_domain_slugs(session: Session, decision: Decision) -> list[str]:
     """The domain policy that actually governs evidence discovery/linking
-    for this decision — always the INTERSECTION of the decision's own
+    for this decision: always the INTERSECTION of the decision's own
     policy and a linked Research workspace's policy (never the union), so
     linking a workspace can only narrow or preserve access, never widen
     it. Computed fresh every call, never cached/stored."""
@@ -310,7 +281,7 @@ def decide(
     decision_confidence: int,
     now: datetime | None = None,
 ) -> Decision:
-    """The ONLY function that ever creates a `DecisionFinalVersion` row —
+    """The ONLY function that ever creates a `DecisionFinalVersion` row,
     always an explicit user action, never automatic, never triggered by a
     model critique."""
     decision = _require_decision(session, decision_id)
@@ -692,7 +663,7 @@ def compute_score_breakdown(
     criteria: list[DecisionCriterion],
     assessments: list[DecisionAssessment],
 ) -> ScoreBreakdown:
-    """Pure, deterministic, clock-independent — no DB access, no
+    """Pure, deterministic, clock-independent: no DB access, no
     randomness, no hidden normalization, no false precision. A total
     score is a plain integer sum of `weight * score` over every assessed
     (option, criterion) pair; an unassessed pair contributes nothing and
@@ -740,7 +711,7 @@ def compute_score_breakdown(
         )
 
     def _rank_key(entry):
-        # Deterministic tie-break: score desc, then option_id asc — never
+        # Deterministic tie-break: score desc, then option_id asc, never
         # an arbitrary/insertion-order-dependent tie.
         return (-entry["total_score"], entry["option_id"])
 
@@ -749,7 +720,7 @@ def compute_score_breakdown(
     tied = len(ranked) >= 2 and ranked[0]["total_score"] == ranked[1]["total_score"]
 
     # Sensitivity: for each criterion, recompute totals with that
-    # criterion excluded entirely — if the #1-ranked option would change,
+    # criterion excluded entirely. If the #1-ranked option would change,
     # flag that criterion's weight as a genuine driver of the result.
     sensitivity_warnings = []
     if len(considered_options) >= 2 and criteria:
@@ -791,7 +762,7 @@ def search_decision_evidence(
     limit: int = 20,
     offset: int = 0,
 ) -> recall_service.RecallSearchResult:
-    """Evidence discovery always delegates to `recall_service.search()` —
+    """Evidence discovery always delegates to `recall_service.search()`,
     never a parallel implementation. Scoped to the decision's effective
     (intersected) domain policy, regardless of any wider access either
     system's own default would otherwise allow."""
@@ -902,7 +873,7 @@ def import_research_evidence(
     into this decision's linked Research workspace, preserving provenance
     (`research_evidence_id`) while still resolving title/content/domain
     FRESH via Recall (never trusting the Research row's own frozen
-    snapshot as authoritative for a second time) — the exact same
+    snapshot as authoritative for a second time), the same
     resolve-fresh discipline `add_evidence` already applies."""
     decision = _require_decision(session, decision_id)
     _require_editable(decision)
@@ -1056,7 +1027,7 @@ def resolve_factor(
     session: Session, decision_id: str, factor_id: str, *, resolution_note: str | None = None, now: datetime | None = None
 ) -> DecisionFactor:
     """Marking an assumption/risk resolved is allowed at ANY decision
-    status (including after deciding, and as part of an outcome review) —
+    status (including after deciding, and as part of an outcome review):
     unlike editing its content, resolving is additive history, not a
     change to the original reasoning."""
     _require_decision(session, decision_id)
@@ -1093,7 +1064,7 @@ def _citation_order_evidence(session: Session, decision_id: str) -> list[Decisio
     """Deterministic citation order shared by both the deterministic brief
     and the model critique's evidence packet: by stance (supporting,
     contradicting, contextual, unresolved), then by when it was added,
-    then by id — never randomized, never request-order-dependent."""
+    then by id. Never randomized, never request-order-dependent."""
     rows = list_evidence(session, decision_id)
 
     def sort_key(link: DecisionEvidenceLink):
@@ -1115,7 +1086,7 @@ def _citation_record(number: int, link: DecisionEvidenceLink) -> dict:
 
 
 def generate_deterministic_brief(session: Session, decision_id: str) -> DecisionBriefVersion:
-    """Never calls a model or Hermes — a pure, reproducible rendering of
+    """Never calls a model or Hermes. A pure, reproducible rendering of
     the decision's own current options/criteria/assessments/evidence/
     factors, including the deterministic score breakdown and sensitivity
     warnings."""
@@ -1269,7 +1240,7 @@ def draft_critique_with_model(
     follow-up, no hidden Recall/Research search, no context beyond this
     decision's own content and selected evidence. On any failure (no
     evidence, or a ProviderError), raises `DecisionModelError` and
-    persists nothing — the decision and every existing brief/final
+    persists nothing. The decision and every existing brief/final
     version stay exactly as they were."""
     decision = _require_decision(session, decision_id)
     evidence = _citation_order_evidence(session, decision_id)
@@ -1405,7 +1376,7 @@ def add_outcome_review(
     now: datetime | None = None,
 ) -> DecisionOutcomeReview:
     """Preserves the original `DecisionFinalVersion` and its reasoning
-    completely unchanged — this is a separate, additive record. Allowed
+    completely unchanged. This is a separate, additive record. Allowed
     any time after at least one `decide()`, regardless of the decision's
     CURRENT status (even if later reopened/superseded/abandoned, the
     original decided version can still be reviewed)."""
@@ -1480,7 +1451,7 @@ def _rate(values: list[bool | None]) -> float | None:
 
 
 def calibration_summary(session: Session) -> CalibrationSummary:
-    """A deterministic aggregate across every reviewed decision — never
+    """A deterministic aggregate across every reviewed decision, never
     computed or phrased when the sample is too small to mean anything
     (see MIN_CALIBRATION_SAMPLE)."""
     reviews = list(session.execute(select(DecisionOutcomeReview)).scalars().all())

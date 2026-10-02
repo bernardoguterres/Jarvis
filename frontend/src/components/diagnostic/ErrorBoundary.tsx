@@ -8,7 +8,7 @@ interface ErrorBoundaryProps {
 
 interface ErrorBoundaryState {
   error: Error | null;
-  /** A short, non-secret local correlation code — never derived from the
+  /** A short, non-secret local correlation code, never derived from the
    * error's own message/stack, so it can never leak anything sensitive
    * even if generated from otherwise-untrusted state. */
   referenceId: string | null;
@@ -21,7 +21,7 @@ function generateReferenceId(): string {
 
 /** Catches uncaught React rendering failures anywhere below it. Renders a
  * calm, distinct diagnostic screen instead of a blank page or a raw stack
- * trace — the stack itself only ever appears sanitized, under a collapsed
+ * trace. The stack itself only ever appears sanitized, under a collapsed
  * Technical details control, and only when `import.meta.env.DEV`. */
 class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   state: ErrorBoundaryState = { error: null, referenceId: null };
@@ -31,7 +31,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    // Logged only to the local browser console — never sent anywhere,
+    // Logged only to the local browser console, never sent anywhere,
     // never rendered directly into the page outside the Technical details
     // disclosure below.
     // eslint-disable-next-line no-console

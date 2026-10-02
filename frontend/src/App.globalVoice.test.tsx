@@ -87,7 +87,7 @@ afterEach(() => {
 
 // userEvent's `{Space}` DSL key produces `code: "Unknown"` in this
 // environment (real browsers, and the production handlers this exercises,
-// use `event.code === "Space"`) — fireEvent dispatches the exact
+// use `event.code === "Space"`). fireEvent dispatches the exact
 // KeyboardEvent shape a genuine physical Space press produces.
 async function pressAndReleaseSpace() {
   fireEvent.keyDown(window, { code: "Space", key: " " });
@@ -161,7 +161,7 @@ describe("Global voice — Centre pages (acceptance #3, #4)", () => {
 
     await pressAndReleaseSpace();
 
-    // "go home" is a real command, executed deterministically — never sent
+    // "go home" is a real command, executed deterministically, never sent
     // as a conversation turn.
     await waitFor(() => expect(screen.queryByText("BODY")).toBeInTheDocument());
     expect(sendTurnSpy).not.toHaveBeenCalled();
@@ -193,7 +193,7 @@ describe("Global voice — Centre pages (acceptance #3, #4)", () => {
 
     await pressAndReleaseSpace();
 
-    // Never "not recognized as a command" — it's sent to Jarvis as an
+    // Never "not recognized as a command": it's sent to Jarvis as an
     // ordinary question, exactly as it would be from Home or a domain.
     await waitFor(() => expect(sendTurnSpy).toHaveBeenCalledTimes(1));
     expect(sendTurnSpy).toHaveBeenCalledWith("ambient-1", "How is my knee doing lately?", expect.any(String), []);

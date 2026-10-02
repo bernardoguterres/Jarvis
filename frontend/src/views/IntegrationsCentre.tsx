@@ -85,12 +85,12 @@ function IntegrationsCentre({ onBack }: IntegrationsCentreProps) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   // True only when the connection-status request itself has never
-  // succeeded (or most recently failed) — actual connect/disconnect state
+  // succeeded (or most recently failed), so actual connect/disconnect state
   // is unknown, so it must never be presented (or defaulted) as
   // "disconnected", and every action that depends on knowing the real
   // state must be disabled until this clears.
   const [statusUnknown, setStatusUnknown] = useState(true);
-  // Per-module failure flags (Phase 6 diagnostic pass): a supplementary
+  // Per-module failure flags: a supplementary
   // request failing must render a truthful "unavailable" ModuleErrorState,
   // never be conflated with "genuinely zero records" by silently leaving
   // the corresponding list at its previous/empty value.
@@ -108,7 +108,7 @@ function IntegrationsCentre({ onBack }: IntegrationsCentreProps) {
     // The connection-status fetch is intentionally isolated from every
     // other, supplementary request below: a failure in, say, Google
     // Health's summaries endpoint must never be able to make Calendar or
-    // Google Health look "disconnected" — that combination is exactly what
+    // Google Health look "disconnected". That combination is exactly what
     // caused a real, confirmed incident (docs/DECISIONS.md D66).
     try {
       const conns = await listIntegrations();
@@ -170,7 +170,7 @@ function IntegrationsCentre({ onBack }: IntegrationsCentreProps) {
     setError(null);
     try {
       // The backend itself opens the system browser server-side (see
-      // POST /api/integrations/{provider}/connect) — not this frontend.
+      // POST /api/integrations/{provider}/connect), not this frontend.
       // Tauri only injects its JS/IPC bridge into content loaded from its
       // own trusted origin, and this app's real content loads from the
       // same plain http://127.0.0.1 origin as everything else, so
@@ -255,7 +255,7 @@ function IntegrationsCentre({ onBack }: IntegrationsCentreProps) {
   }
 
   function handleDeleteDocument(doc: DocumentInfo) {
-    // An in-app confirmation panel, not window.prompt() — a native
+    // An in-app confirmation panel, not window.prompt(): a native
     // WebView (this app's own packaged window) doesn't reliably support
     // JS prompt dialogs the way a real browser tab does, so this is both
     // the fix for that and a UI more consistent with the rest of the app

@@ -1,4 +1,4 @@
-"""Phase 8: the local skill (create/review/edit/activate/archive/invoke) API."""
+"""The local skill (create/review/edit/activate/archive/invoke) API."""
 
 from __future__ import annotations
 

@@ -1,26 +1,14 @@
-"""Populate a throwaway JARVIS_DATA_DIR with realistic-looking demo content
-across every panel (domains, memories, records, Recall, Research, Decision
-Room, Mission Focus/Control, Actions Centre), purely for taking product
-screenshots.
-
-SAFETY: this refuses to run against the real default data directory
-(~/JarvisData). Always point it at a separate, disposable directory —
-cleanup is then just deleting that one directory.
+"""Fills a throwaway JARVIS_DATA_DIR with demo content for every panel,
+for taking product screenshots. Refuses to run against ~/JarvisData.
 
 Usage (from backend/):
 
     JARVIS_DEMO_DIR=~/JarvisDemoData
-    uv run alembic upgrade head --data-dir-override... (see README printed
-    by this script; short version below)
-
     JARVIS_DATA_DIR="$JARVIS_DEMO_DIR" uv run alembic upgrade head
     uv run python scripts/seed_demo_data.py --data-dir "$JARVIS_DEMO_DIR"
-
-Then point the backend/frontend at that same directory to browse and
-screenshot it, and delete the directory afterward:
-
     JARVIS_DATA_DIR="$JARVIS_DEMO_DIR" uv run uvicorn app.main:app --port 8000
-    rm -rf "$JARVIS_DEMO_DIR"
+
+Delete the directory afterwards to clean up.
 """
 
 from __future__ import annotations

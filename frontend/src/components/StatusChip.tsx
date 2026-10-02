@@ -6,7 +6,7 @@ interface StatusChipProps {
 }
 
 /** A consistent status-as-text+color chip. Always renders the literal
- * label as text (never color alone) — safe to use anywhere a plain status
+ * label as text (never color alone), so it is safe to use anywhere a plain status
  * string was previously rendered inline, since it doesn't change what
  * text is on the page, only how it's framed. */
 function StatusChip({ label, tone }: StatusChipProps) {

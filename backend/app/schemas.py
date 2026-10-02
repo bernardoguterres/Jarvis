@@ -1,4 +1,4 @@
-"""Pydantic request/response models for the Phase 1 API."""
+"""Pydantic request/response models for the core domain/conversation API."""
 
 from __future__ import annotations
 

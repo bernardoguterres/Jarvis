@@ -1,5 +1,5 @@
 """Confirms migration 0009 -> 0010 (Phase 10B routines) seeds all three
-fixed routine schedules disabled by default. Forward-only — 0001-0009
+fixed routine schedules disabled by default. Forward-only: 0001-0009
 untouched."""
 
 from __future__ import annotations

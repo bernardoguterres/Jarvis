@@ -1,12 +1,12 @@
-"""FakeCredentialStore behavior — automated tests never touch the real
+"""FakeCredentialStore behavior: automated tests never touch the real
 macOS Keychain (see docs/DECISIONS.md).
 
 KeychainCredentialStore.set()'s own control flow (try in-place update,
 fall back to keyring's create path) is tested below with the real
-Security-framework call mocked out entirely — still never touching the
+Security-framework call mocked out entirely, still never touching the
 real Keychain. The in-place update mechanism itself was verified against a
 real, disposable, uniquely-named Keychain item in a manual one-off
-verification (not part of this automated suite, per the rule above) — see
+verification (not part of this automated suite, per the rule above); see
 docs/DECISIONS.md."""
 
 from __future__ import annotations
@@ -56,7 +56,7 @@ def test_delete_all() -> None:
 
 
 class TestKeychainCredentialStoreSetControlFlow:
-    """KeychainCredentialStore.set()'s decision logic — mocked at the
+    """KeychainCredentialStore.set()'s decision logic, mocked at the
     app.keychain_update seam, never touching the real Keychain. Regression
     tests for the fix to keyring's own delete-then-recreate write
     semantics, which reset a Keychain item's Access Control list (wiping
@@ -99,7 +99,7 @@ class TestKeychainCredentialStoreSetControlFlow:
 
     def test_set_propagates_a_genuine_keychain_error_without_falling_back(self) -> None:
         # A real error (permission denied, corrupt item, etc.) must never
-        # be silently swallowed into a fallback create attempt — only the
+        # be silently swallowed into a fallback create attempt. Only the
         # specific "no such item yet" case (False) and "unsupported
         # platform" case fall back.
         store = KeychainCredentialStore()

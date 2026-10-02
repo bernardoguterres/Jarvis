@@ -1,10 +1,10 @@
-"""Phase 8's fixed, code-owned capability registry — a default-deny
+"""The fixed, code-owned capability registry: a default-deny
 allowlist. A capability_id not in this dict cannot be proposed, approved,
 or executed; nothing (not a skill, not a model, not an import) can add to
 this set at runtime.
 
 Every capability here is "Confirm" tier (CLAUDE.md §12): it only ever
-proposes a controller-owned internal record — no external side effect.
+proposes a controller-owned internal record, with no external side effect.
 """
 
 from __future__ import annotations
@@ -199,7 +199,7 @@ def validate_domain_for_capability(
                 f"record_type {record_type!r} belongs to domain {expected_slug!r}, not {domain.slug!r}"
             )
     if spec.capability_id.startswith("google_calendar.event."):
-        # Never assume a requested scope was granted — check what Google
+        # Never assume a requested scope was granted. Check what Google
         # actually returned, at propose time. calendar_capability.py
         # re-checks this again at execute time for defense in depth.
         from app import integration_service

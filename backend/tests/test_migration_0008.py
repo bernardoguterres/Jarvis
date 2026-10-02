@@ -1,6 +1,6 @@
 """Confirms the forward-only migration 0007 -> 0008 widens
 heart_rate_avg_bpm/min/max from Integer to Float without disturbing
-existing data — the real bug this fixes (D66): a stored fractional value
+existing data. The real bug this fixes (D66): a stored fractional value
 under the old Integer declaration caused a genuine unhandled 500 when read
 back through the (also Integer-typed) Pydantic schema."""
 
@@ -52,7 +52,7 @@ def test_migration_0008_widens_heart_rate_columns_to_float(data_dir: Path) -> No
         row = conn.execute("SELECT heart_rate_avg_bpm FROM google_health_daily_summaries WHERE id='row-1'").fetchone()
         assert row == (64,)
 
-        # A fractional value can now be stored and read back — the actual bug.
+        # A fractional value can now be stored and read back: the actual bug.
         conn.execute(
             "INSERT INTO google_health_daily_summaries (id, date, heart_rate_avg_bpm, fetched_at) VALUES "
             "('row-2', '2026-08-02', 64.51058794220229, datetime('now'))"

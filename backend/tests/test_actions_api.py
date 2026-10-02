@@ -113,7 +113,7 @@ def test_a_proposal_stuck_executing_by_a_crash_is_recovered_on_the_next_real_sta
     assert "did not happen" in detail["proposal"]["error_summary"].lower()
     assert [e["event_type"] for e in detail["audit_events"]] == ["proposed", "approved", "failed"]
 
-    # Genuinely terminal — the now-unused confirmation token cannot revive it.
+    # Genuinely terminal: the now-unused confirmation token cannot revive it.
     exec_resp = client2.post(
         f"/api/actions/{proposal_id}/execute", json={"confirmation_token": approved["confirmation_token"]}
     )

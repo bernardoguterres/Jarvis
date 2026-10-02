@@ -1,7 +1,7 @@
 """Manual, versioned domain summaries.
 
-Summaries are never auto-regenerated after messages in this phase — only
-explicit create/edit actions produce a new version (CLAUDE.md/ROADMAP Phase 4
+Summaries are never auto-regenerated after messages in this phase; only
+explicit create/edit actions produce a new version (CLAUDE.md/ROADMAP
 scope).
 """
 

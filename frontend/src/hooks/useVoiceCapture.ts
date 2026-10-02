@@ -20,13 +20,13 @@ export interface VoiceCaptureController {
 
 interface UseVoiceCaptureOptions {
   /** Checked once a recording has genuinely completed, before transcription
-   * even starts — mirrors the exact gate DomainView/GeneralConversation
+   * even starts. Mirrors the exact gate DomainView/GeneralConversation
    * already had: `false` aborts silently (e.g. no conversation selected
    * yet), a string aborts with that message as a real voice error, `true`
    * proceeds. Omit to always proceed. */
   guard?: () => true | false | string;
-  /** Any recognized actionable command — navigate, focus_control (shows,
-   * never activates), safe_action (the caller executes it immediately —
+  /** Any recognized actionable command: navigate, focus_control (shows,
+   * never activates), safe_action (the caller executes it immediately,
    * e.g. a read-only sync), or confirm_required (the caller owns showing
    * the confirmation UI and calling the real action only if accepted; this
    * hook never executes one of these directly). The same handler App.tsx
@@ -45,14 +45,14 @@ interface UseVoiceCaptureOptions {
 /** The one push-to-talk voice state machine, shared by every surface
  * (DomainView, GeneralConversation, and the ambient Home/Centre capture in
  * App.tsx) so there is never more than one microphone session, one
- * AudioContext graph, or one TTS playback path active at a time — each
+ * AudioContext graph, or one TTS playback path active at a time. Each
  * caller only supplies what's specific to it (a start-guard and where a
  * non-command transcript should actually be sent). Every transcript goes
  * through the same deterministic hierarchy: a recognized command (safe,
  * focus-only, or confirmation-required) is handed to `onSystemCommand`
- * (never auto-executed here — the caller decides what each kind actually
+ * (never auto-executed here; the caller decides what each kind actually
  * does), a blocked/destructive phrase is refused with an explanation, and
- * anything else is sent as an ordinary question via `submitTurn` — never
+ * anything else is sent as an ordinary question via `submitTurn`, never
  * silently dropped just because the caller is a Centre page rather than an
  * active conversation. */
 export function useVoiceCapture({ guard, onSystemCommand, submitTurn }: UseVoiceCaptureOptions): VoiceCaptureController {
@@ -87,7 +87,7 @@ export function useVoiceCapture({ guard, onSystemCommand, submitTurn }: UseVoice
             return;
           }
 
-          // Deterministic, model-independent routing — the same parser the
+          // Deterministic, model-independent routing: the same parser the
           // Command Palette uses (see commands/registry.ts). A safe command
           // executes immediately; a confirmation-required one only ever
           // reaches the caller's confirmation UI; a blocked phrase is
@@ -137,7 +137,7 @@ export function useVoiceCapture({ guard, onSystemCommand, submitTurn }: UseVoice
           };
           // setVoiceState("speaking") before .play() resolves (so the
           // overlay appears immediately); ttsAudioEl only *after* .play()
-          // resolves — tapping a Web Audio analyser onto the element any
+          // resolves. Tapping a Web Audio analyser onto the element any
           // earlier is a real Chromium loading race (see D78).
           setVoiceState("speaking");
           await audioEl.play();
@@ -169,14 +169,14 @@ export function useVoiceCapture({ guard, onSystemCommand, submitTurn }: UseVoice
   }, [voiceBusy, pushToTalk]);
 
   const stop = useCallback(() => {
-    // Gate on our own voiceState, not the hook's internal status — a
+    // Gate on our own voiceState, not the hook's internal status: a
     // release must be honored even while getUserMedia's permission prompt
     // is still pending (status hasn't reached "recording" yet). In that
     // case no MediaRecorder ever started, so onRecordingComplete never
-    // fires to bring voiceState back to idle — reset it here instead. When
+    // fires to bring voiceState back to idle, so reset it here instead. When
     // a recorder genuinely was running, pushToTalk.stop() synchronously
     // triggers handleRecordingComplete, which already sets "transcribing"
-    // in the same batch — forcing "idle" here too would silently clobber
+    // in the same batch. Forcing "idle" here too would silently clobber
     // that (React batches same-tick setState calls; the last call wins).
     if (voiceState !== "listening") return;
     const wasRecording = pushToTalk.status === "recording";
@@ -186,7 +186,7 @@ export function useVoiceCapture({ guard, onSystemCommand, submitTurn }: UseVoice
 
   const cancel = useCallback(() => {
     // An "error" state (e.g. a failed microphone permission check) has
-    // nothing actually recording to cancel — dismiss it directly, rather
+    // nothing actually recording to cancel, so dismiss it directly, rather
     // than requiring voiceState === "listening" below, which would leave
     // every Escape/cancel call from an error state silently doing nothing.
     if (voiceState === "error") {

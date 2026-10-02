@@ -1,6 +1,6 @@
 """Derived, rebuildable FTS5 index over imported document chunk text.
 
-Never authoritative — document_chunks is the source of truth. Mirrors
+Never authoritative: document_chunks is the source of truth. Mirrors
 app/fts_service.py's pattern for memory (see D31 there for why OR, not
 AND, joins tokens)."""
 
@@ -58,11 +58,11 @@ def search_document_fts(
     if not safe_query:
         return []
 
-    # `None` means "no domain filter" (search every domain) — the direct
+    # `None` means "no domain filter" (search every domain), the direct
     # search API's default. An explicit `[]` is a deliberate "zero domains
     # in scope" request (e.g. a general conversation, or a Research/Decision
     # policy narrowed to nothing) and must match nothing, never be silently
-    # widened back to "no filter" — every document belongs to exactly one
+    # widened back to "no filter". Every document belongs to exactly one
     # domain, so there is no "global" document to fall back to.
     if domain_ids is not None and len(domain_ids) == 0:
         return []

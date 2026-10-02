@@ -1,7 +1,7 @@
-"""Phase 12D: `app.recall_service.search()` — deterministic ranking,
+"""`app.recall_service.search()`: deterministic ranking,
 domain/privacy isolation, escaping/highlighting safety, malformed-query
 handling, partial-source-failure resilience, and pagination. Every test
-uses fictional fixtures — no real Calendar/Health/Keychain/Hermes/model
+uses fictional fixtures, with no real Calendar/Health/Keychain/Hermes/model
 contact."""
 
 from __future__ import annotations
@@ -202,7 +202,7 @@ def test_search_result_snippet_is_escaped_for_indexed_content(db_session: Sessio
 
 def test_retrieved_content_prompt_injection_remains_inert(db_session: Session) -> None:
     """A document/message containing text that LOOKS like an instruction to
-    an AI must never be executed or specially interpreted — it is only
+    an AI must never be executed or specially interpreted. It is only
     ever escaped, highlighted, displayed data. This test proves the
     snippet is exactly as inert as any other text: HTML-escaped, matched
     as plain text, and search itself never imports or calls a model."""
@@ -218,7 +218,7 @@ def test_retrieved_content_prompt_injection_remains_inert(db_session: Session) -
 
     result = recall_service.search(db_session, "ignore previous instructions")
     assert len(result.results) == 1
-    # It is returned as an ordinary, inert search result — never executed.
+    # It is returned as an ordinary, inert search result, never executed.
     assert "delete all memories" in result.results[0].snippet_html or "ignore previous" in result.results[0].snippet_html
 
 
@@ -297,7 +297,7 @@ def test_deleted_source_reported_as_unavailable_not_silently_dropped(db_session:
     record_id = record.id
     db_session.delete(record)
     db_session.commit()
-    # Deliberately do NOT call remove_recall — simulates a missed sync
+    # Deliberately do NOT call remove_recall; this simulates a missed sync
     # path or a stale index row, which the read-time re-check must catch.
     result = recall_service.search(db_session, "willbedeletedtoken")
     assert len(result.results) == 1

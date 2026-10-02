@@ -260,7 +260,7 @@ describe("MissionControlStrip — active mission", () => {
   });
 
   it("carries a coarse, non-spammy screen-reader announcement separate from the live-updating visual timer", () => {
-    // started_at 125 real seconds ago — the component re-derives elapsed
+    // started_at 125 real seconds ago. The component re-derives elapsed
     // time from persisted timestamps against the wall clock, never from a
     // static elapsed_seconds field, so the fixture must reflect that.
     const startedAt = new Date(Date.now() - 125_000).toISOString();

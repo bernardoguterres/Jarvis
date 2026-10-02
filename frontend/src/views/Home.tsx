@@ -37,7 +37,7 @@ import MissionFocusRail from "../components/MissionFocusRail";
 import ModelLinkBanner from "../components/diagnostic/ModelLinkBanner";
 import type { HealthStatus } from "../App";
 
-// How often Home re-polls the current mission while mounted — never the
+// How often Home re-polls the current mission while mounted. Never the
 // live-timer mechanism itself (MissionControlStrip's own ActiveMission
 // re-derives elapsed/remaining every second from persisted timestamps),
 // only how quickly a change made elsewhere (voice, command palette,
@@ -46,23 +46,23 @@ const MISSION_CONTROL_POLL_MS = 30_000;
 
 interface HomeProps {
   onSelectDomain: (slug: string) => void;
-  /** Opens the general Jarvis conversation — the core itself, not a
+  /** Opens the general Jarvis conversation: the core itself, not a
    * seventh domain (see App.tsx / GeneralConversation.tsx). */
   onOpenGeneral: () => void;
   /** The single generic navigation entry point App already exposes to the
-   * command layer (App.tsx's navigateToTarget) — reused here so a
+   * command layer (App.tsx's navigateToTarget), reused here so a
    * briefing item's `link_target` (a domain or a Centre) opens through
    * exactly the same code path a typed/spoken command would, never a
    * second navigation implementation. */
   onNavigate: (target: NavigateTarget) => void;
   health: HealthStatus;
   /** Set briefly by App when a typed/spoken command targets a domain while
-   * Home is the visible screen — merged into the same `focusing` treatment
+   * Home is the visible screen, merged into the same `focusing` treatment
    * a manual click gets, so the node's activation ring is actually seen
    * before navigating rather than skipped straight past. */
   commandFocusSlug?: string | null;
   /** True only when the backend is reachable but Hermes/the model gateway
-   * is not — a distinct, non-blocking degraded state, never conflated
+   * is not: a distinct, non-blocking degraded state, never conflated
    * with the backend itself being unavailable (see App.tsx's `health`). */
   modelDegraded?: boolean;
   onRetryModel?: () => void | Promise<void>;
@@ -70,7 +70,7 @@ interface HomeProps {
    * Home (see App.tsx's VoiceCaptureOverlay). That overlay briefly accepts
    * pointer events itself while showing an error (see
    * VoiceCaptureOverlay.tsx's is-dismissible), which means a domain node
-   * already being hovered never receives its own pointer-leave — without
+   * already being hovered never receives its own pointer-leave. Without
    * this, its tooltip stayed stuck open underneath the overlay, as if
    * still hovered, until the pointer happened to cross it again. */
   voiceActive?: boolean;
@@ -78,17 +78,17 @@ interface HomeProps {
 
 const RADIUS_PERCENT = 38;
 // Same idea for the core itself, tuned to the slightly longer route
-// transition Phase 6 asks for when opening the general conversation.
+// transition the HUD spec asks for when opening the general conversation.
 const CORE_ACTIVATE_TRANSITION_MS = 260;
 // A pointer must rest on a node for this long before its hover ring
-// activates — long enough that a pointer sweeping quickly across several
+// activates: long enough that a pointer sweeping quickly across several
 // nodes on its way somewhere else never lights any of them up, short
 // enough that a deliberate hover still feels immediate. Keyboard focus
 // bypasses this entirely (see DomainNode's onFocus) since a keyboard user
 // is never "passing through."
 const HOVER_INTENT_MS = 100;
 // Mirrors app/models_mission_focus.py's MISSION_FOCUS_DEFAULT_VISIBLE/
-// MISSION_FOCUS_MAX_ACTIVE_PINS — display-only constants; the server is
+// MISSION_FOCUS_MAX_ACTIVE_PINS: display-only constants; the server is
 // still the sole source of truth/enforcement for the actual 5-pin limit.
 const MISSION_FOCUS_DEFAULT_VISIBLE = 3;
 const MISSION_FOCUS_MAX_ACTIVE_PINS = 5;
@@ -105,12 +105,12 @@ function Home({
 }: HomeProps) {
   // Guards the async continuations below (loadCurrentMission/
   // loadMissionCandidates/loadBriefing) against setting state after Home
-  // has unmounted — e.g. selecting a domain while one of these requests is
+  // has unmounted, e.g. selecting a domain while one of these requests is
   // still in flight. Must be set back to true on every effect setup, not
   // just read from useRef's initial value: Strict Mode's dev-only
   // mount->cleanup->remount cycle runs this cleanup once before the
   // component's real lifetime begins, and without the explicit reset here
-  // that leaves the guard permanently false — silently dropping every
+  // that leaves the guard permanently false, silently dropping every
   // legitimate update for as long as Home stays mounted.
   const mountedRef = useRef(true);
   useEffect(() => {
@@ -130,7 +130,7 @@ function Home({
   const hoverIntentTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const coreActivateTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Phase 12A: the on-demand situational briefing — assembled entirely
+  // The on-demand situational briefing, assembled entirely
   // locally/deterministically by the backend (no model call). Fetched once
   // on mount and again only on an explicit "Refresh" click; never
   // auto-polled, since nothing here needs to feel "live" the way voice
@@ -142,16 +142,16 @@ function Home({
   const [discussError, setDiscussError] = useState<string | null>(null);
   const [discussReply, setDiscussReply] = useState<string | null>(null);
   const [reading, setReading] = useState(false);
-  // A single reusable <audio> element for "Read briefing aloud" — held in
+  // A single reusable <audio> element for "Read briefing aloud", held in
   // state (not a ref) so its own unmount-cleanup effect below can depend on
   // it directly, rather than mutating a ref's `.current` outside an effect.
   const [readAudioEl, setReadAudioEl] = useState<HTMLAudioElement | null>(null);
-  // Phase 12B: which item is currently mid-acknowledge/snooze/restore —
+  // Which item is currently mid-acknowledge/snooze/restore:
   // never a global loading flag, so unrelated rows stay interactive.
   const [briefingActionBusyKey, setBriefingActionBusyKey] = useState<string | null>(null);
   const [briefingActionError, setBriefingActionError] = useState<string | null>(null);
 
-  // Phase 12C: Mission Focus — its data travels embedded in the same
+  // Mission Focus: its data travels embedded in the same
   // HomeBriefing response (`briefing.mission_focus`), never a second
   // independent fetch/poll cycle.
   const [missionFocusBusyPinId, setMissionFocusBusyPinId] = useState<string | null>(null);
@@ -160,7 +160,7 @@ function Home({
   const [missionFocusDiscussError, setMissionFocusDiscussError] = useState<string | null>(null);
   const [missionFocusDiscussReply, setMissionFocusDiscussReply] = useState<string | null>(null);
 
-  // Mission Control / Current Focus — a separate poll cycle from the
+  // Mission Control / Current Focus: a separate poll cycle from the
   // briefing above (never piggy-backed onto it), since a focus session's
   // lifecycle can change from voice, the command palette, or another tab
   // at any moment, independent of when the briefing itself was last
@@ -217,7 +217,7 @@ function Home({
   // Re-poll on a fixed interval, whenever the window regains focus, and
   // immediately on MISSION_CONTROL_REFRESH_EVENT (dispatched by App.tsx
   // right after a voice/command-palette focus_start/pause/resume/
-  // complete/abandon action succeeds) — never the timer's own source of
+  // complete/abandon action succeeds), never the timer's own source of
   // truth (that's computeElapsedSeconds against the session's persisted
   // timestamps), only how quickly a change made elsewhere is noticed
   // here. Without the event listener, starting/ending a mission from the
@@ -398,7 +398,7 @@ function Home({
     if (isNavigateTarget(item.link_target)) {
       onNavigate(item.link_target);
     }
-    // An unrecognized/absent link_target never navigates anywhere — the
+    // An unrecognized/absent link_target never navigates anywhere; the
     // item stays visible, just not clickable-through.
   }
 
@@ -409,7 +409,7 @@ function Home({
     setDiscussReply(null);
     try {
       const conversation = await createGeneralConversation("Situational briefing discussion");
-      // Change labels and exact source references travel with the text —
+      // Change labels and exact source references travel with the text,
       // still quoted reference data through the existing context
       // boundary (app/context_builder.py's REFERENCE DATA framing), never
       // treated as instructions.
@@ -553,7 +553,7 @@ function Home({
     if (focusingSlug) return; // a transition is already underway
     // Immediate cyan/scale activation feedback (CSS-driven, see
     // `.domain-node.is-focusing`) and the shared View Transition both start
-    // on this same synchronous call — never a `setTimeout` gap between
+    // on this same synchronous call, never a `setTimeout` gap between
     // "the node reacts" and "navigation actually begins". `onSelectDomain`
     // (wired by App.tsx to `runDomainViewTransition`) owns morphing this
     // node into the destination header emblem; `focusingSlug` only drives
@@ -591,7 +591,7 @@ function Home({
     setHoveredSlug(null);
   }
 
-  // Keyboard focus is immediate — a keyboard user tabbing onto a node is
+  // Keyboard focus is immediate: a keyboard user tabbing onto a node is
   // never "passing through" the way a moving pointer can be.
   function handleFocus(slug: string) {
     if (hoverIntentTimeoutRef.current) clearTimeout(hoverIntentTimeoutRef.current);
@@ -599,7 +599,7 @@ function Home({
   }
 
   // The orbital core has no voice pipeline of its own yet (push-to-talk is
-  // scoped to an active domain conversation — see DomainView). Its state
+  // scoped to an active domain conversation; see DomainView). Its state
   // here reflects only the one real signal available at that level:
   // whether the backend is actually reachable. It must never be animated
   // to imply activity that isn't happening.

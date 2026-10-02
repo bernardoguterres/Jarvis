@@ -1,4 +1,4 @@
-"""Pydantic request/response models for the Phase 4 memory/record/context API."""
+"""Pydantic request/response models for the memory/record/context API."""
 
 from __future__ import annotations
 

@@ -1,5 +1,5 @@
 """Full OAuth begin -> callback -> sync -> disconnect flow, using a fake
-credential store and mocked httpx — no real Google Calendar/Health calls."""
+credential store and mocked httpx. No real Google Calendar/Health calls."""
 
 from __future__ import annotations
 
@@ -104,7 +104,7 @@ def test_initial_oauth_response_with_refresh_token_is_stored(db_session: Session
 
 def test_incremental_response_omitting_refresh_token_preserves_existing_one(db_session: Session) -> None:
     """The real, confirmed bug this fixes is scope corruption, not this
-    specific refresh-token-loss hypothesis — but `_store_tokens` already
+    specific refresh-token-loss hypothesis, but `_store_tokens` already
     guarded this correctly (skips the Keychain write entirely when the
     response omits refresh_token), and this proves it stays that way."""
     store = FakeCredentialStore()
@@ -160,7 +160,7 @@ def test_granted_read_scopes_plus_write_scope_persisted_correctly(db_session: Se
 def test_cross_provider_scope_contamination_is_filtered_out(db_session: Session) -> None:
     """The real, confirmed root cause: Google can return the union of both
     integrations' scopes on a single callback when they share a Cloud
-    project (D63/D65) — including, on this account, Health's 3 scopes
+    project (D63/D65), including, on this account, Health's 3 scopes
     appearing on a Calendar callback with the write scope never granted at
     all. The stored scopes must never include scopes that don't belong to
     this provider."""
@@ -398,8 +398,8 @@ def test_sync_google_health_populates_cache(db_session: Session) -> None:
 
 
 def test_sync_google_health_is_idempotent_across_repeated_syncs(db_session: Session) -> None:
-    """Repeated syncs with identical upstream data must not duplicate rows
-    — a daily summary is keyed by date, a session by (session_type,
+    """Repeated syncs with identical upstream data must not duplicate rows:
+    a daily summary is keyed by date, a session by (session_type,
     external_id), both enforced by a real DB unique constraint."""
     from app.models_integrations import GoogleHealthDailySummary, GoogleHealthSession
 
@@ -454,7 +454,7 @@ def test_sync_google_health_is_idempotent_across_repeated_syncs(db_session: Sess
 
 
 def test_sync_google_health_records_partial_status_without_aborting_on_metric_failure(db_session: Session) -> None:
-    """Missing/unsupported data for a given account is normal — one
+    """Missing/unsupported data for a given account is normal. One
     metric's real API failure must not abort the sync, and must be visible
     as a "partial" status rather than a silently-successful "ok"."""
     store = FakeCredentialStore()
@@ -475,14 +475,14 @@ def test_sync_google_health_records_partial_status_without_aborting_on_metric_fa
 
 def test_sync_google_health_malformed_data_point_does_not_abort_other_metrics(db_session: Session) -> None:
     """D83 (reliability audit): several extract functions use
-    `v.get("distance", {}).get("millimetersSum")` — `.get(key, {})` only
+    `v.get("distance", {}).get("millimetersSum")`. `.get(key, {})` only
     substitutes the default when `key` is *absent*, not when it's present
     with an explicit JSON `null`. A real API returning `"distance": null`
     (valid JSON, a realistic malformed/partial-response shape) previously
     raised an unhandled AttributeError (`'NoneType' object has no attribute
     'get'`) that escaped `fetch_health_data` entirely, aborting the whole
     sync and discarding every other metric already successfully parsed in
-    the same call — contradicting this integration's own documented "one
+    the same call, contradicting this integration's own documented "one
     metric's failure never aborts the rest" guarantee. Steps (a sibling
     metric fetched in the same dailyRollUp call) must still populate."""
     store = FakeCredentialStore()
@@ -515,7 +515,7 @@ def test_sync_google_health_malformed_data_point_does_not_abort_other_metrics(db
 
 def test_sync_google_calendar_malformed_event_recorded_as_error_not_unhandled_exception(db_session: Session) -> None:
     """D83 (reliability audit): `_normalize_event` reads `item["id"]` with
-    direct indexing — a genuinely malformed/truncated Calendar API response
+    direct indexing. A genuinely malformed/truncated Calendar API response
     (an event object missing "id") previously raised an unhandled KeyError
     that escaped `sync_google_calendar`'s narrow `except (IntegrationError,
     GoogleCalendarError)` entirely, surfacing as an unhandled exception
@@ -544,7 +544,7 @@ def test_sync_google_health_normalizes_token_refresh_error_to_integration_error(
     IntegrationError` produced an unhandled 500 (see docs/DECISIONS.md
     D62). Per-metric fetch failures are now handled per-metric (see the
     partial-status test above); this covers the remaining path that can
-    still raise directly — a failed token refresh."""
+    still raise directly: a failed token refresh."""
     store = FakeCredentialStore()
     _configure(store, "google_health")
     store.set("google_health", "access_token", "OLD")

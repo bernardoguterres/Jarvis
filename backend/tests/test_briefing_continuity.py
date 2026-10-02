@@ -1,9 +1,9 @@
-"""Phase 12B: briefing continuity — stable identity/fingerprint rules,
+"""Briefing continuity: stable identity/fingerprint rules,
 new/changed/ongoing/resolved/reopened classification, false-resolution
 protection, priority-cap-churn safety, and snapshot spam prevention.
 
 Every test uses fictional fixtures seeded directly into the isolated test
-database, and an injected/fixed clock — no real Google/Keychain/Hermes/
+database, and an injected/fixed clock, with no real Google/Keychain/Hermes/
 model contact, matching app/briefing_service.py's own "no model call,
 ever" guarantee."""
 
@@ -116,7 +116,7 @@ def test_meaningful_field_change_is_changed(db_session: Session) -> None:
 
 def test_becoming_more_urgent_counts_as_changed(db_session: Session) -> None:
     """A NEXT (due-soon) task crossing into NOW (overdue) is a category
-    transition — captured in the fingerprint by design (§8's "an item
+    transition, captured in the fingerprint by design (§8's "an item
     becoming more urgent counts as changed")."""
     now = datetime(2026, 8, 29, 9, 0, tzinfo=timezone.utc)
     _life_task(db_session, "Renew passport", "2026-08-30")  # due soon -> NEXT
@@ -180,7 +180,7 @@ def test_priority_cap_churn_never_falsely_labels_new_or_resolved(db_session: Ses
 
     # A second identical pass: every one of the 7 underlying identities is
     # now "ongoing" in the ledger (verified directly, not just via the
-    # capped view) — none was ever marked resolved just for falling
+    # capped view). None was ever marked resolved just for falling
     # outside the visible top 5.
     b2 = _assemble(db_session, now + timedelta(minutes=1))
     assert all(i.change_state == "ongoing" for i in b2.items)
@@ -224,7 +224,7 @@ def test_partial_source_failure_isolates_other_sources(db_session: Session) -> N
     with mock.patch.object(briefing_service, "open_records", side_effect=RuntimeError("boom")):
         b = _assemble(db_session, now)
     # Both life_task and path_deadline share the same `open_records` call,
-    # so both fail together here — but calendar/actions/etc. (which don't
+    # so both fail together here, but calendar/actions/etc. (which don't
     # call open_records at all in this scenario) are unaffected, proving
     # isolation at the _gather_candidates level.
     assert b.items == []
@@ -232,7 +232,7 @@ def test_partial_source_failure_isolates_other_sources(db_session: Session) -> N
 
 
 def test_google_health_disabled_never_evaluated_as_failed(db_session: Session) -> None:
-    """include_body=False must not be conflated with a failed source —
+    """include_body=False must not be conflated with a failed source:
     it's a deliberate, successful non-read."""
     now = datetime(2026, 8, 29, 9, 0, tzinfo=timezone.utc)
     candidates, evaluations = briefing_service._gather_candidates(db_session, include_body=False, now=now)

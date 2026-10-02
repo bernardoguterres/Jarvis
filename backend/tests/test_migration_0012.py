@@ -1,6 +1,6 @@
 """Confirms migration 0011 -> 0012 (Phase 12A briefing settings) seeds a
 single settings row matching Bernardo's already-recorded privacy
-selection: BODY included, MIND and PEOPLE excluded. Forward-only —
+selection: BODY included, MIND and PEOPLE excluded. Forward-only:
 0001-0011 untouched."""
 
 from __future__ import annotations

@@ -1,64 +1,15 @@
-"""Phase 12A/12B: current situational briefing / attention assembler, and
-briefing continuity (change detection, acknowledge, snooze).
+"""Home situational briefing (NOW/NEXT/WATCH) and its continuity tracking.
 
-Shared, deterministic, local-only logic reused by:
+Also provides the data helpers the Morning Briefing routine uses, so both
+read the same facts the same way.
 
-  1. app/routine_service.py's Morning Briefing routine (Phase 10B) — its
-     per-section data gathering (today's Calendar events, open LIFE/PATH/
-     BUILD records, the latest Google Health daily summary) now calls the
-     helpers in this module, so the routine and the on-demand Home
-     briefing below never independently re-derive (and potentially
-     disagree about) the same underlying facts. The routine also records
-     a lightweight `BriefingSnapshot` row (`consumer="morning_briefing"`)
-     purely for audit/history — it never touches `BriefingItemState` or
-     any acknowledge/snooze table, which are exclusively a Home concern
-     (see §12B below).
-  2. app/routers/briefing.py's on-demand Home "situational briefing" — a
-     concise (3-5 item) NOW/NEXT/WATCH triage view, distinct from the
-     Morning Briefing routine's own fuller per-domain listing.
-
-Hard rules enforced by construction here (CLAUDE.md, Phase 12A/12B brief):
-
-  * No model call, no Hermes call, anywhere in this module.
-  * No action proposal is ever created and nothing is ever mutated on any
-    external source — every function here only reads Jarvis's own
-    already-locally-stored/synced data; acknowledge/snooze writes affect
-    only this module's own presentation-state tables (§12B), never the
-    original Calendar/task/action/integration/routine/Health record.
-  * MIND and PEOPLE data is never read by the Home briefing at all
-    (there is no code path from either domain's tables into
-    `assemble_home_briefing`), regardless of the `include_mind`/
-    `include_people` settings flags below — those flags exist for
-    forward compatibility with `BriefingSettings` (mirroring the
-    Morning Briefing routine's own per-domain opt-in shape) but gate
-    nothing yet, since Phase 12A defines no permitted MIND/PEOPLE source
-    for this view. If a MIND/PEOPLE source is ever added here, it must
-    be gated behind its own flag exactly the way `include_body` gates
-    Google Health below — never a default inclusion.
-  * BODY (Google Health) is reported as plain, already-computed facts
-    (a date, a count, a "days since last sync") — never a derived score,
-    never a medical interpretation. Google Health's own unsupported
-    scores (readiness/sleep/stress/cardio load) are not surfaced here,
-    matching app/providers/google_health.py's UNSUPPORTED_METRICS.
-  * Every `BriefingItem` carries enough provenance to audit: a stable
-    identity key, the exact source row id(s), a human reason, a source
-    timestamp (when one exists), a truthful freshness label, a content
-    fingerprint, and whether it's a plain fact or (never yet used here)
-    an explicitly labeled inference.
-
-Phase 12B — continuity, in one paragraph: every candidate item carries two
-separate deterministic identifiers. `id` (the "stable identity key")
-represents the underlying concern across time (one Calendar event, one
-task, one integration's sync health, ...) and is never expected to change
-run to run for the same concern. `fingerprint` is a short stable hash of
-only the specific normalized, typed, already-computed fields that are
-considered meaningful for that source type (documented per-source below,
-inline at each candidate-construction site) — never a raw provider
-payload, secret, token, or untrusted text. Comparing these two values
-against `BriefingItemState` (the persisted per-identity ledger) is what
-produces the `new`/`changed`/`ongoing`/`resolved`/`reopened`
-classification — see `_reconcile_ledger` for the exact rules, and
-`docs/ARCHITECTURE.md` §16 / `docs/DECISIONS.md` D87 for the full account.
+No model or Hermes call happens here, and no real source is ever modified;
+acknowledge and snooze only write this module's own tables. MIND and
+PEOPLE are never read (no code path reaches their tables), and BODY is
+shown only as plain facts. Each item has a stable `id` for the underlying
+concern and a `fingerprint` of the fields worth noticing; comparing both
+against the `BriefingItemState` ledger gives its new/changed/ongoing/
+resolved/reopened state (see `_reconcile_ledger`).
 """
 
 from __future__ import annotations
@@ -120,7 +71,7 @@ RECENT_FAILURE_WINDOW_DAYS = 3
 RECENT_CHECKPOINT_WINDOW_DAYS = 2
 
 # Deterministic tie-break bands for BriefingItem.priority (lower sorts
-# first within its own category — see _sort_key). Documented explicitly
+# first within its own category; see _sort_key). Documented explicitly
 # rather than left as unexplained magic numbers, since these are Jarvis's
 # own judgment calls, not something the product brief mandates precisely.
 _PRIORITY_FAILED_ACTIONS = 5
@@ -132,7 +83,7 @@ _PRIORITY_BODY_STALE = 50
 _PRIORITY_BUILD_CHECKPOINT = 90
 # Overdue tasks/deadlines always rank below an imminent Calendar event
 # within NOW (a meeting starting in 10 minutes is more time-critical than
-# a task that has already been overdue for days) — this band starts well
+# a task that has already been overdue for days). This band starts well
 # above CALENDAR_IMMINENT_MINUTES's 0-30 range.
 _PRIORITY_OVERDUE_BASE = 200
 _PRIORITY_DUE_SOON_BASE = 1000
@@ -142,7 +93,7 @@ HOME_BRIEFING_MAX_ITEMS = 5
 ALL_DOMAIN_SLUGS = ("body", "mind", "people", "path", "build", "life")
 
 # --------------------------------------------------------------------------
-# Phase 12B: continuity types and tunables
+# Continuity types and tunables
 # --------------------------------------------------------------------------
 
 ChangeState = Literal["new", "changed", "ongoing", "resolved", "reopened"]
@@ -154,12 +105,12 @@ SuppressKind = Literal["acknowledged", "snoozed"]
 # ONGOING item gets a small opposite nudge. Both are small relative to the
 # priority bands above (§12A) so they can never cross a real priority-band
 # boundary (e.g. never make an ongoing WATCH item outrank a genuinely new
-# NOW item) — they only reorder within what was already a near-tie.
+# NOW item). They only reorder within what was already a near-tie.
 _CHANGE_PRIORITY_BOOST = 3
 _ONGOING_PRIORITY_PENALTY = 1
-# Resolved items are deliberately the lowest-priority tier in WATCH — they
+# Resolved items are deliberately the lowest-priority tier in WATCH: they
 # only ever occupy a cap slot that would otherwise be empty ("shown
-# sparingly," per the Phase 12B brief).
+# sparingly").
 _PRIORITY_RESOLVED = 1_000_000
 
 # Snapshot spam prevention: two candidate-set generations for the same
@@ -171,14 +122,14 @@ SNAPSHOT_DEDUPE_WINDOW_SECONDS = 60
 SNAPSHOT_RETENTION_PER_CONSUMER = 200
 # A resolved ledger row (e.g. a single day's Calendar event, which by
 # construction gets a brand new identity every day) is only useful for a
-# little while after resolution — pruned by cleanup_old_briefing_state()
+# little while after resolution, then pruned by cleanup_old_briefing_state()
 # so a fast-churning daily source can never grow this table unboundedly.
 LEDGER_RESOLVED_RETENTION_DAYS = 30
 # Restored/expired acknowledge-and-snooze rows are kept for audit for a
 # while, then pruned the same way; ACTIVE rows are never pruned.
 ACK_SNOOZE_INACTIVE_RETENTION_DAYS = 30
 
-# Snoozing offers a small, fixed, server-validated set of durations —
+# Snoozing offers a small, fixed, server-validated set of durations,
 # never an arbitrary client-supplied timestamp (CLAUDE.md §12).
 SNOOZE_DURATION_LABELS: dict[str, str] = {
     "1h": "1 hour",
@@ -186,30 +137,30 @@ SNOOZE_DURATION_LABELS: dict[str, str] = {
     "tomorrow_morning": "Until tomorrow morning",
     "1w": "1 week",
 }
-# "Tomorrow morning" needs a timezone and an hour — Bernardo's own
-# recorded Morning Briefing timezone (docs/ROADMAP.md Phase 10B) is reused
+# "Tomorrow morning" needs a timezone and an hour. Bernardo's own
+# recorded Morning Briefing timezone is reused
 # as a sensible shared default; callers may override per-request (and
 # tests do, to exercise DST) via SnoozeRequest.timezone.
 DEFAULT_BRIEFING_TIMEZONE = "Europe/London"
 SNOOZE_MORNING_HOUR = 8
 
 # --------------------------------------------------------------------------
-# Phase 12C: Mission Focus tunables
+# Mission Focus tunables
 # --------------------------------------------------------------------------
 
 # A pinned item with no inherent date-driven urgency (a WATCH-tier
 # build_checkpoint/action_proposal, or a task/deadline with no due date)
-# ranks here — below genuine failure/urgent signals (FAILED_ACTIONS=5,
+# ranks here: below genuine failure/urgent signals (FAILED_ACTIONS=5,
 # PENDING_ACTIONS=10, ROUTINE_FAILED=15, INTEGRATION_ERROR=20, all still
 # more urgent) but above ordinary informational WATCH items
-# (INTEGRATION_STALE=40, BODY_STALE=50, BUILD_CHECKPOINT=90) — the exact
+# (INTEGRATION_STALE=40, BODY_STALE=50, BUILD_CHECKPOINT=90). This is the
 # "genuinely urgent/failure states remain highest priority; active pins
 # rank above ordinary non-urgent candidates" rule. `+ pin.rank` (1-5)
 # breaks ties deterministically by Bernardo's own explicit ordering.
 _PRIORITY_MISSION_FOCUS_WATCH_BASE = 25
 # A pinned item that IS already NOW/NEXT on its own real-world merits (an
 # overdue task, an imminent meeting) gets only a small nudge within its
-# own category — it must never be able to cross into a different
+# own category. It must never be able to cross into a different
 # category or outrank a more urgent unpinned item just for being pinned.
 _PIN_PRIORITY_NUDGE = 2
 
@@ -232,7 +183,7 @@ def get_or_create_settings(session: Session) -> BriefingSettings:
 
 
 def set_include_body(session: Session, include_body: bool) -> BriefingSettings:
-    """MIND/PEOPLE are never settable here — see BriefingSettingsUpdateRequest's
+    """MIND/PEOPLE are never settable here; see BriefingSettingsUpdateRequest's
     docstring and this module's own module docstring for why."""
     settings = get_or_create_settings(session)
     settings.include_body = include_body
@@ -245,7 +196,7 @@ def set_include_body(session: Session, include_body: bool) -> BriefingSettings:
 
 @dataclass(frozen=True)
 class BriefingItem:
-    id: str  # the stable identity key — see the module docstring's Phase 12B paragraph
+    id: str  # the stable identity key, see the module docstring
     category: Category
     tone: Tone
     priority: int
@@ -259,10 +210,10 @@ class BriefingItem:
     freshness: Freshness
     classification: Classification
     link_target: str | None  # matches frontend NavigateTarget shape, or None
-    fingerprint: str  # content fingerprint — see the module docstring's Phase 12B paragraph
+    fingerprint: str  # content fingerprint, see the module docstring
     change_state: ChangeState = "new"  # overwritten by _reconcile_ledger; "new" is a safe default for callers that never reconcile
-    # Phase 12C: set only when this exact candidate corresponds to an
-    # active Mission Focus pin — never set by anything other than
+    # Set only when this exact candidate corresponds to an
+    # active Mission Focus pin. Never set by anything other than
     # `_merge_pin_into_item`/`_synthesize_pin_item` below, so `pinned`
     # always reflects a real, currently-active row in `mission_focus_pins`.
     pinned: bool = False
@@ -280,11 +231,11 @@ class SourceStatus:
 @dataclass(frozen=True)
 class SourceEvaluation:
     """Whether a given source's candidate-gathering query itself
-    succeeded this pass — independent of what it found. Only a source
+    succeeded this pass, independent of what it found. Only a source
     that evaluated `ok=True` may ever have one of its stable identities
     marked `resolved`; a source whose read failed this pass leaves every
     identity it might explain exactly as it was (CLAUDE.md's
-    false-resolution-protection rule, Phase 12B)."""
+    false-resolution-protection rule)."""
 
     source_type: str
     ok: bool
@@ -336,7 +287,7 @@ def _record_payload(record: StructuredRecord) -> dict:
 
 def _parse_due_date(raw: str | None) -> date_type | None:
     """`due_date` is a free-form, un-validated string field
-    (app/structured_records.py) — never assume it parses. A value that
+    (app/structured_records.py), so never assume it parses. A value that
     doesn't parse as an ISO date is simply not date-triaged here; it
     remains fully visible in its own domain view."""
     if not raw:
@@ -348,7 +299,7 @@ def _parse_due_date(raw: str | None) -> date_type | None:
 
 
 def _format_date_display(d: date_type) -> str:
-    """Human-facing date text for briefing subtitles/reasons — dd/mm/yyyy,
+    """Human-facing date text for briefing subtitles/reasons: dd/mm/yyyy,
     Bernardo's explicit preference over a raw ISO 8601 string. Display
     only: fingerprint inputs and API data payloads elsewhere in this file
     deliberately keep using `.isoformat()`, since changing those would
@@ -357,14 +308,14 @@ def _format_date_display(d: date_type) -> str:
 
 
 def _format_datetime_display(dt: datetime) -> str:
-    """Human-facing date+time text — dd/mm/yyyy, 24-hour clock. Converts
+    """Human-facing date+time text: dd/mm/yyyy, 24-hour clock. Converts
     to local time first: a stored UTC timestamp shown verbatim would be
     wrong by Bernardo's own UTC offset, and confusing for exactly the
     "when did this actually happen" question a briefing subtitle exists
     to answer."""
     # Every stored timestamp in this codebase is UTC by convention (see
     # `_utcnow()`), but SQLite's DateTime(timezone=True) doesn't actually
-    # round-trip tzinfo — a naive value read back here is still UTC, not
+    # round-trip tzinfo. A naive value read back here is still UTC, not
     # already-local, so it must be labeled before converting.
     aware = dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
     return aware.astimezone().strftime("%d/%m/%Y, %H:%M")
@@ -372,18 +323,18 @@ def _format_datetime_display(dt: datetime) -> str:
 
 def _fingerprint(fields: dict) -> str:
     """A short, stable, non-cryptographic content fingerprint over
-    already-normalized, typed, display-safe fields only — never a raw
+    already-normalized, typed, display-safe fields only, never a raw
     provider payload, a secret, a token, or untrusted free text. Two
     calls with equal `fields` always produce the same digest (canonical
     JSON: sorted keys, fixed separators, non-JSON-native values coerced
-    via `str`), which is the only property this needs — it is never used
+    via `str`), which is the only property this needs. It is never used
     for anything security-sensitive."""
     canonical = json.dumps(fields, sort_keys=True, separators=(",", ":"), default=str)
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:16]
 
 
 # --------------------------------------------------------------------------
-# Shared raw-data gathering — reused by app/routine_service.py so the
+# Shared raw-data gathering, reused by app/routine_service.py so the
 # routine and the Home briefing never independently re-derive the same
 # underlying facts.
 # --------------------------------------------------------------------------
@@ -391,7 +342,7 @@ def _fingerprint(fields: dict) -> str:
 
 def open_records(session: Session, domain_id: str, record_type: str, limit: int = 10) -> list[StructuredRecord]:
     """Open (never-archived) structured records of one type in one domain,
-    most recent first — the exact shape every Morning Briefing section and
+    most recent first. This is the shape every Morning Briefing section and
     every Home-briefing due-date check both need."""
     return (
         session.query(StructuredRecord)
@@ -408,7 +359,7 @@ def open_records(session: Session, domain_id: str, record_type: str, limit: int 
 
 def todays_calendar_events(session: Session, today: date_type) -> list[CalendarEventCache]:
     """Selected-calendar events falling on `today` (local-date match on
-    the cached, already-synced data) — a manual/automatic sync (Phase
+    the cached, already-synced data). A manual/automatic sync (Phase
     9/10A) is what actually refreshes this cache; this function never
     calls Google itself."""
     rows = (
@@ -431,7 +382,7 @@ def latest_google_health_summary(session: Session) -> GoogleHealthDailySummary |
 
 
 # --------------------------------------------------------------------------
-# Home briefing — candidate item gathering
+# Home briefing: candidate item gathering
 # --------------------------------------------------------------------------
 
 
@@ -471,9 +422,9 @@ def _calendar_items(session: Session, now: datetime) -> list[BriefingItem]:
                 continue  # already ended
             subtitle = start.strftime("%H:%M")
         # Fingerprint fields: title/start/end/all_day (the event's own
-        # facts) plus `category` — a NOW/NEXT transition (an event
+        # facts) plus `category`. A NOW/NEXT transition (an event
         # becoming imminent) is deliberately meaningful here, per the
-        # Phase 12B rule that increasing urgency counts as a change.
+        # rule that increasing urgency counts as a change.
         # Excluded: the exact `priority` (jitters every fetch as time
         # passes) and `freshness` (sync staleness is reported separately
         # via `SourceStatus`, not per-item).
@@ -620,7 +571,7 @@ def _failed_actions_item(session: Session, now: datetime) -> BriefingItem | None
 
 
 def _integration_watch_items(session: Session, now: datetime) -> list[BriefingItem]:
-    # Identity is per-provider only (`integration_sync:{provider}`) — the
+    # Identity is per-provider only (`integration_sync:{provider}`). The
     # error-vs-stale distinction, and the exact error text, live in the
     # fingerprint instead of the identity key, so a provider's sync
     # health is tracked as ONE continuous concern across states (a
@@ -630,10 +581,10 @@ def _integration_watch_items(session: Session, now: datetime) -> list[BriefingIt
     for provider, label in (("google_calendar", "Google Calendar"), ("google_health", "Google Health")):
         conn = session.get(IntegrationConnection, provider)
         if conn is None or conn.status not in ("connected", "error"):
-            continue  # never connected, or already genuinely disconnected — nothing to watch
+            continue  # never connected, or already disconnected: nothing to watch
         if conn.status == "error" or conn.last_sync_status in ("failed", "partial"):
             state = "failed" if conn.last_sync_status == "failed" else (conn.last_sync_status or "error")
-            # last_sync_at is deliberately excluded from the fingerprint —
+            # last_sync_at is deliberately excluded from the fingerprint:
             # it advances on every retry even while the failure reason
             # itself is unchanged, which would otherwise make this
             # `changed` on every single sync attempt.
@@ -687,7 +638,7 @@ def _integration_watch_items(session: Session, now: datetime) -> list[BriefingIt
 
 def _routine_watch_items(session: Session, now: datetime) -> list[BriefingItem]:
     # Identity is per-routine-type (`routine_run:{routine_type}`), not
-    # per-run — a *new* failing run of the same routine (a different
+    # per-run. A *new* failing run of the same routine (a different
     # RoutineRun.id) is what the fingerprint captures as `changed`
     # (genuinely worth re-flagging), while the identity itself represents
     # the ongoing concern "does this routine currently run cleanly."
@@ -761,14 +712,14 @@ def _build_checkpoint_item(session: Session, now: datetime) -> BriefingItem | No
 
 
 def _body_watch_item(session: Session, now: datetime) -> BriefingItem | None:
-    # Identity is a fixed slot (`google_health:freshness`) — there is only
+    # Identity is a fixed slot (`google_health:freshness`). There is only
     # ever one "is BODY data fresh enough" concern, not one per summary
     # row. The fingerprint intentionally buckets to a coarse state
     # (`no_data` / `stale`) rather than the exact day-count, which would
     # otherwise make this `changed` every single day it stays stale.
     conn = session.get(IntegrationConnection, "google_health")
     if conn is None or conn.status != "connected":
-        return None  # never connected / disconnected — Integrations Centre already says so
+        return None  # never connected or disconnected; the Integrations Centre already says so
     latest = latest_google_health_summary(session)
     if latest is None:
         return BriefingItem(
@@ -790,7 +741,7 @@ def _body_watch_item(session: Session, now: datetime) -> BriefingItem | None:
         )
     days_stale = (now.date() - latest.date).days
     if days_stale < GOOGLE_HEALTH_STALE_DAYS:
-        return None  # fresh enough — no noise, per "don't force headings with nothing useful"
+        return None  # fresh enough, so no noise
     return BriefingItem(
         id="google_health:freshness",
         category="watch",
@@ -826,7 +777,7 @@ def _source_statuses(session: Session, now: datetime) -> list[SourceStatus]:
 
 
 # --------------------------------------------------------------------------
-# Phase 12C: Mission Focus — resolving a pinned source directly by id,
+# Mission Focus: resolving a pinned source directly by id,
 # bypassing the normal ephemeral inclusion windows (a pin's whole point is
 # staying visible beyond them), and merging pin metadata into the
 # briefing's existing candidate/ledger/change-state machinery rather than
@@ -849,7 +800,7 @@ class PinnedSourceInfo:
 
 @dataclass(frozen=True)
 class MissionFocusEntry:
-    """One row of the always-visible Mission Focus rail — computed for
+    """One row of the always-visible Mission Focus rail, computed for
     every active pin regardless of whether its corresponding candidate
     made the capped unified feed this pass."""
 
@@ -871,7 +822,7 @@ class MissionFocusEntry:
 def resolve_pin_source(session: Session, source_type: str, source_id: str, now: datetime) -> PinnedSourceInfo | None:
     """Resolves a Mission Focus-eligible source directly by id. Returns
     `None` only when the row genuinely does not exist (or its own type
-    doesn't match `source_type`) — a source that has since concluded
+    doesn't match `source_type`). A source that has since concluded
     (archived/executed/denied/expired) is still returned, with
     `resolved=True`, so it can be reported truthfully rather than
     silently vanishing the moment it's no longer "current." Never raises;
@@ -942,7 +893,7 @@ def resolve_pin_source(session: Session, source_type: str, source_id: str, now: 
             elif delta_minutes > CALENDAR_IMMINENT_MINUTES:
                 category, tone = "next", "neutral"
             else:
-                category, tone = "watch", "neutral"  # already ended — still shown, since it's pinned
+                category, tone = "watch", "neutral"  # already ended, still shown since it's pinned
             subtitle = start.strftime("%H:%M")
             start_iso, end_iso = start.isoformat(), end.isoformat()
         natural_fields = {
@@ -1012,7 +963,7 @@ def _pin_priority(category: Category, base_priority: int, rank: int) -> int:
 
 def _merge_pin_into_item(item: BriefingItem, pin: "MissionFocusPin") -> BriefingItem:
     """A pin whose source already produced a natural candidate this pass
-    (e.g. an overdue pinned task) — attach pin metadata without discarding
+    (e.g. an overdue pinned task): attach pin metadata without discarding
     the natural, real-world-derived category/tone/priority; only nudge
     priority within the same category (`_pin_priority`)."""
     combined_fp = _fingerprint({"natural": item.fingerprint, **_pin_fields(pin)})
@@ -1028,7 +979,7 @@ def _merge_pin_into_item(item: BriefingItem, pin: "MissionFocusPin") -> Briefing
 def _synthesize_pin_item(pin: "MissionFocusPin", info: PinnedSourceInfo) -> BriefingItem:
     """A pin whose source did NOT produce a natural candidate this pass
     (e.g. a BUILD checkpoint older than the normal 2-day window, or a
-    PATH deadline further out than the normal 3-day window) — the whole
+    PATH deadline further out than the normal 3-day window). The whole
     point of pinning is staying visible beyond those ephemeral windows."""
     stable_key = f"{pin.source_type}:{pin.source_id}"
     natural_fp = _fingerprint(info.natural_fields)
@@ -1062,8 +1013,8 @@ def _synthesize_pin_item(pin: "MissionFocusPin", info: PinnedSourceInfo) -> Brie
 def _unavailable_pin_item(pin: "MissionFocusPin") -> BriefingItem:
     """The pin's source row itself could not be found at all (e.g. a
     deleted structured record, or a Calendar event long rolled out of the
-    sync cache). Reported truthfully and persistently — using the frozen
-    `source_title_snapshot` — rather than silently vanishing, since the
+    sync cache). Reported truthfully and persistently, using the frozen
+    `source_title_snapshot`, rather than silently vanishing, since the
     pin itself still exists until Bernardo explicitly removes it."""
     stable_key = f"{pin.source_type}:{pin.source_id}"
     fp = _fingerprint({"natural": "unavailable", **_pin_fields(pin)})
@@ -1092,10 +1043,10 @@ def _gather_mission_focus(
     session: Session, candidates: list[BriefingItem], now: datetime
 ) -> tuple[list[BriefingItem], dict[str, PinnedSourceInfo | None]]:
     """Merges active-pin metadata into `candidates` in place (returning a
-    new list — candidates themselves are frozen dataclasses) and returns
+    new list, since candidates themselves are frozen dataclasses) and returns
     the resolved info for each pin (by pin id) for the rail to reuse
     without a second round of queries. A single pin's resolution failure
-    never affects any other pin or any unrelated candidate — caught here,
+    never affects any other pin or any unrelated candidate. It is caught here,
     per pin, exactly like every other source in `_gather_candidates`."""
     pins = (
         session.query(MissionFocusPin)
@@ -1135,7 +1086,7 @@ def _gather_mission_focus(
 def build_mission_focus_rail(
     session: Session, change_states: dict[str, ChangeState], resolved_info: dict[str, PinnedSourceInfo | None], now: datetime
 ) -> list[MissionFocusEntry]:
-    """The always-visible rail — every active pin, in rank order,
+    """The always-visible rail: every active pin, in rank order,
     regardless of whether its item made the capped unified feed this
     pass. Never itself capped beyond the schema's own 5-active-pin limit."""
     pins = (
@@ -1196,7 +1147,7 @@ def _sort_key(item: BriefingItem) -> tuple:
 
 
 def _dedupe(items: list[BriefingItem]) -> list[BriefingItem]:
-    """Keyed on the stable identity (`id`) alone — two candidates sharing
+    """Keyed on the stable identity (`id`) alone. Two candidates sharing
     an identity is always a bug upstream (each gathering function owns a
     disjoint identity namespace by construction), so this is a defensive
     backstop, not the primary correctness mechanism."""
@@ -1214,7 +1165,7 @@ def _gather_candidates(
     session: Session, *, include_body: bool, now: datetime
 ) -> tuple[list[BriefingItem], dict[str, SourceEvaluation]]:
     """Gathers the full, un-capped candidate set, isolating each source's
-    failure from every other — a source whose query raises is recorded as
+    failure from every other. A source whose query raises is recorded as
     `SourceEvaluation(ok=False)` and contributes zero candidates rather
     than crashing the whole assembly, and (critically) rather than making
     its previously-active identities look resolved (see `_reconcile_ledger`,
@@ -1276,24 +1227,18 @@ def _gather_candidates(
 def _reconcile_ledger(
     session: Session, candidates: list[BriefingItem], evaluations: dict[str, SourceEvaluation], now: datetime
 ) -> tuple[dict[str, ChangeState], list[BriefingItem]]:
-    """The Phase 12B continuity core. Compares `candidates` (the FULL
-    un-capped set — priority-cap churn must never be mistaken for a real
-    change) against `BriefingItemState`, the persisted per-identity
-    ledger, and returns (1) each candidate's `change_state` and (2) a list
-    of synthesized `resolved`-state display items for identities that
-    were active and are now genuinely gone.
+    """Classifies each candidate against the `BriefingItemState` ledger and
+    returns (change states, synthesized `resolved` items).
 
-    Rules, exactly:
-      * no existing ledger row  -> `new`; a row is inserted.
-      * existing row, status == 'resolved' -> `reopened`; reactivated.
-      * existing row, status == 'active', fingerprint unchanged -> `ongoing`.
-      * existing row, status == 'active', fingerprint changed -> `changed`.
-      * an 'active' row whose identity is NOT in `candidates` this pass is
-        marked `resolved` ONLY IF that identity's `source_type` evaluated
-        successfully this pass (see `_gather_candidates`) — otherwise it
-        is left untouched (still 'active'), so a source read failure can
-        never manufacture a false resolution, delete acknowledgement
-        history, or silently drop a still-real concern.
+    `candidates` must be the full uncapped set, so cap churn never looks
+    like a change.
+      * no ledger row -> `new` (row inserted)
+      * resolved row -> `reopened`
+      * active row, same fingerprint -> `ongoing`
+      * active row, new fingerprint -> `changed`
+      * active row missing from `candidates` -> `resolved`, but only if its
+        source evaluated successfully this pass. A failed read leaves the
+        row untouched.
     """
     change_states: dict[str, ChangeState] = {}
     candidate_by_key = {item.id: item for item in candidates}
@@ -1340,7 +1285,7 @@ def _reconcile_ledger(
         else:
             row.last_active_at = now
             change_states[item.id] = "ongoing"
-        # Always refresh the cached display snapshot on an active pass —
+        # Always refresh the cached display snapshot on an active pass:
         # this is what lets a future resolution be reported with a real,
         # current-as-of-last-sighting title rather than a stale one.
         row.last_title = item.title
@@ -1355,7 +1300,7 @@ def _reconcile_ledger(
             continue
         evaluation = evaluations.get(row.source_type)
         if evaluation is None or not evaluation.ok:
-            continue  # false-resolution protection — leave exactly as it was
+            continue  # false-resolution protection: leave exactly as it was
         row.status = "resolved"
         row.last_resolved_at = now
         resolved_items.append(
@@ -1385,7 +1330,7 @@ def _reconcile_ledger(
 def _apply_change_state(item: BriefingItem, change_state: ChangeState) -> BriefingItem:
     """Returns a copy of `item` with `change_state` set and `priority`
     nudged per §8's ranking refinement (documented on the tunables
-    above) — never crossing a priority-band boundary, only reordering a
+    above), never crossing a priority-band boundary, only reordering a
     near-tie within the same category."""
     if change_state in ("new", "changed", "reopened"):
         priority = max(0, item.priority - _CHANGE_PRIORITY_BOOST)
@@ -1398,10 +1343,10 @@ def _apply_change_state(item: BriefingItem, change_state: ChangeState) -> Briefi
 
 def is_suppressed(session: Session, stable_key: str, fingerprint: str, now: datetime) -> SuppressKind | None:
     """Whether the exact (stable_key, fingerprint) pair is currently
-    hidden from the main briefing — an active acknowledgement, or an
+    hidden from the main briefing: an active acknowledgement, or an
     active, not-yet-expired snooze. A fingerprint change always makes
     this return None again (CLAUDE.md's "must immediately break if the
-    item materially changes" rule) — it falls out structurally, since the
+    item materially changes" rule). It falls out structurally, since the
     lookup key includes the fingerprint."""
     ack = (
         session.query(BriefingAcknowledgement)
@@ -1430,7 +1375,7 @@ def is_suppressed(session: Session, stable_key: str, fingerprint: str, now: date
 
 
 def expire_due_snoozes(session: Session, now: datetime) -> int:
-    """Flips any active snooze whose window has passed to `expired` — a
+    """Flips any active snooze whose window has passed to `expired`: a
     cheap, bounded, precisely-scoped UPDATE, called at the start of every
     `assemble_home_briefing` so an expired snooze's item reliably
     reappears on the very next fetch."""
@@ -1454,7 +1399,7 @@ def record_snapshot(
 ) -> BriefingSnapshot:
     """Records one candidate-set generation pass for audit/history and
     spam-prevention. `item_keys` is the full candidate set's
-    `(stable_key, fingerprint)` pairs — for Home this is the real
+    `(stable_key, fingerprint)` pairs. For Home this is the real
     per-item continuity data; the Morning Briefing routine passes a
     lighter-weight equivalent derived from its own rendered output (see
     `app/routine_service.py`). If the most recent snapshot for this exact
@@ -1479,7 +1424,7 @@ def record_snapshot(
         consumer=consumer, trigger=trigger, generated_at=now, item_count=len(item_keys), content_digest=digest
     )
     session.add(snapshot)
-    session.flush()  # autoflush=False in this project — need the row visible for the retention query below
+    session.flush()  # autoflush=False in this project; the row must be visible to the retention query below
 
     # Bounded retention, same pattern as routine_service._trim_history.
     all_ids = [
@@ -1497,7 +1442,7 @@ def record_snapshot(
 
 
 def _tomorrow_morning_utc(now_utc: datetime, tz_name: str, hour: int = SNOOZE_MORNING_HOUR) -> datetime:
-    """DST-safe "tomorrow morning" — constructs the candidate directly in
+    """DST-safe "tomorrow morning". Constructs the candidate directly in
     the target IANA timezone's wall-clock terms (never a fixed-offset
     timedelta added to a UTC instant), mirroring
     `routine_service._next_occurrence_utc`."""
@@ -1523,7 +1468,7 @@ def _current_ledger_row(session: Session, stable_key: str) -> BriefingItemState:
 
 
 def acknowledge_item(session: Session, stable_key: str, now: datetime) -> BriefingAcknowledgement:
-    """Acknowledgement is a local presentation preference — it never
+    """Acknowledgement is a local presentation preference. It never
     touches the underlying Calendar event, task, action proposal,
     integration, routine, or Health record. Always acknowledges the
     item's CURRENT fingerprint (looked up server-side from the ledger,
@@ -1556,7 +1501,7 @@ def acknowledge_item(session: Session, stable_key: str, now: datetime) -> Briefi
     session.commit()
     session.refresh(ack)
     # SQLite drops tzinfo on round-trip even for a `DateTime(timezone=True)`
-    # column — normalize back to aware UTC so every caller (the API
+    # column. Normalize back to aware UTC so every caller (the API
     # response, `.isoformat()`, `.astimezone()`) gets an unambiguous
     # instant rather than a naive value later misread as local time.
     ack.acknowledged_at = _as_aware(ack.acknowledged_at)
@@ -1564,7 +1509,7 @@ def acknowledge_item(session: Session, stable_key: str, now: datetime) -> Briefi
 
 
 def snooze_item(session: Session, stable_key: str, duration_key: str, now: datetime, tz_name: str | None = None) -> BriefingSnooze:
-    """Snoozing accepts only a fixed, server-validated duration key —
+    """Snoozing accepts only a fixed, server-validated duration key,
     never an arbitrary client-supplied timestamp. Never executes or
     schedules any external action; purely a local suppression window on
     the item's CURRENT fingerprint."""
@@ -1617,7 +1562,7 @@ def snooze_item(session: Session, stable_key: str, duration_key: str, now: datet
     session.commit()
     session.refresh(snooze)
     # SQLite drops tzinfo on round-trip even for a `DateTime(timezone=True)`
-    # column — normalize back to aware UTC so every caller (the API
+    # column. Normalize back to aware UTC so every caller (the API
     # response, `.isoformat()`, `.astimezone()`) gets an unambiguous
     # instant rather than a naive value later misread as local time.
     snooze.snoozed_at = _as_aware(snooze.snoozed_at)
@@ -1629,7 +1574,7 @@ def restore_item(session: Session, stable_key: str, now: datetime) -> bool:
     """Clears any active acknowledgement AND any active snooze on the
     item's current fingerprint. Returns True if anything was actually
     restored. This never touches a stale acknowledgement/snooze tied to
-    an OLD fingerprint — those are already inert (see `is_suppressed`)."""
+    an OLD fingerprint, since those are already inert (see `is_suppressed`)."""
     row = _current_ledger_row(session, stable_key)
     restored = False
     acks = (
@@ -1706,7 +1651,7 @@ def cleanup_old_briefing_state(session: Session, now: datetime) -> int:
     stale-export-temp-file sweeps): prunes resolved ledger rows and
     restored/expired acknowledge/snooze rows past their retention window.
     Never touches an 'active' row of any kind. Precise, owned DELETE
-    queries — never a broad table truncation."""
+    queries, never a broad table truncation."""
     ledger_cutoff = now - timedelta(days=LEDGER_RESOLVED_RETENTION_DAYS)
     ledger_result = session.execute(
         delete(BriefingItemState).where(
@@ -1737,30 +1682,24 @@ def assemble_home_briefing(
     now: datetime,
     trigger: str = "home_view",
 ) -> HomeBriefing:
-    """Deterministically assembles the concise Home situational briefing,
-    including Phase 12B continuity (new/changed/ongoing/resolved/reopened
-    classification, acknowledge/snooze suppression, and a recorded,
-    dedup-aware, bounded-history snapshot). No model call, no Hermes
-    call — the only writes here are to this module's own presentation-
-    state tables (the ledger, the snapshot audit trail); the underlying
-    Calendar/task/action/integration/routine/Health data is never
-    touched.
+    """Builds the Home briefing: candidates, continuity states,
+    acknowledge/snooze filtering, and a snapshot for history. Writes only
+    this module's own tables; no model call.
 
-    `include_mind`/`include_people` are accepted and stored for parity
-    with the Morning Briefing routine's per-domain opt-in shape, but gate
-    nothing in this function: no MIND/PEOPLE source is read here at all,
-    regardless of their value (see the module docstring)."""
+    `include_mind`/`include_people` are stored for parity with the
+    routine's settings but gate nothing, since no MIND/PEOPLE source is
+    read here."""
     expire_due_snoozes(session, now)
 
     candidates, evaluations = _gather_candidates(session, include_body=include_body, now=now)
-    # Phase 12C: merge active Mission Focus pins into the SAME candidate
-    # set — never a second, parallel priority/state system — before
+    # Merge active Mission Focus pins into the SAME candidate
+    # set (never a second, parallel priority/state system) before
     # classification runs, so a pinned item is reconciled against the
     # ledger exactly like any other candidate.
     candidates, pin_resolved_info = _gather_mission_focus(session, candidates, now)
     # Classification is computed over the COMPLETE candidate set, before
-    # any cap is applied — priority-cap churn must never look like a real
-    # change (Phase 12B brief).
+    # any cap is applied. Priority-cap churn must never look like a real
+    # change.
     change_states, resolved_items = _reconcile_ledger(session, candidates, evaluations, now)
 
     visible: list[BriefingItem] = []

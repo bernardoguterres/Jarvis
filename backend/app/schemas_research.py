@@ -1,6 +1,6 @@
-"""Phase 12E: Source-Grounded Research Workspace — request/response models.
+"""Research workspace request/response models.
 Never includes a raw provider payload, credential, or unescaped client-
-supplied text presented as an authoritative source snapshot — every
+supplied text presented as an authoritative source snapshot: every
 title/snippet field here was resolved server-side (see
 app.research_service)."""
 
@@ -34,14 +34,14 @@ ResearchSourceType = Literal[
     "mission_control_session",
 ]
 # Evidence may reference this fixed, already-shipped subset of Recall's
-# own source vocabulary — a mismatch against RESEARCH_EVIDENCE_SOURCE_TYPES
+# own source vocabulary. A mismatch against RESEARCH_EVIDENCE_SOURCE_TYPES
 # (which mirrors research_evidence's own frozen migration-0017 CHECK
 # constraint) is a real defect, not a config typo. This is deliberately a
-# SUBSET assertion, not equality: Phase 12F added "decision" to
+# SUBSET assertion, not equality: the Decision Room added "decision" to
 # app.recall_service.ALL_RECALL_SOURCE_TYPES (a decision may cite another
 # decision as evidence, via its own decision_evidence_links table), but
-# research_evidence's CHECK constraint predates Decisions and — per
-# CLAUDE.md — an already-shipped migration is never edited to add it
+# research_evidence's CHECK constraint predates Decisions and, per
+# CLAUDE.md, an already-shipped migration is never edited to add it
 # retroactively. A Decision may still cite a Research workspace's evidence
 # (via decision_evidence_links.research_evidence_id provenance); the
 # reverse (citing a Decision as Research evidence) is simply not
@@ -63,7 +63,7 @@ class ResearchWorkspaceCreate(BaseModel):
     title: str = Field(min_length=1, max_length=300)
     domain_slug: ResearchDomainSlug | None = None
     # None -> the default LIFE/PATH/BUILD policy; an explicit (possibly
-    # empty) list is honored literally — never silently widened. Naming a
+    # empty) list is honored literally, never silently widened. Naming a
     # sensitive domain here is Bernardo's own explicit choice at creation
     # time, exactly like Recall's own `domains` search parameter.
     included_domain_slugs: list[ResearchDomainSlug] | None = None

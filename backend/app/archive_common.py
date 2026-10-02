@@ -18,7 +18,7 @@ CHECKSUM_ALGORITHM = "sha256"
 # archive contents are deterministic.
 PAYLOAD_DIRS = ("documents", "domain-summaries", "skills", "configuration")
 
-# Archive path for an optional, supported Hermes profile export (Phase 3+).
+# Archive path for an optional, supported Hermes profile export.
 HERMES_PROFILE_ARCHIVE_DIR = "hermes_profile"
 HERMES_PROFILE_ARCHIVE_PATH = f"{HERMES_PROFILE_ARCHIVE_DIR}/"
 
@@ -73,16 +73,13 @@ def is_absolute_archive_path(archive_path: str) -> bool:
 
 
 def zipinfo_is_symlink_or_special(info: ZipInfo) -> bool:
-    """True if a ZIP member's stored Unix mode indicates a symlink or
-    another non-regular file (device, FIFO, socket).
+    """True if a ZIP member's stored Unix mode marks a symlink or another
+    non-regular file (device, FIFO, socket).
 
-    Members written via ``ZipFile.writestr`` (as manifest.json is) carry
-    permission bits but no file-type bits at all (``external_attr`` has no
-    S_IFMT component) — that's a legitimate regular file, not a special one,
-    so an absent file type is treated as "unknown, assume regular" rather
-    than rejected. A real Unix zip archiver always sets the type bits for
-    files it writes, so this doesn't weaken detection of an actually crafted
-    malicious symlink entry, which is exactly what has explicit S_IFLNK bits.
+    Members written with ``ZipFile.writestr`` (like manifest.json) have no
+    file-type bits at all, so a missing type is treated as a regular file.
+    Real archivers always set type bits, so a crafted symlink entry still
+    shows S_IFLNK and is caught.
     """
     mode = info.external_attr >> 16
     if mode == 0:

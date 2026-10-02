@@ -60,7 +60,7 @@ const CLASSIFICATION_LABEL: Record<ResearchEvidenceClassification, string> = {
 };
 
 // Amber (attention), never red (reserved for genuine failure/destructive
-// actions) — contradicting evidence is a normal analytical classification,
+// actions). Contradicting evidence is a normal analytical classification,
 // not a fault. See CLAUDE.md §20's aesthetics doctrine.
 const CLASSIFICATION_TONE: Record<ResearchEvidenceClassification, string> = {
   supporting: "tone-ok",
@@ -506,7 +506,7 @@ function EvidenceTab({ workspace, evidence, onEvidenceChanged, onNavigate }: Evi
       await removeResearchEvidence(workspace.id, item.id);
       onEvidenceChanged();
     } catch {
-      /* no-op — row stays as-is, user can retry */
+      /* no-op: row stays as-is, user can retry */
     }
   }
 

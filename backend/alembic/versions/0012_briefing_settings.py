@@ -1,5 +1,5 @@
-"""Phase 12A: current situational briefing — persisted privacy settings
-for the on-demand Home briefing. Forward-only — 0001-0011 are untouched.
+"""Persisted privacy settings for the
+on-demand Home briefing.
 
 Revision ID: 0012
 Revises: 0011
@@ -31,7 +31,7 @@ def upgrade() -> None:
     )
 
     # Bernardo's already-recorded privacy selection (CLAUDE.md,
-    # docs/ROADMAP.md Phase 10B): BODY included, MIND and PEOPLE excluded.
+    # docs/ROADMAP.md): BODY included, MIND and PEOPLE excluded.
     op.execute(
         "INSERT INTO briefing_settings "
         "(id, include_body, include_mind, include_people, created_at, updated_at) VALUES "

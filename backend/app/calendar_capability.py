@@ -1,12 +1,12 @@
-"""Phase 9: the three Google Calendar write capabilities
+"""The three Google Calendar write capabilities
 (`google_calendar.event.create/update/delete`), registered into the fixed
-Phase 8 capability registry (app/capabilities.py).
+the capability registry (app/capabilities.py).
 
 Every write here still goes through the exact same propose -> approve ->
-execute lifecycle as any other capability — nothing here bypasses that.
-Per Phase 9 scope: no attendees, no invitations, no recurring events, no
+execute lifecycle as any other capability; nothing here bypasses that.
+In scope: no attendees, no invitations, no recurring events, no
 calendar-sharing changes, no calendar deletion. A timezone is required for
-any timed (non-all-day) event — never silently inferred when ambiguous.
+any timed (non-all-day) event, never silently inferred when ambiguous.
 """
 
 from __future__ import annotations
@@ -124,14 +124,14 @@ def execute_event_create(
             # capability is ever reached, so it survives a crash on either
             # side of this call. It seeds a deterministic, caller-supplied
             # Google event ID (Google's own documented duplicate-prevention
-            # mechanism — retrying the same insert reuses the same ID and
+            # mechanism: retrying the same insert reuses the same ID and
             # gets 409 instead of a second event) and is retained as
             # secondary `jarvis_action_id` metadata for reconciliation
             # against legacy events created before this scheme existed.
             idempotency_key=action_proposal_id,
         )
     except gcal_provider.GoogleCalendarConflictError as exc:
-        # Google already has an event at this action's deterministic ID —
+        # Google already has an event at this action's deterministic ID:
         # the expected outcome of retrying an insert whose earlier success
         # response was lost. Confirm it before trusting it: only an event
         # actually tagged with *this* action's own ID may be treated as
@@ -165,7 +165,7 @@ def execute_event_create(
             return {"external_event_id": exc.event_id, "calendar_id": calendar.id}
         # An event already occupies this deterministic ID but its metadata
         # doesn't confirm it belongs to this action (or it could not be
-        # fetched to check) — never guess either way.
+        # fetched to check). Never guess either way.
         raise CapabilityNeedsReviewError(
             "Google Calendar reported an event already exists at this action's deterministic ID, but its "
             "metadata could not be confirmed as belonging to this action. Verify the calendar directly "

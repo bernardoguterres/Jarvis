@@ -77,8 +77,8 @@ describe("parseCommand — sensitive control focusing (never auto-clicked)", () 
 
   it("never returns a kind that implies direct activation for a sensitive phrase", () => {
     // "disconnect" is now a confirm_required action (Phase 6 global-voice
-    // pass) rather than focus_control — a real confirm dialog, then a real
-    // disconnect only if accepted — but it still never implies *direct*
+    // pass) rather than focus_control: a real confirm dialog, then a real
+    // disconnect only if accepted. But it still never implies *direct*
     // activation from the spoken/typed phrase alone.
     const parsed = parseCommand("disconnect google calendar");
     expect(parsed.kind).not.toBe("execute");
@@ -181,7 +181,7 @@ describe("parseCommand — safe direct actions (read-only or trivially reversibl
   });
 
   it("never executes a routine without it being explicitly named", () => {
-    // A bare "run a routine" names nothing specific — must not guess which
+    // A bare "run a routine" names nothing specific, so it must not guess which
     // one, so it falls through rather than resolving to a safe_action.
     const parsed = parseCommand("run a routine");
     expect(parsed.kind).not.toBe("safe_action");
@@ -216,7 +216,7 @@ describe("parseCommand — confirmation-required actions (never executed by the 
 
 describe("parseCommand — negation is never misread as its affirmative command (D83/D84 reliability audit)", () => {
   // CONFIRM_ACTIONS/SAFE_ACTIONS match by keyword presence regardless of
-  // word order (see the comment above SENSITIVE_CONTROLS) — "don't
+  // word order (see the comment above SENSITIVE_CONTROLS): "don't
   // disconnect google calendar" contains exactly the same keywords as
   // "disconnect google calendar" would otherwise resolve identically,
   // which is a real safety gap for a safe_action specifically: it executes
@@ -256,7 +256,7 @@ describe("parseCommand — negation is never misread as its affirmative command 
 describe("parseCommand — a question about a command never executes it (D83/D84 reliability audit)", () => {
   // Same keyword-presence root cause as negation: "what does sync calendar
   // do" previously ran a real sync immediately, purely from being asked
-  // what it does — worse than the negation case, since a plain question
+  // what it does. That is worse than the negation case, since a plain question
   // carries no explicit refusal cue at all for a human reader either.
   it.each(["what does sync calendar do", "how does syncing google health work", "what happens if I sync calendar"])(
     "never resolves %s to a safe_action",
@@ -477,7 +477,7 @@ describe("parseCommand — Phase 12D Unified Recall (open_recall safe action)", 
 
   it("never resolves a decision-sounding phrase into an autonomous decide/execute action — only navigation", () => {
     // CLAUDE.md's Phase 12F boundary: Jarvis must never finalize or
-    // execute a decision on its own — a spoken/typed phrase may only ever
+    // execute a decision on its own. A spoken/typed phrase may only ever
     // open the Decision Room itself.
     const parsed = parseCommand("decide which tokenizer we should use for Alpha");
     expect(parsed.kind).not.toBe("safe_action");

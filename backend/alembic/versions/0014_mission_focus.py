@@ -1,17 +1,12 @@
-"""Phase 12C: Mission Focus — a small, deliberate, user-owned watchlist of
-at most five pinned references to existing sources (LIFE tasks, PATH
-deadlines, BUILD checkpoints, selected Calendar events, unresolved action
-proposals). Forward-only — 0001-0013 are untouched.
+"""Mission Focus: a watchlist of at most five pinned references to
+existing sources (LIFE tasks, PATH deadlines, BUILD checkpoints, Calendar
+events, unresolved action proposals).
 
-Two partial unique indexes and a pair of triggers give this real
-database-level enforcement rather than relying on application code alone:
-* `uq_mission_focus_active_source` — at most one *active* pin per
-  (source_type, source_id).
-* `uq_mission_focus_active_rank` — at most one *active* pin per rank.
-* `trg_mission_focus_max_active_pins_insert` / `..._update` — refuse an
-  INSERT or an UPDATE that would make status='active' while 5 active pins
-  already exist, closing the race a plain application-level count-then-
-  insert check cannot fully close on its own.
+The database enforces the limits itself: one active pin per source
+(`uq_mission_focus_active_source`), one active pin per rank
+(`uq_mission_focus_active_rank`), and triggers that refuse a sixth
+active pin on INSERT or UPDATE, closing the race an app-level count
+can't.
 
 Revision ID: 0014
 Revises: 0013
@@ -54,7 +49,7 @@ def upgrade() -> None:
             name="ck_mission_focus_pins_source_type_valid",
         ),
         sa.CheckConstraint("status IN ('active', 'unpinned')", name="ck_mission_focus_pins_status_valid"),
-        # Only a lower bound at the database level — see
+        # Only a lower bound at the database level. See
         # app/models_mission_focus.py's MissionFocusPin docstring for why
         # the full 1-5 range is enforced at the service layer instead.
         sa.CheckConstraint("rank >= 1", name="ck_mission_focus_pins_rank_positive"),

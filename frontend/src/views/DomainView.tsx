@@ -40,13 +40,13 @@ import { formatDateTime } from "../formatDateTime";
 interface DomainViewProps {
   slug: string;
   onBack: () => void;
-  /** Opens Recall Centre pre-scoped to just this one domain (Phase 12D) —
+  /** Opens Recall Centre pre-scoped to just this one domain. It is
    * optional so existing tests that render DomainView standalone don't
    * need to supply it; App.tsx always passes it in the real app. */
   onSearchThisDomain?: () => void;
   /** Executes a recognized navigate/focus_control/safe_action/confirm_required
    * command (see commands/registry.ts) against App's real navigation and
-   * action-execution state — DomainView itself owns none of that, only App
+   * action-execution state. DomainView itself owns none of that, only App
    * does. Optional so existing tests that render DomainView standalone
    * don't need to supply a navigation harness just to exercise unrelated
    * behavior. */
@@ -64,7 +64,7 @@ const RECORD_TYPES_BY_SLUG: Record<string, RecordType[]> = {
   life: ["life_task"],
 };
 
-// Phase 12C: only these record types are eligible Mission Focus sources —
+// Only these record types are eligible Mission Focus sources;
 // BODY/MIND/PEOPLE record types are deliberately never offered the
 // "Add to Mission Focus" control at all (see app/models_mission_focus.py's
 // MISSION_FOCUS_SOURCE_TYPES, the real server-side boundary).
@@ -105,7 +105,7 @@ function DomainView({ slug, onBack, onSystemCommand, onSearchThisDomain }: Domai
   const [selectedExtraDomains, setSelectedExtraDomains] = useState<string[]>([]);
   const [sensitiveWarningAcknowledged, setSensitiveWarningAcknowledged] = useState(false);
 
-  // Guards every async continuation below against setState after unmount —
+  // Guards every async continuation below against setState after unmount:
   // DomainView remounts on every domain switch, and refreshMemoryData in
   // particular is both effect-triggered and called from several click
   // handlers, so its in-flight Promise.all can easily still be pending when
@@ -273,7 +273,7 @@ function DomainView({ slug, onBack, onSystemCommand, onSearchThisDomain }: Domai
     if (ok) setDraftMessage("");
   }
 
-  // --- push-to-talk voice (shared machine — see hooks/useVoiceCapture.ts) -
+  // --- push-to-talk voice (shared machine, see hooks/useVoiceCapture.ts) -
 
   const voice = useVoiceCapture({
     guard: () => {
@@ -309,7 +309,7 @@ function DomainView({ slug, onBack, onSystemCommand, onSearchThisDomain }: Domai
     function onKeyDown(event: KeyboardEvent) {
       if (event.code === "Space" && !isTypingTarget(event.target)) {
         // preventDefault on every repeated keydown the OS fires while the
-        // key stays held, not just the first — otherwise Space's native
+        // key stays held, not just the first. Otherwise Space's native
         // "scroll the page down" kicks in once auto-repeat starts on a
         // long hold. startPushToTalk() itself still only fires once.
         event.preventDefault();
@@ -317,7 +317,7 @@ function DomainView({ slug, onBack, onSystemCommand, onSearchThisDomain }: Domai
       } else if (event.code === "Escape" && !isTypingTarget(event.target)) {
         // CLAUDE.md §8: Escape cancels voice activity, or otherwise returns
         // to the central HUD. Must also clear a stuck "error" state (e.g.
-        // a failed microphone permission check), not just "listening" —
+        // a failed microphone permission check), not just "listening";
         // otherwise there is no way to dismiss a displayed voice error
         // short of quitting the app.
         if (voiceState === "listening" || voiceState === "error") {
@@ -440,7 +440,7 @@ function DomainView({ slug, onBack, onSystemCommand, onSearchThisDomain }: Domai
 
       <header className="console-header">
         <DomainEmblem slug={slug} name={domain?.name ?? slug.toUpperCase()} />
-        {/* Phase 6, D91: only mounted while genuinely active — with a real
+        {/* D91: only mounted while genuinely active. With a real
             bespoke domain glyph now the one focal identity in this header,
             a dormant/idle violet arc+dot next to it had no informational
             value and read as a second, competing icon. It still exists for
@@ -605,7 +605,7 @@ function DomainView({ slug, onBack, onSystemCommand, onSearchThisDomain }: Domai
                 className={`push-to-talk-button${voice.pushToTalkStatus === "recording" ? " recording" : ""}`}
                 // Must stay enabled throughout "listening" (even before the
                 // hook's internal status reaches "recording", i.e. while a
-                // getUserMedia permission prompt is still pending) — this
+                // getUserMedia permission prompt is still pending). This
                 // button is also how the user releases/stops. A disabled
                 // element does not receive mouseup/mouseleave at all, so
                 // disabling it mid-listening would strand the recording

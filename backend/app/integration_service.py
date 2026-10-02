@@ -1,20 +1,12 @@
-"""Phase 9 (corrected): OAuth connect/disconnect, manual sync, and
-normalized caching for Google Calendar and Google Health — orchestrating
-credential_store.py, oauth_flow.py, and
-app/providers/{google_calendar,google_health}.py.
+"""OAuth connect/disconnect, manual sync, and local caching for Google
+Calendar and Google Health, built on credential_store.py, oauth_flow.py
+and the two provider modules.
 
-Both providers use a Google OAuth **Web application** client (not
-Desktop/installed) — required because incremental authorization
-(`include_granted_scopes=true`, used to add the Calendar write scope only
-when Bernardo explicitly enables it) is documented by Google as unsupported
-for installed/Desktop clients. The backend performs the authorization-code
-exchange and owns a fixed callback endpoint per provider; see
-docs/DECISIONS.md for the full rationale.
-
-Every credential (client id/secret, access/refresh tokens, expiry) lives
-only in the CredentialStore (Keychain in production, fake in tests) — never
-in the returned dataclasses' string form reaching the API layer, never in
-SQLite, never logged.
+Both use a Google Web application OAuth client, because incremental
+authorization (adding the Calendar write scope only when enabled) isn't
+supported for Desktop clients. Credentials live only in the
+CredentialStore (Keychain in production): never in SQLite, API responses
+or logs.
 """
 
 from __future__ import annotations
@@ -53,7 +45,7 @@ class IntegrationError(Exception):
         self.code = code
         self.summary = summary
         # Seconds, when the underlying provider error carried a real
-        # Retry-After value (currently only GoogleHealthError does) — the
+        # Retry-After value (currently only GoogleHealthError does). The
         # scheduler (app/scheduler_service.py) honors this over its own
         # computed backoff when present.
         self.retry_after = retry_after
@@ -89,7 +81,7 @@ def get_connection(session: Session, provider: str) -> IntegrationConnection:
 def has_scope(session: Session, provider: str, scope: str) -> bool:
     """Checks the connection's actually-granted scopes (as returned by
     Google in the token response), never what was merely requested. Used to
-    gate Calendar write capability — see capabilities.py and
+    gate Calendar write capability; see capabilities.py and
     calendar_capability.py."""
     conn = session.get(IntegrationConnection, provider)
     if conn is None or conn.status != "connected":
@@ -151,7 +143,7 @@ def begin_google_health_oauth(*, store: CredentialStore, flow_store: OAuthFlowSt
 
 # The scopes each provider's own OAuth client can ever legitimately be
 # granted. Google associates consent with the (user, Cloud project) pair,
-# not (user, client_id) — confirmed live (D63, D65): a request from either
+# not (user, client_id), confirmed live (D63, D65): a request from either
 # client can come back carrying the OTHER integration's scopes when both
 # share a project and `include_granted_scopes`/`prompt=consent` triggers a
 # full re-affirmation of everything the project has ever been granted.
@@ -196,7 +188,7 @@ def _persist_oauth_connection(
 ) -> IntegrationConnection:
     """Shared, safe callback-completion path for both providers: Keychain
     is written first (never with a null/empty value replacing something
-    real — `_store_tokens` already skips a missing refresh_token rather
+    real, since `_store_tokens` already skips a missing refresh_token rather
     than deleting the stored one), and the database row is only marked
     connected after that succeeds. A Keychain failure here must produce a
     truthful error, never a false "connected" page or a DB/Keychain state
@@ -352,7 +344,7 @@ def disconnect(session: Session, store: CredentialStore, http_client: httpx.Clie
             elif provider == "google_health":
                 gh_provider.revoke_token(client=http_client, token=access_token)
         except Exception:
-            pass  # best-effort revocation — local disconnect must still proceed
+            pass  # best-effort revocation; local disconnect must still proceed
 
     store.delete_all(provider, ["access_token", "refresh_token", "access_token_expires_at", "user_id"])
 
@@ -450,17 +442,17 @@ def sync_google_calendar(
         conn.last_sync_status = "error"
         conn.last_error = str(exc)[:500]
         session.commit()
-        # Normalize to IntegrationError at this service boundary — the
+        # Normalize to IntegrationError at this service boundary. The
         # router only ever catches IntegrationError. A bare re-raise here
         # previously let a raw GoogleCalendarError escape as an unhandled
         # 500 instead of a clean 502; see GoogleHealthError's identical bug
-        # below, found live during Phase 9 acceptance (docs/DECISIONS.md D62).
+        # below, found during live acceptance testing (docs/DECISIONS.md D62).
         # KeyError/IndexError/TypeError/ValueError are also caught here as a
         # whole-sync backstop against a malformed/unexpected Google Calendar
         # response shape (e.g. an event missing "id") that would otherwise
         # raise unprotected out of `_normalize_event` and escape as an
-        # unhandled 500 rather than a clean, recorded sync failure — a real
-        # gap found during the Phase-11-adjacent reliability audit, D83.
+        # unhandled 500 rather than a clean, recorded sync failure. A real
+        # gap found during the reliability audit (D83).
         if isinstance(exc, IntegrationError):
             raise
         raise IntegrationError(getattr(exc, "code", "sync_failed"), str(exc), retry_after=getattr(exc, "retry_after", None)) from exc
@@ -517,7 +509,7 @@ def sync_google_health(
                 existing = GoogleHealthDailySummary(date=day)
                 session.add(existing)
             # Only overwrite a field when this sync actually produced a
-            # value — a metric that failed or had no data this run must not
+            # value. A metric that failed or had no data this run must not
             # wipe out a previously-synced value for the same day.
             for field_name in _DAILY_SUMMARY_FIELDS:
                 new_value = getattr(summary, field_name, None)
@@ -563,13 +555,13 @@ def sync_google_health(
         conn.last_sync_status = "error"
         conn.last_error = str(exc)[:500]
         session.commit()
-        # Normalize to IntegrationError — see the matching fix in
+        # Normalize to IntegrationError; see the matching fix in
         # sync_google_calendar above and docs/DECISIONS.md D62. A bare
         # re-raise here let a raw GoogleHealthError escape past the
         # router's `except IntegrationError`, surfacing an unhandled 500
-        # instead of a clean 502 during live Phase 9 acceptance.
+        # instead of a clean 502 during live acceptance testing.
         # KeyError/IndexError/TypeError/ValueError are also caught here as a
-        # whole-sync backstop — `fetch_health_data` already isolates a
+        # whole-sync backstop. `fetch_health_data` already isolates a
         # malformed single data point per-metric (D83), but this is the
         # final backstop for anything genuinely unforeseen elsewhere in the
         # DB-write loop below it (e.g. an unexpected None reaching a

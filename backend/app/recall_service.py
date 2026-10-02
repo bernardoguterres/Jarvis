@@ -1,36 +1,13 @@
-"""Phase 12D: Unified Recall and Provenance — deterministic local search
-across every domain, reusing FTS5 wherever it already exists rather than
-building a second index over the same content.
+"""Recall: deterministic local search across every domain, reusing the
+existing FTS5 tables instead of indexing the same content twice.
 
-Hard rules enforced by construction here (mirrors CLAUDE.md's Recall
-requirements and the model-free discipline Phase 12A-12C already
-established):
-
-  * No model call, no Hermes call, anywhere in this module.
-  * A search never mutates application state — every function here is
-    read-only except `rebuild_recall_index` (an explicit repair action,
-    never invoked by an ordinary search).
-  * `search()` merges three independently-scored FTS families —
-    `memory_fts` (unchanged, `app.fts_service`), `document_fts`
-    (unchanged, `app.document_fts_service`), and the new `recall_fts`
-    (`app.recall_index_service`) — never a fourth, duplicated copy of
-    already-indexed content. Raw bm25 scores are not comparable across
-    tables with different corpora, so each family's scores are min-max
-    normalized to a 0-1 "relevance" value before combining — see
-    `_normalize_family` for the exact formula.
-  * BODY/MIND/PEOPLE are excluded from every default (no explicit
-    `domain_slugs` argument) — the only way sensitive-domain content can
-    ever appear is an explicit, caller-supplied domain list, mirroring
-    Phase 12A/12B/12C's identical structural rule for the Home briefing.
-  * One broken FTS family must never zero out every other family's
-    results — each family query is independently wrapped, and a failure
-    is reported truthfully in `RecallSearchResult.partial_failures`
-    rather than silently swallowed or crashing the whole search.
-  * Every result's real source row is re-resolved fresh at read time
-    (`_resolve_availability`) — a result is never trusted to still be
-    accurate just because it matched in the index; a source that has
-    since been archived/deleted/superseded is reported as genuinely
-    "unavailable" rather than silently kept or fabricated.
+No model or Hermes call, and searching never changes state (only
+`rebuild_recall_index` writes). `search()` merges three FTS sources
+(`memory_fts`, `document_fts`, `recall_fts`), min-max normalizing each
+one's bm25 scores before combining since raw scores aren't comparable
+across tables. BODY/MIND/PEOPLE only appear when the caller names them.
+A failing source is reported in `partial_failures` instead of breaking
+the search, and every result's source row is re-checked at read time.
 """
 
 from __future__ import annotations
@@ -59,13 +36,13 @@ from app.recall_index_service import (
     rebuild_recall_index,
 )
 
-# The complete public source-type vocabulary — RECALL_SOURCE_TYPES (the
+# The complete public source-type vocabulary: RECALL_SOURCE_TYPES (the
 # nine indexed directly into recall_fts) plus the two that keep using
 # their own pre-existing, unduplicated FTS tables.
 ALL_RECALL_SOURCE_TYPES = (*RECALL_SOURCE_TYPES, "memory_item", "document_chunk")
 
 # The only domains ever included when a search omits an explicit domain
-# list — CLAUDE.md's own privacy rule for the Home briefing, applied
+# list. This is CLAUDE.md's own privacy rule for the Home briefing, applied
 # identically here: BODY/MIND/PEOPLE always require explicit opt-in.
 DEFAULT_DOMAIN_SLUGS = ("life", "path", "build")
 SENSITIVE_DOMAIN_SLUGS = ("body", "mind", "people")
@@ -74,7 +51,7 @@ RECALL_MAX_LIMIT = 50
 RECALL_MAX_OFFSET_PLUS_LIMIT = 500
 _FAMILY_FETCH_CAP = 200
 
-# A bounded, documented secondary signal — see the module docstring and
+# A bounded, documented secondary signal. See the module docstring and
 # `_score` below for why this can only ever break a near-tie, never
 # override a real relevance difference.
 _EXACT_TITLE_MATCH_BONUS = 0.5
@@ -124,7 +101,7 @@ def _resolve_domain_slugs(domain_slugs: list[str] | None) -> tuple[str, ...]:
     if domain_slugs is None:
         return DEFAULT_DOMAIN_SLUGS
     # An explicit but empty list is a real, deliberate "no domain
-    # allowed" request (e.g. "only global/system results") — never
+    # allowed" request (e.g. "only global/system results"), never
     # silently widened back out to the default set.
     return tuple(domain_slugs)
 
@@ -145,7 +122,7 @@ def _normalize_family(scores: list[float]) -> list[float]:
     relevant, SQLite FTS5's convention) into a 0-1 relevance value where
     1.0 is the best match in that family's own result set. A single
     result, or a family where every score ties, normalizes to 1.0 for
-    all — there is no meaningful spread to express."""
+    all, since there is no meaningful spread to express."""
     if not scores:
         return []
     lo, hi = min(scores), max(scores)
@@ -192,9 +169,9 @@ def _highlight_pattern(query: str) -> re.Pattern:
 
 def make_snippet_html(content: str, query: str, *, radius: int = 80, max_len: int = 220) -> str:
     """Escapes `content` first (so nothing in retrieved document/message
-    text can ever inject markup — a document's own text is data, never
+    text can ever inject markup: a document's own text is data, never
     instructions or HTML, no matter what it contains), then wraps
-    plain-text query token matches in `<mark>` — the highlighting always
+    plain-text query token matches in `<mark>`. The highlighting always
     operates on the same escaped string it returns, so it can never
     reopen an HTML-injection path the initial escape just closed."""
     content = content or ""
@@ -243,7 +220,7 @@ def _link_target(source_type: str, domain_slug: str | None) -> str | None:
 
 def _resolve_availability(session: Session, hit: RecallHit) -> tuple[bool, str | None]:
     """Re-checks the real source row fresh, independent of whatever the
-    index currently says — the index is a cache, never the truth."""
+    index currently says. The index is a cache, never the truth."""
     try:
         if hit.source_type == "conversation":
             row = session.get(Conversation, hit.source_id)
@@ -280,18 +257,18 @@ def _resolve_availability(session: Session, hit: RecallHit) -> tuple[bool, str |
             row = session.get(FocusSession, hit.source_id)
             ok = row is not None
         elif hit.source_type == "decision":
-            # Always available once created — a Decision is never hard-
+            # Always available once created. A Decision is never hard-
             # deleted (see app.decision_service and CLAUDE.md's "do not
             # silently delete user-authored decisions"), and unlike an
             # archived MemoryItem, "superseded"/"abandoned" is a real
             # historical outcome this feature is built to keep auditable,
-            # not retired content — see recall_index_service._render_decision.
+            # not retired content; see recall_index_service._render_decision.
             row = session.get(Decision, hit.source_id)
             ok = row is not None
         else:
             ok = False
     except Exception:
-        # A resolution failure is truthfully "unavailable", never a 500 —
+        # A resolution failure is truthfully "unavailable", never a 500:
         # this is a read-only re-check, not a search-blocking dependency.
         ok = False
     return (True, None) if ok else (False, "Source unavailable")
@@ -299,12 +276,12 @@ def _resolve_availability(session: Session, hit: RecallHit) -> tuple[bool, str |
 
 def resolve_source_snapshot(session: Session, source_type: str, source_id: str) -> dict | None:
     """A freshly-resolved, server-side display snapshot (`domain_slug`/
-    `occurred_at`/`title`/`content`) for one Recall-eligible source —
+    `occurred_at`/`title`/`content`) for one Recall-eligible source,
     exactly the same rendering `recall_index_service` uses to populate
     `recall_fts`, exposed here so anything that needs to freeze a
-    citation-safe snapshot of a source (Phase 12E Research evidence) reuses
+    citation-safe snapshot of a source (Research evidence) reuses
     this single resolution path instead of re-deriving it. Returns None if
-    the source does not exist or is not currently indexable/visible — never
+    the source does not exist or is not currently indexable/visible, and never
     trusts a caller-supplied title/content for anything. Not itself a
     second search engine: this resolves exactly one already-known
     source_type/source_id pair, never queries or ranks anything."""
@@ -351,7 +328,7 @@ def resolve_source_snapshot(session: Session, source_type: str, source_id: str) 
 
 def resolve_availability(session: Session, source_type: str, source_id: str) -> tuple[bool, str | None]:
     """Public entry point for the exact same fresh, re-checked-at-read-time
-    availability rule `search()` applies to every result — reused by
+    availability rule `search()` applies to every result, reused by
     Research so a citation's "current availability state" is never trusted
     from a frozen snapshot."""
     hit = RecallHit(
@@ -363,7 +340,7 @@ def resolve_availability(session: Session, source_type: str, source_id: str) -> 
 
 def resolve_link_target(source_type: str, domain_slug: str | None) -> str | None:
     """Public entry point for the same source_type/domain_slug -> UI
-    navigation-target mapping `search()` results already carry — reused by
+    navigation-target mapping `search()` results already carry, reused by
     Research's own citation records rather than re-declaring a second copy
     of this table."""
     return _link_target(source_type, domain_slug)
@@ -407,7 +384,7 @@ def search(
         try:
             domain_ids = _domain_ids_for_slugs_safe(session, allowed_domains)
             # allowed_domains is always an explicit scope here (default
-            # LIFE/PATH/BUILD, or a caller-narrowed set) — even when it
+            # LIFE/PATH/BUILD, or a caller-narrowed set). Even when it
             # resolves to zero domain ids, that must mean zero domains, never
             # be coerced to "no filter at all" (which would search every
             # domain, MIND/PEOPLE included).
@@ -441,7 +418,7 @@ def search(
     if "document_chunk" in allowed_types:
         try:
             domain_ids = _domain_ids_for_slugs_safe(session, allowed_domains)
-            # Same scoping guarantee as above — never coerce an explicit
+            # Same scoping guarantee as above: never coerce an explicit
             # zero-domain scope back to "no filter."
             doc_hits = search_document_fts(session, query, domain_ids=domain_ids, limit=fetch_cap)
             for document_id, chunk_id, score in doc_hits:
@@ -471,7 +448,7 @@ def search(
         except Exception:
             partial_failures.append("recall_fts")
 
-    # Normalize each family's raw scores independently before combining —
+    # Normalize each family's raw scores independently before combining;
     # see the module docstring for why raw bm25 isn't comparable across
     # differently-shaped FTS tables.
     by_family: dict[str, list[int]] = {}

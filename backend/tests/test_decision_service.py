@@ -1,14 +1,14 @@
-"""Phase 12F: `app.decision_service` — lifecycle state machine, options/
+"""`app.decision_service`: lifecycle state machine, options/
 criteria/assessments, the pure deterministic score-calculation function,
 evidence linking (idempotency + privacy INTERSECTION), factors, the
 deterministic brief, and reopen/supersede/abandon/outcome-review history
-preservation. Every test uses fictional fixtures — no real Calendar/
+preservation. Every test uses fictional fixtures, with no real Calendar/
 Health/Keychain/Hermes/model contact.
 
 Deliberately does not re-prove things Phase 12D/12E's own test suites
 already established correct (Recall's search/ranking/escaping, the
 evidence-idempotency partial-unique-index mechanism, the citation-
-freezing pattern) — only that this module wires those same, reused
+freezing pattern), only that this module wires those same, reused
 mechanisms correctly for Decisions specifically. See
 test_decision_model_critique.py for the model-boundary/citation/AST
 coverage and test_decision_api.py for HTTP-level behaviour."""
@@ -73,7 +73,7 @@ def _decision_with_two_options(db_session: Session, **overrides) -> tuple:
 
 def _setup_status(db_session: Session, target_status: str):
     """Builds a decision already sitting in `target_status`, returning
-    (decision, opt1, opt2) — shared setup for the transition matrix below."""
+    (decision, opt1, opt2): shared setup for the transition matrix below."""
     decision, opt1, opt2 = _decision_with_two_options(db_session)
     if target_status == "draft":
         return decision, opt1, opt2
@@ -376,7 +376,7 @@ def test_compute_score_breakdown_tie_is_reported_never_arbitrarily_broken() -> N
 
 
 def test_compute_score_breakdown_sensitivity_warning_identifies_the_driving_criterion() -> None:
-    # A wins overall only because of "w_big" — removing it flips the leader to B.
+    # A wins overall only because of "w_big"; removing it flips the leader to B.
     options = [_FakeOption("A"), _FakeOption("B")]
     criteria = [_FakeCriterion("w_big", weight=5, name="Big"), _FakeCriterion("w_small", weight=1, name="Small")]
     assessments = [
@@ -450,7 +450,7 @@ def test_effective_domain_slugs_is_the_intersection_never_the_union(db_session: 
 
     # A crafted attempt to widen access via a source the DECISION's own
     # (wider) policy would allow, but the linked workspace's narrower
-    # policy would not, must still be rejected — the union is never used.
+    # policy would not, must still be rejected. The union is never used.
     build_type, build_id = _record_source(db_session, "build")
     with pytest.raises(ds.DecisionError):
         ds.add_evidence(db_session, decision.id, source_type=build_type, source_id=build_id)
@@ -579,7 +579,7 @@ def test_prompt_injection_shaped_evidence_remains_inert_in_deterministic_brief(d
     ds.add_evidence(db_session, decision.id, source_type=source_type, source_id=source_id)
     version = ds.generate_deterministic_brief(db_session, decision.id)
     citations = json.loads(version.citations_json)
-    assert "delete everything" in citations[0]["snippet_snapshot"]  # displayed, inert text — never executed
+    assert "delete everything" in citations[0]["snippet_snapshot"]  # displayed, inert text, never executed
 
 
 # --- outcome review and calibration ----------------------------------------------

@@ -1,6 +1,6 @@
 """Local speech-to-text via faster-whisper. Fully offline after the model
 weights have been downloaded once (cached by huggingface-hub in the normal
-HF cache directory, not JARVIS_DATA_DIR — this is model weight cache, not
+HF cache directory, not JARVIS_DATA_DIR, since this is model weight cache, not
 personal data)."""
 
 from __future__ import annotations

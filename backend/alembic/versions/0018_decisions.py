@@ -1,23 +1,11 @@
-"""Phase 12F: Evidence-Based Decision Room — the final planned major V1
-feature, completing Recall -> Research -> Decide -> Focus. Built entirely
-on top of Phase 12D Unified Recall and Phase 12E Research Workspaces —
-never a parallel search/evidence system. Adds eight new tables:
-decisions, decision_options, decision_criteria, decision_assessments,
-decision_evidence_links, decision_factors (assumptions/risks/unknowns),
-decision_brief_versions (deterministic snapshot + optional model
-critique), decision_final_versions (the user's actual recorded decision,
-always separate from any brief/critique), and decision_outcome_reviews.
+"""Decision Room: decisions, decision_options, decision_criteria,
+decision_assessments, decision_evidence_links, decision_factors
+(assumptions, risks, unknowns), decision_brief_versions, the user's
+decision_final_versions, and decision_outcome_reviews.
 
-`decision_evidence_links.source_type` intentionally allows one more value
-("decision") than migration 0017's already-shipped, unmodifiable
-`research_evidence.source_type` CHECK constraint — see
-app/schemas_decisions.py's own comment for why this is a deliberate,
-documented divergence (a decision may cite another decision as evidence;
-research_evidence's frozen constraint from before Decisions existed
-cannot retroactively gain that value without editing an existing
-migration, which CLAUDE.md forbids).
-
-Forward-only — 0001-0017 are untouched.
+`decision_evidence_links.source_type` also allows 'decision', which
+research_evidence's CHECK from 0017 lacks; changing a shipped migration
+to add it isn't allowed.
 
 Revision ID: 0018
 Revises: 0017
@@ -257,7 +245,7 @@ def upgrade() -> None:
     op.create_index("ix_decision_outcome_reviews_decision_id", "decision_outcome_reviews", ["decision_id"])
 
     # recall_fts (migration 0016) gains one more indexable source_type,
-    # "decision" — no schema change to recall_fts itself (it has no
+    # "decision". No schema change to recall_fts itself (it has no
     # source_type CHECK constraint), only app/recall_index_service.py's
     # RECALL_SOURCE_TYPES tuple (Python-level) needs it.
 

@@ -1,8 +1,8 @@
 /** The backend stores timestamps in UTC but SQLite/SQLAlchemy strips
  * timezone info on retrieval, so every timestamp the API sends looks like
- * "2026-09-04T12:17:40.120323" — no "Z", no offset. JavaScript's `Date`
+ * "2026-09-04T12:17:40.120323", with no "Z" and no offset. JavaScript's `Date`
  * parser treats a date-time string with no timezone marker as *local*
- * time, not UTC (unlike a date-only string, which defaults to UTC) — so
+ * time, not UTC (unlike a date-only string, which defaults to UTC), so
  * parsing that string directly silently misinterprets an actual UTC value
  * as already-local, displaying a time that's off by exactly the viewer's
  * UTC offset. Every caller must go through this function rather than
@@ -13,7 +13,7 @@ function asUtcDate(iso: string): Date {
 }
 
 /** House format already established across BriefingStrip/MissionFocusRail/
- * RecallCentre/ResearchCentre/DecisionCentre — "Sep 4, 12:17 PM" in the
+ * RecallCentre/ResearchCentre/DecisionCentre: "Sep 4, 12:17 PM" in the
  * viewer's own local timezone. Returns `fallback` (default empty string)
  * for a missing/null timestamp. */
 export function formatDateTime(iso: string | null | undefined, fallback = ""): string {

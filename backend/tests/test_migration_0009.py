@@ -1,6 +1,6 @@
 """Confirms migration 0008 -> 0009 (Phase 10 automatic-resync schedules)
 seeds both schedule rows disabled by default, without touching prior data.
-Forward-only — 0001-0008 are untouched."""
+Forward-only: 0001-0008 are untouched."""
 
 from __future__ import annotations
 

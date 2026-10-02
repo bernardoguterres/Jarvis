@@ -1,13 +1,7 @@
-"""Phase 8: the Jarvis-initiated action lifecycle.
-
-propose -> approve (bound to the exact payload digest) -> execute (bound to
-a short-lived, single-use confirmation token) -> succeeded/failed, with an
-append-only audit trail at every transition. See CLAUDE.md §12 and
-docs/ARCHITECTURE.md §8c for the full contract this implements.
-
-Direct actions a user takes through existing UI controls (saving a note,
-editing a memory by hand, etc.) never go through this module — only
-Jarvis-initiated proposals do.
+"""The Jarvis-initiated action lifecycle: propose, approve (bound to the
+exact payload digest), execute (bound to a short-lived, single-use
+confirmation token), then succeeded/failed, with an append-only audit
+trail. Direct user actions through the UI never go through here.
 """
 
 from __future__ import annotations
@@ -48,7 +42,7 @@ def compute_payload_digest(capability_id: str, domain_id: str | None, arguments:
 
 def _as_aware_utc(dt: datetime) -> datetime:
     """SQLite round-trips DateTime(timezone=True) values as naive datetimes
-    (no offset survives storage) — every timestamp this module writes is
+    (no offset survives storage). Every timestamp this module writes is
     already UTC, so a naive value read back is safely reinterpreted as UTC
     rather than compared incorrectly against an aware `datetime.now(utc)`."""
     return dt if dt.tzinfo is not None else dt.replace(tzinfo=timezone.utc)
@@ -119,7 +113,7 @@ def _expire_if_needed(session: Session, proposal: ActionProposal) -> None:
 def _reenable_for_retry(session: Session, proposal: ActionProposal, *, detail: str) -> None:
     """Puts a proposal back into `approved` with a fresh single-use
     confirmation token, so it can be retried through the ordinary
-    execute_action path — used only when the external system's absence of
+    execute_action path. Used only when the external system's absence of
     effect has been positively confirmed (never merely assumed)."""
     proposal.status = "approved"
     proposal.confirmation_token = secrets.token_hex(32)
@@ -187,7 +181,7 @@ def _reconcile_calendar_create(
             session, credential_store, http_client, "google_calendar"
         )
         # Prefer a direct lookup by this action's own deterministic event
-        # ID — the exact ID the interrupted create attempt would have sent,
+        # ID: the exact ID the interrupted create attempt would have sent,
         # so this is a precise single-event fetch rather than a search.
         live = gcal_provider.get_event(
             client=http_client,
@@ -210,7 +204,7 @@ def _reconcile_calendar_create(
         tagged_id = ((live.get("extendedProperties") or {}).get("private", {})).get("jarvis_action_id")
         if tagged_id != proposal.id:
             # An event occupies this action's deterministic ID but its own
-            # metadata doesn't confirm it belongs to this action — never
+            # metadata doesn't confirm it belongs to this action. Never
             # guess either way.
             _mark_needs_review(
                 session,
@@ -234,7 +228,7 @@ def _reconcile_calendar_create(
         )
         return
 
-    # Not found at the deterministic ID — either the create never took
+    # Not found at the deterministic ID: either the create never took
     # effect, or (an event created before this deterministic-ID scheme
     # existed) it was tagged only via the private extended property, never
     # given this ID. Fall back to that legacy lookup path before concluding
@@ -329,7 +323,7 @@ def _reconcile_calendar_mutation(
             )
         else:
             # A delete is naturally idempotent (repeat DELETE calls are
-            # harmless — the provider already treats a 410 as success), so
+            # harmless, since the provider already treats a 410 as success), so
             # retrying carries no duplication risk once we know the event
             # is still present.
             _reenable_for_retry(
@@ -341,7 +335,7 @@ def _reconcile_calendar_mutation(
 
     # Update: a PATCH is naturally idempotent (reapplying the same field
     # values twice never creates a duplicate), so as long as the event
-    # still exists it is always safe to retry — whether or not the earlier
+    # still exists it is always safe to retry, whether or not the earlier
     # attempt's patch had already landed.
     if live is None:
         _mark_needs_review(
@@ -358,35 +352,16 @@ def _reconcile_calendar_mutation(
 
 
 def expire_interrupted_executions(session: Session, *, http_client=None, credential_store=None) -> int:
-    """Recovers any proposal left stuck in `executing` by a backend crash or
-    kill (power loss, OOM, `kill -9`, a laptop sleep interrupting a network
-    call) between the two commits inside `execute_action` — the window where
-    a proposal is marked "executing" but `spec.execute(...)` has not yet
-    returned. Nothing else in this codebase ever moves a proposal out of
-    `executing` except a normal completion of that same call; the identical
-    situation during a restore is already handled by
-    `import_service._expire_stale_action_proposals`, but an ordinary backend
-    restart (no restore involved) previously left such a row permanently
-    stuck — `list_proposals`'s lazy `_expire_if_needed` only ever resolves a
-    time-based `approved`-window expiry, never an `executing` row.
+    """Recovers proposals left in `executing` by a crash or kill between
+    the two commits in `execute_action`. Runs once at startup.
 
-    A purely-local capability (memory.create, structured_record.create,
-    domain_summary.update) has no external effect: its mutation lives in
-    the very same database transaction as the `executing` -> `succeeded`
-    commit, so an interrupted one genuinely never took effect and `failed`
-    is accurate, not merely convenient.
-
-    A Google Calendar capability's real effect lives in a system outside
-    that transaction, so its outcome is instead *reconciled* against
-    Google itself: confirmed-succeeded (an event tagged with this action's
-    ID, or the target already reflects the intended end state), safely
-    retryable (confirmed absent, or the mutation is naturally idempotent),
-    or `needs_review` when Google cannot be reached to tell which. An
-    unknown outcome is never reported as a definite failure. Called once
-    at backend startup, before anything else can observe these proposals;
-    when `http_client`/`credential_store` are unavailable (or reconciliation
-    itself raises), every stuck Calendar proposal is conservatively marked
-    `needs_review` rather than guessed at."""
+    A local capability's change shares the transaction with the status
+    commit, so an interrupted one never took effect and `failed` is
+    accurate. A Google Calendar change happens outside that transaction,
+    so it is reconciled against Google: confirmed succeeded, safe to
+    retry, or `needs_review` when Google can't tell us. Without a client
+    or credentials, every stuck Calendar proposal becomes `needs_review`
+    rather than a guess."""
     stuck = session.execute(select(ActionProposal).where(ActionProposal.status == "executing")).scalars().all()
     for proposal in stuck:
         if proposal.capability_id.startswith("google_calendar.event."):
@@ -533,7 +508,7 @@ def execute_action(
     except CapabilityNeedsReviewError as exc:
         # A capability determined its own real-world outcome is genuinely
         # unverifiable (e.g. a Google Calendar create conflicted with an
-        # existing event whose metadata didn't match this action) — never
+        # existing event whose metadata didn't match this action). Never
         # collapse that honest uncertainty into a false "failed".
         session.rollback()
         session.refresh(proposal)

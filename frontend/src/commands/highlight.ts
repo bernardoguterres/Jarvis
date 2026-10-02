@@ -1,6 +1,6 @@
 // A tiny, generic "find this control once it exists, then briefly
 // highlight it" mechanism used by sensitive focus-control commands (see
-// registry.ts). It never clicks anything — it only scrolls the control
+// registry.ts). It never clicks anything; it only scrolls the control
 // into view, focuses it, and adds a temporary CSS class so the user can
 // see exactly what a spoken/typed command was pointing at before deciding
 // to act on it themselves.

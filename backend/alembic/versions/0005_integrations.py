@@ -1,4 +1,4 @@
-"""Phase 9: integration connections, Google Calendar cache, Fitbit daily
+"""Integration connections, Google Calendar cache, Fitbit daily
 summaries, and imported local documents.
 
 Revision ID: 0005
@@ -145,7 +145,7 @@ def upgrade() -> None:
     op.create_index("ix_document_chunks_document_id", "document_chunks", ["document_id"])
 
     # Derived, rebuildable FTS5 index over document chunk text. Never
-    # authoritative — document_chunks is the source of truth (same pattern
+    # authoritative: document_chunks is the source of truth (same pattern
     # as memory_fts in 0003).
     op.execute(
         """
@@ -158,7 +158,7 @@ def upgrade() -> None:
         """
     )
 
-    # Context snapshots (Phase 4) now also record exactly which document
+    # Context snapshots now also record exactly which document
     # chunks / calendar events / Fitbit daily summaries were used, so
     # integration data is auditable the same way memory/records already are.
     with op.batch_alter_table("context_snapshots") as batch_op:
@@ -166,7 +166,7 @@ def upgrade() -> None:
         batch_op.add_column(sa.Column("calendar_event_ids_json", sa.Text(), nullable=False, server_default="[]"))
         batch_op.add_column(sa.Column("fitbit_summary_ids_json", sa.Text(), nullable=False, server_default="[]"))
 
-    # Extend the Phase 8 action_proposals capability CHECK constraint to
+    # Extend the action_proposals capability CHECK constraint to
     # allow the three new Google Calendar write capabilities.
     with op.batch_alter_table("action_proposals") as batch_op:
         batch_op.drop_constraint("ck_action_proposals_capability_valid", type_="check")

@@ -1,13 +1,9 @@
-"""Mission Control / Current Focus's HTTP surface. Every mutation here is
-a direct, explicit local action (CLAUDE.md §12 "Read"-tier presentation/
-timer state) — never the Phase 8 propose->approve->execute lifecycle,
-since nothing here ever touches Calendar, memory, Health, or any other
-external source, and ending a session never mutates the source it was
-started from. There is no "Discuss with Jarvis" route here either,
-matching the Phase 10B/12A/12C pattern: the frontend sends the current
-mission/history into a normal conversation turn through the existing,
-already-model-using general-conversation endpoints — only when Bernardo
-explicitly asks for that.
+"""Mission Control HTTP routes. Every change here is a direct local action
+on Jarvis's own timer state, not the approval lifecycle, since nothing
+here touches Calendar, memory, Health or any other source, and ending a
+session never changes the item it came from. There is no "Discuss with
+Jarvis" route; the frontend sends the mission into a normal conversation
+turn when Bernardo asks.
 """
 
 from __future__ import annotations
@@ -66,11 +62,11 @@ def _session_to_read(db: Session, row: FocusSession, now: datetime) -> FocusSess
 @router.get("/api/mission-control/candidates", response_model=MissionCandidatesRead)
 def get_mission_candidates(db: Session = Depends(get_db)) -> MissionCandidatesRead:
     """Reuses the exact same NOW/NEXT/WATCH assembler Home's own briefing
-    uses (`app.briefing_service.assemble_home_briefing`) — never a second
+    uses (`app.briefing_service.assemble_home_briefing`), never a second
     prioritization engine. Uses the existing `trigger="home_view"` value
     (migration 0013's fixed, already-at-head `BRIEFING_SNAPSHOT_TRIGGERS`
     enum has no dedicated Mission Control entry, and CLAUDE.md forbids
-    editing a migration already at head) — this call shares the exact
+    editing a migration already at head). This call shares the exact
     same underlying ledger/snapshot trail as Home's own view, so it can
     never disagree with what Home itself would show."""
     now = _clock()

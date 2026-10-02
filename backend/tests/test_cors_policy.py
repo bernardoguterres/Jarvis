@@ -3,14 +3,14 @@
 Context: a Phase 11 security review (D81) found that `allow_methods` omitted
 PUT, which blocks a cross-origin `npm run dev` (port 5173 -> 8000) call to a
 real, already-shipped PUT endpoint (domain summary, integration schedule,
-routine schedule) at the browser preflight stage — invisible in production,
+routine schedule) at the browser preflight stage, invisible in production,
 since Phase 7 serves the frontend same-origin and no preflight ever happens
 there. D82 added PUT to the explicit allow-list. These tests exist so that
 fix can never silently regress, and so the policy can never quietly drift
 toward a wildcard origin/method list instead of an explicit one.
 
 These are the FastAPI/Starlette CORS *policy* being exercised directly via
-an OPTIONS preflight and matching Origin headers — not a real browser, which
+an OPTIONS preflight and matching Origin headers, not a real browser, which
 is the one thing that actually enforces the resulting headers. That
 enforcement itself was verified live in D82 (see docs/DECISIONS.md).
 """
@@ -40,8 +40,8 @@ def test_preflight_for_put_succeeds_from_the_approved_dev_origin(client: TestCli
 
 
 def test_existing_allowed_methods_still_work(client: TestClient) -> None:
-    """GET and POST preflights — already relied upon by every existing
-    endpoint — must be unaffected by adding PUT."""
+    """GET and POST preflights, already relied upon by every existing
+    endpoint, must be unaffected by adding PUT."""
     for method in ("GET", "POST"):
         response = client.options(
             "/api/domains",
@@ -55,8 +55,8 @@ def test_existing_allowed_methods_still_work(client: TestClient) -> None:
 
 
 def test_put_is_not_available_to_an_unapproved_origin(client: TestClient) -> None:
-    """The fix must not broaden *who* can call PUT — only the one already-
-    approved dev origin — so an arbitrary origin's preflight must still be
+    """The fix must not broaden *who* can call PUT (only the one already-
+    approved dev origin), so an arbitrary origin's preflight must still be
     refused."""
     response = client.options(
         "/api/domains/body/summary",
@@ -75,7 +75,7 @@ def test_put_is_not_available_to_an_unapproved_origin(client: TestClient) -> Non
 
 def test_cors_policy_has_no_wildcard_origin_or_method(client: TestClient) -> None:
     """A real browser only enforces what the preflight response actually
-    says — so the policy itself, not just one probe, must stay an explicit
+    says, so the policy itself, not just one probe, must stay an explicit
     allow-list. Guards against a future edit accidentally widening this to
     "*" (which `allow_credentials=False` would technically permit)."""
     response = client.options(

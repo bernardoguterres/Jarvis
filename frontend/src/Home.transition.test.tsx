@@ -56,7 +56,7 @@ describe("Home domain navigation — no artificial delay (jsdom has no View Tran
     // Synchronous: no `await waitFor`/timer advance required at all.
     expect(screen.getByRole("heading", { name: "BODY" })).toBeInTheDocument();
     // Other app machinery (health polling, etc.) legitimately uses
-    // setTimeout/setInterval — the regression this guards against is
+    // setTimeout/setInterval. The regression this guards against is
     // specifically a navigation delay, so assert none of the old 220ms/
     // 260ms artificial-wait durations were used, rather than that no
     // timer anywhere in the app ever fires.
@@ -74,7 +74,7 @@ describe("Home domain navigation — no artificial delay (jsdom has no View Tran
 
     expect(screen.getByRole("heading", { name: "BUILD" })).toBeInTheDocument();
     // Other app machinery (health polling, etc.) legitimately uses
-    // setTimeout/setInterval — the regression this guards against is
+    // setTimeout/setInterval. The regression this guards against is
     // specifically a navigation delay, so assert none of the old 220ms/
     // 260ms artificial-wait durations were used, rather than that no
     // timer anywhere in the app ever fires.
@@ -90,7 +90,7 @@ describe("Home domain navigation — no artificial delay (jsdom has no View Tran
     fireEvent.click(bodyButton);
     // By the time this second click is dispatched, Home has already
     // unmounted (the swap is synchronous on the no-View-Transitions
-    // fallback path) — this asserts that's genuinely true, not just
+    // fallback path). This asserts that's genuinely true, not just
     // hoped for, and that nothing throws in the process.
     expect(screen.queryByRole("button", { name: /open body/i })).not.toBeInTheDocument();
 

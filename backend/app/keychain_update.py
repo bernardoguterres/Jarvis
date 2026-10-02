@@ -1,22 +1,14 @@
-"""In-place macOS Keychain item updates via `SecItemUpdate`.
+"""In-place macOS Keychain updates via `SecItemUpdate`.
 
-`keyring`'s own macOS backend (`keyring.backends.macOS.api.set_generic_password`)
-always deletes and recreates a generic-password item on every write, which
-resets the item's Access Control list — silently wiping any "Always Allow"
-grant a user has already given the signed backend binary, causing a fresh
-Keychain permission prompt on the next read after every OAuth token
-refresh. An in-place update via `SecItemUpdate` changes only the stored
-value; the item's identity (and therefore its ACL) is never touched, so a
-grant made once survives every later token refresh.
+`keyring`'s macOS backend deletes and recreates the item on every write,
+which resets its access list and wipes any "Always Allow" grant, so every
+token refresh caused a new Keychain prompt. Updating in place keeps the
+item, and its grant, intact.
 
-Reuses `keyring.backends.macOS.api`'s own ctypes bindings (same libraries,
-same query-building helpers) rather than reimplementing them, adding only
-the one binding `keyring` doesn't need: `SecItemUpdate`. Its
-`attributesToUpdate` dictionary requires a genuine `CFDataRef` for
-`kSecValueData` — `create_query`'s generic value coercion produces a
-`CFStringRef` instead, which `SecItemAdd` tolerates but `SecItemUpdate`
-rejects with `errSecParam`/-50. See docs/DECISIONS.md for the disposable-item
-verification this passed before being used against a real credential.
+Reuses `keyring.backends.macOS.api`'s ctypes bindings and adds only
+`SecItemUpdate`. The new value must be a real `CFDataRef`; the
+`CFStringRef` that `create_query` produces is rejected with
+`errSecParam` (-50).
 """
 
 from __future__ import annotations
@@ -28,7 +20,7 @@ from ctypes import c_int32, c_void_p
 
 class KeychainUpdateNotSupported(Exception):
     """Raised when this platform (or the Security framework) isn't
-    available — the caller falls back to keyring's own create/update path,
+    available. The caller falls back to keyring's own create/update path,
     which has no ACL-preservation benefit but still works correctly."""
 
 
@@ -46,7 +38,7 @@ def update_generic_password_in_place(service: str, account: str, value: str) -> 
     """Updates an existing generic-password item's value in place, without
     deleting/recreating it. Returns True if an existing item was found and
     updated; False if no such item exists yet (the caller should then
-    create it through the normal path — a brand-new item has no ACL to
+    create it through the normal path, since a brand-new item has no ACL to
     preserve). Raises on any other Keychain error."""
     api = _load_api()
 

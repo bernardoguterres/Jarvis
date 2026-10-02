@@ -1,15 +1,9 @@
 """Builds a portable, versioned ZIP export of JARVIS_DATA_DIR.
 
-Design notes (see docs/ARCHITECTURE.md and docs/DECISIONS.md for the full
-rationale):
-
-* The SQLite database is never copied with a plain filesystem copy. It is
-  snapshotted with sqlite3's online backup API, which is safe to use while
-  the source database is open and being written to.
-* The archive is built in a temporary file inside exports/ and atomically
-  renamed into place, so a crash or interruption never leaves a partial file
-  with a "finished" name.
-* A simple exclusive-lock file prevents two exports from running at once.
+The database is copied with SQLite's online backup API, so it is safe
+while Jarvis is writing. The archive is written to a temp file and
+renamed into place, so an interrupted export never looks finished, and a
+lock file stops two exports running at once.
 """
 
 from __future__ import annotations
@@ -160,7 +154,7 @@ class _ExportLock:
 
 
 # Matches exactly the two filenames create_export() itself generates for a
-# single attempt — nothing else. Deliberately precise (not a broad ".tmp-*"
+# single attempt, nothing else. Deliberately precise (not a broad ".tmp-*"
 # glob) so this can never match a real completed export (never dot-prefixed)
 # or an unrelated file a user might have placed in exports_dir.
 _STALE_EXPORT_TEMP_FILE = re.compile(
@@ -168,8 +162,8 @@ _STALE_EXPORT_TEMP_FILE = re.compile(
 )
 
 # An export completes in well under a second even at a full multi-year
-# personal-scale dataset (see docs/DECISIONS.md D85's scale benchmarks) —
-# this threshold exists only to guarantee a genuinely in-progress export
+# personal-scale dataset (see docs/DECISIONS.md D85's scale benchmarks).
+# This threshold exists only to guarantee a genuinely in-progress export
 # (a slow disk, a large Hermes profile export) is never mistaken for a
 # stale one, not because exports are expected to take anywhere near this
 # long.
@@ -179,42 +173,16 @@ DEFAULT_STALE_EXPORT_TEMP_MAX_AGE_SECONDS = 3600
 def cleanup_stale_export_temp_files(
     settings: Settings, *, max_age_seconds: int = DEFAULT_STALE_EXPORT_TEMP_MAX_AGE_SECONDS
 ) -> int:
-    """Removes only Jarvis's own leftover export scratch files — the
-    ``.tmp-*`` (in-progress archive) and ``.dbsnapshot-*`` (raw SQLite
-    snapshot) files `create_export` writes directly into `exports_dir`
-    before atomically renaming the finished archive into place. A process
-    killed mid-export (crash, `kill -9`, power loss) skips the `finally`
-    block that would normally delete the dbsnapshot file and never reaches
-    the `os.replace()` that would consume the .tmp file, so either can be
-    left behind indefinitely with no other code path ever revisiting them —
-    pure disk-hygiene, never a correctness or security issue (a completed,
-    valid export is never named this way, and nothing reads these files
-    back), but capable of accumulating slowly on a machine that stays on
-    for a long time. Called once at backend startup; never blocks it.
+    """Deletes Jarvis's own leftover export scratch files (``.tmp-*`` and
+    ``.dbsnapshot-*``) that a process killed mid-export leaves in
+    `exports_dir`. Called once at startup; never blocks it.
 
-    Safety, by construction:
-    * Only ever lists `settings.exports_dir` itself (`Path.iterdir()`, not
-      `os.walk`/`glob`/`rglob`) — never recurses, never touches any other
-      directory, and no path segment is ever taken from outside this call.
-    * Every candidate name must match `_STALE_EXPORT_TEMP_FILE` exactly —
-      the precise pattern this module itself generates, not a broad glob —
-      so a real completed export (`jarvis-export-*.zip`, never dot-prefixed)
-      or any unrelated file a user placed in `exports_dir` is structurally
-      unmatchable and always left untouched.
-    * Each candidate's resolved parent must still be `exports_dir` resolved
-      (`Path.resolve()` on both sides) before it is ever unlinked — defeats
-      a symlink placed inside `exports_dir` that points elsewhere; nothing
-      outside `exports_dir` is ever deleted even if such a link matched the
-      name pattern (which, per the point above, it structurally cannot).
-    * Age is judged by the file's own `st_mtime` (last content write), not
-      a fixed "creation" timestamp SQLite/zip files don't reliably carry —
-      a file younger than `max_age_seconds` is always left alone, so a
-      genuinely in-progress export can never be removed out from under
-      itself regardless of how slow that particular run is.
-    * Any single file's stat/unlink failure (e.g. a permissions error, or
-      the file disappearing between listing and unlinking) is caught and
-      skipped — never allowed to abort the rest of the sweep or propagate
-      to the caller.
+    Only files directly in `exports_dir` whose names match
+    `_STALE_EXPORT_TEMP_FILE` exactly are considered, so finished exports
+    and user files are never touched. Symlinks pointing outside the folder
+    are skipped, files younger than `max_age_seconds` are left alone in
+    case an export is still running, and a failure on one file never stops
+    the sweep.
     """
     exports_dir = settings.exports_dir
     if not exports_dir.is_dir():
@@ -232,7 +200,7 @@ def cleanup_stale_export_temp_files(
                 continue
             resolved_entry = entry.resolve()
             if resolved_entry.parent != resolved_exports_dir:
-                continue  # a symlink pointing outside exports_dir — never followed
+                continue  # a symlink pointing outside exports_dir; never followed
             stat_result = entry.stat()
             age_seconds = now - stat_result.st_mtime
             if age_seconds < max_age_seconds:
@@ -294,7 +262,7 @@ def create_export(settings: Settings) -> ExportResult:
                         }
                     )
 
-            # 3. Optional Hermes profile export (Phase 3+). Always optional:
+            # 3. Optional Hermes profile export. Always optional:
             # if the hermes CLI or the named profile isn't present, the main
             # Jarvis export proceeds without it.
             hermes_profile_manifest: dict = {

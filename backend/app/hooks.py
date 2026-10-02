@@ -1,19 +1,12 @@
-"""Phase 8: deterministic, explicitly-registered controller lifecycle hooks.
+"""Controller lifecycle hooks: plain Python functions registered in a
+fixed order (listed at the bottom of this file). Not related to Claude
+Code's development hooks.
 
-Not to be confused with Claude Code's own development hooks — these are
-Jarvis Controller runtime hooks, running inside this backend process only.
-
-Ordering is explicit (registration order, listed at the bottom of this
-file) and documented in docs/ARCHITECTURE.md §8c. Every hook receives a
-typed HookContext and returns a typed HookOutcome; every invocation is
-recorded as an auditable HookEvent row before its result is used. A hook
-that returns allowed=False stops the phase immediately (fail closed) —
-callers must not proceed to the risky operation the phase gates.
-
-Hooks here are plain Python functions defined in this codebase. None of
-them execute arbitrary user-provided shell commands or code, none rewrite
-stored messages/memories, and none depend on which reasoning model/provider
-is configured.
+Each hook takes a typed HookContext, returns a typed HookOutcome, and is
+recorded as a HookEvent before its result is used. A hook returning
+allowed=False stops the phase (fail closed). Hooks never run user shell
+commands, never rewrite stored messages or memories, and don't depend on
+the configured model.
 """
 
 from __future__ import annotations
@@ -117,7 +110,7 @@ def _validate_domain_exists_hook(context: HookContext) -> HookOutcome:
 
 def _capability_allowlist_hook(context: HookContext) -> HookOutcome:
     """before_action: re-verifies the proposal's capability is still in the
-    fixed allowlist, even though it was already checked at proposal time —
+    fixed allowlist, even though it was already checked at proposal time:
     defense in depth against the registry changing between propose and
     execute (e.g. across a version upgrade)."""
     from app.capabilities import CAPABILITY_REGISTRY
@@ -154,7 +147,7 @@ def _confirmation_validity_hook(context: HookContext) -> HookOutcome:
 
 def _recursion_guard_hook(context: HookContext) -> HookOutcome:
     """before_action: prevents re-entrant/repeated execution of the same
-    proposal — status must still be exactly 'approved' at the moment this
+    proposal. Status must still be exactly 'approved' at the moment this
     runs (set to 'executing' immediately after, by the caller, inside the
     same transaction)."""
     proposal = context.action_proposal
@@ -173,7 +166,7 @@ def _audit_on_failure_hook(context: HookContext) -> HookOutcome:
     return HookOutcome(allowed=True, detail=f"Action failed: {detail}")
 
 
-# Explicit, documented ordering — see docs/ARCHITECTURE.md §8c.
+# Explicit, documented ordering; see docs/ARCHITECTURE.md §8c.
 register_hook("before_context", "validate_domain_exists", _validate_domain_exists_hook)
 register_hook("before_action", "capability_allowlist", _capability_allowlist_hook)
 register_hook("before_action", "confirmation_validity", _confirmation_validity_hook)

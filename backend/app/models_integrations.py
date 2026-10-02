@@ -1,13 +1,9 @@
-"""Phase 9 (corrected): normalized local caches for Google Calendar,
-Google Health (Fitbit/Health data via the current Google Health API — the
-legacy Fitbit Web API is being retired by Google in September 2026, see
-docs/DECISIONS.md), and imported local documents, plus generic
-per-provider connection state.
+"""Local caches for Google Calendar, Google Health and imported documents,
+plus per-provider connection state.
 
-Nothing here ever stores a credential — OAuth tokens live only in the
-macOS Keychain via app/credential_store.py. These tables hold only
-normalized, typed, non-secret application data with source IDs,
-timestamps, and lineage, per CLAUDE.md's data-ownership rules.
+No credential is ever stored here; OAuth tokens live only in the macOS
+Keychain (app/credential_store.py). These tables hold typed, non-secret
+data with source IDs and timestamps.
 """
 
 from __future__ import annotations
@@ -28,7 +24,7 @@ DOCUMENT_STATUSES = ("processing", "ready", "error", "encrypted", "unsupported")
 
 
 class IntegrationConnection(Base):
-    """One row per external provider — never per-user (Jarvis is
+    """One row per external provider, never per-user (Jarvis is
     single-user). Never stores a token; only status/metadata."""
 
     __tablename__ = "integration_connections"
@@ -77,7 +73,7 @@ class CalendarCalendar(Base):
 
 class CalendarEventCache(Base):
     """Normalized local cache of one Google Calendar event. Never
-    authoritative — the real calendar is; this is a rebuildable read cache
+    authoritative: the real calendar is. This is a rebuildable read cache
     refreshed only by explicit manual sync."""
 
     __tablename__ = "calendar_event_cache"
@@ -108,14 +104,14 @@ class CalendarEventCache(Base):
 
 class GoogleHealthDailySummary(Base):
     """One row per calendar day of normalized Google Health data. Values
-    are None when Google Health had nothing for that metric that day —
+    are None when Google Health had nothing for that metric that day,
     never fabricated or estimated. `raw_json` retains the original API
     responses for lineage.
 
     `lightly_active_minutes`/`fairly_active_minutes`/`very_active_minutes`/
-    `sedentary_minutes` predate the Phase 9 breadth correction (migration
+    `sedentary_minutes` predate the Google Health breadth correction (migration
     0007) and are kept, unpopulated, for schema/export compatibility with
-    any archive created before that correction — never populated or read
+    any archive created before that correction. Never populated or read
     going forward; `active_zone_minutes` is the current equivalent."""
 
     __tablename__ = "google_health_daily_summaries"
@@ -133,7 +129,7 @@ class GoogleHealthDailySummary(Base):
     fairly_active_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
     very_active_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
     sedentary_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    # Google's own API types all three as `number` (float), not int64 —
+    # Google's own API types all three as `number` (float), not int64.
     # `beatsPerMinuteAvg` in particular is routinely fractional (e.g.
     # 64.51...). A real 500 was found live when these were declared `int`
     # (docs/DECISIONS.md D66): the read schema rejected the genuine stored
@@ -164,7 +160,7 @@ GOOGLE_HEALTH_SESSION_TYPES = ("sleep", "exercise")
 
 class GoogleHealthSession(Base):
     """One row per Google Health session (a sleep period or an exercise
-    session) — event-shaped data, never collapsed into a single daily
+    session): event-shaped data, never collapsed into a single daily
     number. `external_id` is Google Health's own stable resource name
     (`users/.../dataTypes/{type}/dataPoints/{id}`), which makes repeated
     sync idempotent without Jarvis inventing its own identity scheme."""
@@ -195,7 +191,7 @@ class GoogleHealthSession(Base):
 
 
 class Document(Base):
-    """A user-uploaded local document (explicit import only — never a
+    """A user-uploaded local document (explicit import only, never a
     scanned/watched folder). Original bytes live under the portable
     documents area; extracted text lives in DocumentChunk rows."""
 

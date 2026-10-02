@@ -1,4 +1,4 @@
-"""Model-independent speech interfaces (Phase 5).
+"""Model-independent speech interfaces.
 
 Mirrors app/providers/base.py's approach for the reasoning model: the rest
 of the app depends only on these Protocols, never on faster-whisper or

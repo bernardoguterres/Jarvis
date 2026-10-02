@@ -1,6 +1,6 @@
-"""Phase 12F: a realistically large decision (many options, criteria,
+"""A realistically large decision (many options, criteria,
 evidence items) and many brief versions, using fictional bulk-generated
-content — never Bernardo's real data. Proves the deterministic score
+content, never Bernardo's real data. Proves the deterministic score
 breakdown, evidence listing, and brief generation all stay fast and
 correct at a scale well beyond ordinary interactive use."""
 

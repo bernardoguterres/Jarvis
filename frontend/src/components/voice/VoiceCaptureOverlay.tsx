@@ -6,7 +6,7 @@ import { useAudioLevels, type AudioLevelSource } from "../../hooks/useAudioLevel
 import { useReducedMotion } from "../../hooks/useReducedMotion";
 import type { VoiceState } from "../../voiceState";
 
-/** "cancelled" is a brief transient display state (not a real VoiceState —
+/** "cancelled" is a brief transient display state (not a real VoiceState;
  * callers flash it for ~500ms via handleCancel before settling to "idle")
  * purely so screen readers get the "Cancelled" announcement the spec
  * requires, without idle needing to become an announceable state. */
@@ -14,19 +14,19 @@ export type VoiceDisplayState = VoiceState | "cancelled";
 
 interface VoiceCaptureOverlayProps {
   voiceState: VoiceDisplayState;
-  /** "GENERAL", "BODY", "BUILD", "COMMAND", etc. — whichever surface
+  /** "GENERAL", "BODY", "BUILD", "COMMAND", etc.: whichever surface
    * push-to-talk was started from. Never fabricated: the caller passes
    * the real active scope. */
   scope: string;
-  /** The exact MediaStream push-to-talk already acquired — reused
+  /** The exact MediaStream push-to-talk already acquired, reused
    * directly, never a second getUserMedia call. */
   micStream: MediaStream | null;
-  /** The exact <audio> element already playing synthesized speech —
+  /** The exact <audio> element already playing synthesized speech,
    * reused directly, never a duplicate playback path. */
   ttsAudioElement: HTMLAudioElement | null;
   errorMessage?: string | null;
   /** Called when the viewer clicks/taps anywhere on the overlay while it is
-   * showing "error" — the only state with nothing left to release into, so
+   * showing "error", the only state with nothing left to release into, so
    * it's the only state where this layer briefly accepts pointer events at
    * all (see the `state === "error"` guard on `pointer-events` below).
    * Every other state stays fully click-through, exactly as before, so a
@@ -54,7 +54,7 @@ function formatElapsed(ms: number): string {
 
 /** A lightweight cinematic capture overlay, mounted over whatever page is
  * already showing (Home, a domain conversation, the general conversation,
- * or a Centre) — it never navigates away, never intercepts pointer events
+ * or a Centre). It never navigates away, never intercepts pointer events
  * (entirely `pointer-events: none`, so the release gesture that stops
  * recording always reaches the real push-to-talk control underneath,
  * for mouse, touch, and keyboard alike), and never causes the page to
@@ -111,7 +111,7 @@ function VoiceCaptureOverlay({ voiceState, scope, micStream, ttsAudioElement, er
   } else if (isSpeaking) {
     waveformSlot = <Waveform barRefs={barRefs} tone="cyan" fallback={!ttsLevels.supported || !ttsAudioElement} />;
   }
-  // "thinking" and "error" deliberately show no waveform at all — the
+  // "thinking" and "error" deliberately show no waveform at all: the
   // existing JarvisCore ring states carry those on their own.
 
   const announcement =

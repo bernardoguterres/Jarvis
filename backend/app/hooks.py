@@ -142,6 +142,15 @@ def _confirmation_validity_hook(context: HookContext) -> HookOutcome:
         expires_at = expires_at.replace(tzinfo=timezone.utc)
     if expires_at is None or expires_at < datetime.now(timezone.utc):
         return HookOutcome(allowed=False, detail="Confirmation token expired")
+    # Approval was bound to a digest of the exact payload. Re-derive it
+    # from what would actually run, so a payload changed after approval
+    # (by any path) can never execute under the old approval.
+    from app.action_service import stored_payload_matches_digest
+
+    if not stored_payload_matches_digest(proposal):
+        return HookOutcome(
+            allowed=False, detail="Stored payload no longer matches the approved digest; refusing to execute"
+        )
     return HookOutcome(allowed=True)
 
 

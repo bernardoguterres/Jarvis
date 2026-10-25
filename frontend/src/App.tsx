@@ -605,7 +605,7 @@ function App() {
         showCommandFeedback(result.error ? `Jarvis could not respond: ${result.error.summary}` : "Jarvis could not respond.", "error");
         return { ok: false, assistantMessage: null };
       } catch {
-        showCommandFeedback("Could not reach Jarvis. Your question was not sent.", "error");
+        showCommandFeedback("Lost contact with Jarvis before a reply arrived. Check the general conversation for what was saved.", "error");
         return { ok: false, assistantMessage: null };
       }
     },

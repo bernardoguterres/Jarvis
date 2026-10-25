@@ -9,6 +9,26 @@ const INTEGRATIONS_SYNC_CALENDAR: &str = "http://127.0.0.1:8000/api/integrations
 const INTEGRATIONS_SYNC_HEALTH: &str = "http://127.0.0.1:8000/api/integrations/google_health/sync";
 const EXPORT_URL: &str = "http://127.0.0.1:8000/api/export";
 const DATA_DIR_URL: &str = "http://127.0.0.1:8000/api/data-dir";
+const SESSION_URL: &str = "http://127.0.0.1:8000/api/session";
+const TOKEN_HEADER: &str = "X-Jarvis-Token";
+
+/// The backend refuses /api requests without its per-launch token (see
+/// backend/app/local_api_guard.py). Fetched fresh for each tray action, so
+/// a backend restart never leaves the tray holding a stale token. Kept in
+/// memory only, never logged.
+fn api_token() -> Option<String> {
+    match ureq::get(SESSION_URL).call() {
+        Ok(response) => response
+            .into_string()
+            .ok()
+            .and_then(|body| serde_json::from_str::<serde_json::Value>(&body).ok())
+            .and_then(|v| v.get("token").and_then(|t| t.as_str()).map(str::to_owned)),
+        Err(err) => {
+            log::warn!("[tray] could not get an API session token: {err}");
+            None
+        }
+    }
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -130,8 +150,9 @@ pub fn run() {
                     "sync" => {
                         let app_handle = app.clone();
                         std::thread::spawn(move || {
+                            let Some(token) = api_token() else { return };
                             for url in [INTEGRATIONS_SYNC_CALENDAR, INTEGRATIONS_SYNC_HEALTH] {
-                                match ureq::post(url).call() {
+                                match ureq::post(url).set(TOKEN_HEADER, &token).call() {
                                     Ok(_) => log::info!("[tray] triggered sync: {url}"),
                                     Err(err) => log::warn!("[tray] sync failed for {url}: {err}"),
                                 }
@@ -142,9 +163,12 @@ pub fn run() {
                     "export_backup" => {
                         // Safe, non-destructive, idempotent — a direct
                         // one-click action, unlike restore below.
-                        std::thread::spawn(|| match ureq::post(EXPORT_URL).call() {
-                            Ok(_) => log::info!("[tray] export created"),
-                            Err(err) => log::warn!("[tray] export failed: {err}"),
+                        std::thread::spawn(|| {
+                            let Some(token) = api_token() else { return };
+                            match ureq::post(EXPORT_URL).set(TOKEN_HEADER, &token).call() {
+                                Ok(_) => log::info!("[tray] export created"),
+                                Err(err) => log::warn!("[tray] export failed: {err}"),
+                            }
                         });
                     }
                     "restore_backup" => {
@@ -163,7 +187,8 @@ pub fn run() {
                     }
                     "reveal_data_folder" => {
                         std::thread::spawn(|| {
-                            let path = match ureq::get(DATA_DIR_URL).call() {
+                            let Some(token) = api_token() else { return };
+                            let path = match ureq::get(DATA_DIR_URL).set(TOKEN_HEADER, &token).call() {
                                 Ok(response) => response
                                     .into_string()
                                     .ok()

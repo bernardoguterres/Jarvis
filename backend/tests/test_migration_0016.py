@@ -9,7 +9,6 @@ from __future__ import annotations
 from pathlib import Path
 
 from alembic.config import Config
-from fastapi.testclient import TestClient
 
 from app.config import Settings
 from app.database import build_engine, build_sessionmaker
@@ -17,6 +16,7 @@ from app.migration_info import get_head_revision, read_db_revision
 from app.models import Domain
 from app.models_memory import StructuredRecord
 from app.seed import seed_domains
+from tests.conftest import authed_client
 
 _BACKEND_ROOT = Path(__file__).resolve().parent.parent
 
@@ -114,7 +114,7 @@ def test_startup_backfills_recall_index_for_a_pre_0016_installation(data_dir: Pa
     from app.main import create_app
 
     app = create_app()
-    with TestClient(app) as test_client:
+    with authed_client(app) as test_client:
         resp = test_client.get("/api/recall/search", params={"q": "Backfill"})
         assert resp.status_code == 200
         assert len(resp.json()["results"]) == 1

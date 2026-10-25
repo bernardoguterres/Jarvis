@@ -38,6 +38,18 @@ def _no_real_browser_open(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("app.routers.integrations._open_in_system_browser", lambda url: None)
 
 
+@pytest.fixture(autouse=True)
+def _no_real_keychain(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The app's lifespan builds a KeychainCredentialStore. Keychain items
+    are global to the macOS user, so a test app hitting an integration
+    route could read, revoke or delete the real installation's tokens
+    (this happened once through an audit reproduction script, D114).
+    Every app built in tests gets an in-memory store instead, through an
+    environment variable so a spawned subprocess inherits it too; tests
+    that need specific credentials still swap in their own store."""
+    monkeypatch.setenv("JARVIS_CREDENTIAL_STORE", "memory")
+
+
 @pytest.fixture()
 def data_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     """Isolated JARVIS_DATA_DIR for a single test. Never the real ~/JarvisData."""
@@ -57,6 +69,12 @@ def _prepare_schema(data_dir: Path) -> Settings:
     return settings
 
 
+def authed_client(app) -> TestClient:
+    """A TestClient that looks like the real frontend: a loopback Host and
+    the app's per-launch API token (see app/local_api_guard.py)."""
+    return TestClient(app, base_url="http://127.0.0.1:8000", headers={"X-Jarvis-Token": app.state.api_token})
+
+
 @pytest.fixture()
 def client(data_dir: Path) -> Iterator[TestClient]:
     _prepare_schema(data_dir)
@@ -64,7 +82,7 @@ def client(data_dir: Path) -> Iterator[TestClient]:
     from app.main import create_app
 
     app = create_app()
-    with TestClient(app) as test_client:
+    with authed_client(app) as test_client:
         yield test_client
 
 
@@ -80,7 +98,7 @@ def restart_client_factory(data_dir: Path) -> Generator:
 
     def _make() -> TestClient:
         app = create_app()
-        test_client = TestClient(app)
+        test_client = authed_client(app)
         test_client.__enter__()
         clients.append(test_client)
         return test_client

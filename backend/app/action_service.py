@@ -11,12 +11,12 @@ import json
 import secrets
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from app import hooks
 from app.capabilities import get_capability, validate_domain_for_capability
-from app.capability_errors import CapabilityNeedsReviewError
+from app.capability_errors import CapabilityNeedsReviewError, CapabilityRetryableError
 from app.models_actions import ActionAuditEvent, ActionProposal
 from app.recall_index_service import sync_recall
 
@@ -202,6 +202,16 @@ def _reconcile_calendar_create(
 
     if live is not None:
         tagged_id = ((live.get("extendedProperties") or {}).get("private", {})).get("jarvis_action_id")
+        if live.get("status") == "cancelled":
+            _mark_needs_review(
+                session,
+                proposal,
+                detail=(
+                    "Recovered at startup: the event at this action's deterministic ID has been deleted, so "
+                    "it does not show the create succeeded. Verify the calendar directly."
+                ),
+            )
+            return
         if tagged_id != proposal.id:
             # An event occupies this action's deterministic ID but its own
             # metadata doesn't confirm it belongs to this action. Never
@@ -396,8 +406,9 @@ def expire_interrupted_executions(session: Session, *, http_client=None, credent
         else:
             proposal.status = "failed"
             proposal.error_summary = (
-                "Interrupted by a backend restart while executing a local-only capability with no "
-                "external effect — the database transaction never committed, so it did not happen."
+                "Interrupted by a backend restart while executing a local-only capability. Its change "
+                "is written in the same transaction as the 'succeeded' status, which never committed, "
+                "so the change was rolled back and did not happen."
             )
             session.flush()
             _record_event(
@@ -466,6 +477,16 @@ def deny_action(session: Session, proposal_id: str, *, reason: str | None = None
     return proposal
 
 
+def stored_payload_matches_digest(proposal: ActionProposal) -> bool:
+    """True when the capability, domain and arguments that would actually
+    run still hash to the digest the user approved."""
+    try:
+        arguments = json.loads(proposal.arguments_json)
+    except ValueError:
+        return False
+    return compute_payload_digest(proposal.capability_id, proposal.domain_id, arguments) == proposal.payload_digest
+
+
 def execute_action(
     session: Session, proposal_id: str, *, confirmation_token: str, http_client=None, credential_store=None
 ) -> ActionProposal:
@@ -487,9 +508,28 @@ def execute_action(
 
     # Single-use: consumed on the attempt, not on success, so a failing
     # handler cannot be retried indefinitely with the same token.
-    proposal.status = "executing"
-    proposal.confirmation_used_at = datetime.now(timezone.utc)
-    session.flush()
+    #
+    # The hooks above read status in Python, so two concurrent requests can
+    # both pass them. Consumption is therefore a compare-and-set in one
+    # UPDATE: SQLite serialises writers, and only the request whose UPDATE
+    # still sees this exact token unused in 'approved' changes a row. The
+    # other gets rowcount 0 and is refused before anything executes.
+    claimed = session.execute(
+        update(ActionProposal)
+        .where(
+            ActionProposal.id == proposal.id,
+            ActionProposal.status == "approved",
+            ActionProposal.confirmation_used_at.is_(None),
+            ActionProposal.confirmation_token == confirmation_token,
+            ActionProposal.payload_digest == proposal.payload_digest,
+        )
+        .values(status="executing", confirmation_used_at=datetime.now(timezone.utc))
+        .execution_options(synchronize_session=False)
+    ).rowcount
+    if claimed != 1:
+        session.rollback()
+        raise ActionError("Confirmation token already used (replay rejected)")
+    session.refresh(proposal)
     _record_event(session, proposal, "executing")
     session.commit()
     session.refresh(proposal)
@@ -517,6 +557,21 @@ def execute_action(
         session.flush()
         sync_recall(session, "action_proposal", proposal.id)
         _record_event(session, proposal, "needs_review", detail=proposal.error_summary)
+        session.commit()
+        session.refresh(proposal)
+        return proposal
+    except CapabilityRetryableError as exc:
+        # The external system showed no sign of the change, and a retry is
+        # idempotent (same proposal, same event ID), so the
+        # same proposal (and so the same idempotency key) can safely be
+        # executed again. Re-approval issues a fresh single-use token; the
+        # user still has to press Execute.
+        session.rollback()
+        session.refresh(proposal)
+        _reenable_for_retry(session, proposal, detail=str(exc.detail)[:500])
+        proposal.error_summary = str(exc.detail)[:500]
+        session.flush()
+        sync_recall(session, "action_proposal", proposal.id)
         session.commit()
         session.refresh(proposal)
         return proposal

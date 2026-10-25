@@ -19,6 +19,7 @@ from app import calendar_capability, domain_summary_service, memory_service, str
 from app.capability_errors import CapabilityError
 from app.models import Domain
 from app.models_memory import MEMORY_SCOPES
+from app.recall_index_service import sync_recall
 from app.structured_records import RECORD_TYPE_DOMAIN_SLUG
 
 __all__ = ["CapabilityError", "CapabilitySpec", "CAPABILITY_REGISTRY", "get_capability", "validate_domain_for_capability"]
@@ -67,6 +68,7 @@ def _execute_memory_create(session: Session, domain_id: str | None, arguments: d
         sensitivity=arguments.get("sensitivity", "normal"),
         source_note=arguments.get("source_note"),
         source="action_proposal",
+        commit=False,
     )
     return {"memory_item_id": item.id}
 
@@ -97,9 +99,11 @@ def _execute_structured_record_create(session: Session, domain_id: str | None, a
             record_type=arguments["record_type"],
             occurred_at=occurred_at,
             payload=arguments["payload"],
+            commit=False,
         )
     except structured_record_service.StructuredRecordError as exc:
         raise CapabilityError(str(exc)) from exc
+    sync_recall(session, "structured_record", record.id)
     return {"structured_record_id": record.id}
 
 
@@ -116,8 +120,9 @@ def _execute_domain_summary_update(session: Session, domain_id: str | None, argu
     if domain_id is None:
         raise CapabilityError("domain_summary.update requires a domain_id")
     summary = domain_summary_service.set_domain_summary(
-        session, domain_id, arguments["content"], source="action_proposal"
+        session, domain_id, arguments["content"], source="action_proposal", commit=False
     )
+    sync_recall(session, "domain_summary", domain_id)
     return {"domain_summary_id": summary.id}
 
 

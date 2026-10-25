@@ -16,7 +16,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app import action_service
-from app.capabilities import CAPABILITY_REGISTRY
+from app.capabilities import CAPABILITY_REGISTRY, get_capability, validate_domain_for_capability
+from app.capability_errors import CapabilityError
 from app.models import Domain
 from app.models_actions import SKILL_STATUSES, ActionProposal, Skill, SkillVersion
 
@@ -203,6 +204,19 @@ def invoke_skill(
     steps = json.loads(skill.current_version.workflow_steps_json)
     if len(step_arguments) != len(steps):
         raise SkillError(f"Expected {len(steps)} step argument set(s), got {len(step_arguments)}.")
+
+    # Validate every step before creating any proposal, so an invalid later
+    # step can never leave earlier steps' proposals behind as a half-made
+    # batch.
+    for index, (step, arguments) in enumerate(zip(steps, step_arguments), start=1):
+        if not isinstance(arguments, dict):
+            raise SkillError(f"Step {index}: arguments must be a JSON object.")
+        try:
+            spec = get_capability(step["capability_id"])
+            spec.validate(arguments)
+            validate_domain_for_capability(session, spec, skill.domain_id, arguments)
+        except CapabilityError as exc:
+            raise SkillError(f"Step {index} ({step['capability_id']}): {exc}") from exc
 
     proposals: list[ActionProposal] = []
     for step, arguments in zip(steps, step_arguments):

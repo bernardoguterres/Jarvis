@@ -159,7 +159,7 @@ def refresh_access_token(*, client: httpx.Client, client_id: str, client_secret:
         # signing-identity issue).
         try:
             error_body = response.json()
-            reason = error_body.get("error_description") or error_body.get("error") or "unknown"
+            reason = _oauth_error_reason(error_body)
         except ValueError:
             reason = "unparseable response body"
         raise GoogleCalendarError(
@@ -363,3 +363,14 @@ def delete_event(*, client: httpx.Client, access_token: str, calendar_id: str, e
 def _raise_for_status(response: httpx.Response) -> None:
     if response.status_code >= 400:
         raise GoogleCalendarError(f"http_{response.status_code}", f"Google Calendar API error {response.status_code}")
+
+
+def _oauth_error_reason(error_body: dict) -> str:
+    """Keeps both the OAuth error code and its description. Google often
+    sends a bare "Bad Request" description, and only the code (for example
+    invalid_grant or invalid_client) says what actually went wrong."""
+    code = error_body.get("error")
+    description = error_body.get("error_description")
+    if code and description and description != code:
+        return f"{code} ({description})"
+    return code or description or "unknown"

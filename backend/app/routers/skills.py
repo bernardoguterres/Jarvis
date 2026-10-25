@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app import skill_service
+from app.capability_errors import CapabilityError
 from app.deps import get_db
 from app.models_actions import Skill, SkillVersion
 from app.routers.actions import proposal_to_read
@@ -138,6 +139,6 @@ def invoke_skill(skill_id: str, payload: SkillInvokeRequest, db: Session = Depen
         )
     except skill_service.SkillNotFoundError:
         raise HTTPException(status_code=404, detail="Skill not found")
-    except skill_service.SkillError as exc:
+    except (skill_service.SkillError, CapabilityError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return SkillInvokeResult(proposals=[proposal_to_read(p) for p in proposals])

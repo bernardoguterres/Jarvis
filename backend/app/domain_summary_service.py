@@ -33,10 +33,12 @@ def get_or_create_summary_slot(session: Session, domain_id: str) -> DomainSummar
 
 
 def set_domain_summary(
-    session: Session, domain_id: str, content: str, *, source: str = "manual"
+    session: Session, domain_id: str, content: str, *, source: str = "manual", commit: bool = True
 ) -> DomainSummary:
     """Creates a new immutable version and makes it current. Works for both
-    the first summary and subsequent edits."""
+    the first summary and subsequent edits. With commit=False the caller
+    owns the transaction (a guarded action commits this together with its
+    own status change)."""
     summary = get_or_create_summary_slot(session, domain_id)
 
     latest_version_number = (
@@ -59,8 +61,11 @@ def set_domain_summary(
     session.flush()
 
     summary.current_version_id = version.id
-    session.commit()
-    session.refresh(summary)
+    if commit:
+        session.commit()
+        session.refresh(summary)
+    else:
+        session.flush()
     return summary
 
 

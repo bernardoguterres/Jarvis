@@ -57,6 +57,11 @@ class Settings(BaseSettings):
     # in each provider's OAuth client console.
     backend_base_url: str = "http://127.0.0.1:8000"
 
+    # How often the running backend re-checks whether a daily/weekly/monthly
+    # backup is due (app/scheduler_runtime.py). The due intervals themselves
+    # are fixed in app/backup_service.py.
+    backup_check_interval_seconds: float = 300.0
+
     @property
     def data_dir(self) -> Path:
         return Path(self.jarvis_data_dir).expanduser().resolve()

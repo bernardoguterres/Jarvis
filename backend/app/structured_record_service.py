@@ -26,7 +26,10 @@ def create_structured_record(
     payload: dict,
     source_message_id: str | None = None,
     sensitivity: str = "normal",
+    commit: bool = True,
 ) -> StructuredRecord:
+    """With commit=False the caller owns the transaction (a guarded action
+    commits this together with its own status change)."""
     domain = session.get(Domain, domain_id)
     if domain is None:
         raise StructuredRecordError(f"Unknown domain_id: {domain_id!r}")
@@ -56,8 +59,11 @@ def create_structured_record(
         sensitivity=sensitivity,
     )
     session.add(record)
-    session.commit()
-    session.refresh(record)
+    if commit:
+        session.commit()
+        session.refresh(record)
+    else:
+        session.flush()
     return record
 
 

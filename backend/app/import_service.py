@@ -300,6 +300,10 @@ class RestoreReport:
     target_dir: Path
     hermes_profile_export_path: Path | None = None
     hermes_profile_import_command: str | None = None
+    memories_restored: int = 0
+    structured_records_restored: int = 0
+    document_records_restored: int = 0
+    extra_files_restored: int = 0
 
 
 def _target_has_existing_data(target_dir: Path) -> bool:
@@ -323,6 +327,23 @@ def restore_archive(
     target_settings: Settings,
     confirm_overwrite: bool = False,
 ) -> RestoreReport:
+    """Holds the shared backup lock for the whole restore, so a scheduled
+    or manual backup can never snapshot the database while it is being
+    replaced (and vice versa), even from another process."""
+    from app.backup_service import BackupBusyError, backup_lock
+
+    try:
+        with backup_lock(target_settings, blocking=False):
+            return _restore_archive_locked(archive_path, target_settings, confirm_overwrite)
+    except BackupBusyError as exc:
+        raise RestoreError("A backup or another restore is in progress; try again in a moment.") from exc
+
+
+def _restore_archive_locked(
+    archive_path: Path,
+    target_settings: Settings,
+    confirm_overwrite: bool,
+) -> RestoreReport:
     validation = validate_archive(archive_path)
     if not validation.ok:
         raise ValidationError("; ".join(validation.errors))
@@ -341,6 +362,15 @@ def restore_archive(
                 "Pass confirm_overwrite=True (CLI: --confirm) to replace it."
             )
 
+        # A leftover rollback journal means some connection was mid-write
+        # (or crashed mid-write). Copying a new database file next to it
+        # would let SQLite "roll back" the old journal into the new file.
+        journal = target_settings.database_path.with_name(target_settings.database_path.name + "-journal")
+        if journal.exists():
+            raise RestoreError(
+                "The current database has an unfinished write journal; restart Jarvis and try again."
+            )
+
         schema_revision_before = read_db_revision(target_settings.database_path)
 
         rollback_dir: Path | None = None
@@ -356,10 +386,8 @@ def restore_archive(
 
             # Replace optional payload directories only if the archive declared them.
             documents_restored = _copy_tree_if_present(extracted_dir, "documents", target_dir)
-            summaries_restored = _copy_tree_if_present(
-                extracted_dir, "domain-summaries", target_dir
-            )
-            skills_restored = _copy_tree_if_present(extracted_dir, "skills", target_dir)
+            extra_files_restored = _copy_tree_if_present(extracted_dir, "domain-summaries", target_dir)
+            extra_files_restored += _copy_tree_if_present(extracted_dir, "skills", target_dir)
             _copy_tree_if_present(extracted_dir, "configuration", target_dir)
 
             # Bring the restored database up to this codebase's current head
@@ -402,8 +430,12 @@ def restore_archive(
             conversations_restored=restore_counts["conversations"],
             messages_restored=restore_counts["messages"],
             documents_restored=documents_restored,
-            domain_summaries_restored=summaries_restored,
-            skills_restored=skills_restored,
+            domain_summaries_restored=restore_counts["domain_summaries"],
+            skills_restored=restore_counts["skills"],
+            memories_restored=restore_counts["memories"],
+            structured_records_restored=restore_counts["structured_records"],
+            document_records_restored=restore_counts["document_rows"],
+            extra_files_restored=extra_files_restored,
             schema_revision_before=schema_revision_before,
             schema_revision_after=schema_revision_after,
             rollback_dir=rollback_dir,
@@ -420,13 +452,27 @@ def _create_rollback_copy(target_dir: Path) -> Path:
     rollback_dir = target_dir.parent / f"{target_dir.name}.rollback-{timestamp}"
     rollback_dir.mkdir(parents=True, exist_ok=False)
 
-    for name in ("database", "documents", "domain-summaries", "skills", "configuration"):
+    for name in ("documents", "domain-summaries", "skills", "configuration"):
         source = target_dir / name
         if source.exists():
             shutil.copytree(source, rollback_dir / name, symlinks=False)
 
-    # Verify the rollback copy is usable before trusting it as a safety net.
+    # The database is copied with SQLite's online backup API rather than a
+    # raw file copy, so the rollback copy is a consistent snapshot even if
+    # something still had the file open.
+    live_db = target_dir / "database" / "jarvis.sqlite"
     rollback_db = rollback_dir / "database" / "jarvis.sqlite"
+    if live_db.exists():
+        rollback_db.parent.mkdir(parents=True, exist_ok=True)
+        source_conn = sqlite3.connect(str(live_db))
+        dest_conn = sqlite3.connect(str(rollback_db))
+        try:
+            source_conn.backup(dest_conn)
+        finally:
+            dest_conn.close()
+            source_conn.close()
+
+    # Verify the rollback copy is usable before trusting it as a safety net.
     if rollback_db.exists():
         conn = sqlite3.connect(str(rollback_db))
         try:
@@ -463,13 +509,31 @@ def _assert_database_healthy(db_path: Path) -> None:
         conn.close()
 
 
+_COUNT_QUERIES = {
+    "domains": "SELECT COUNT(*) FROM domains",
+    "conversations": "SELECT COUNT(*) FROM conversations",
+    "messages": "SELECT COUNT(*) FROM messages",
+    # Summaries and skills live in the database; the app never writes the
+    # domain-summaries/ and skills/ folders, so counting files there (the
+    # earlier behaviour) always reported 0 for a real installation.
+    "domain_summaries": "SELECT COUNT(*) FROM domain_summaries WHERE current_version_id IS NOT NULL",
+    "skills": "SELECT COUNT(*) FROM skills",
+    "memories": "SELECT COUNT(*) FROM memory_items",
+    "structured_records": "SELECT COUNT(*) FROM structured_records",
+    "document_rows": "SELECT COUNT(*) FROM documents",
+}
+
+
 def _count_restored_rows(db_path: Path) -> dict[str, int]:
     conn = sqlite3.connect(str(db_path))
     try:
-        domains = conn.execute("SELECT COUNT(*) FROM domains").fetchone()[0]
-        conversations = conn.execute("SELECT COUNT(*) FROM conversations").fetchone()[0]
-        messages = conn.execute("SELECT COUNT(*) FROM messages").fetchone()[0]
-        return {"domains": domains, "conversations": conversations, "messages": messages}
+        counts: dict[str, int] = {}
+        for key, query in _COUNT_QUERIES.items():
+            try:
+                counts[key] = conn.execute(query).fetchone()[0]
+            except sqlite3.OperationalError:
+                counts[key] = 0
+        return counts
     finally:
         conn.close()
 

@@ -14,10 +14,11 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
+import httpx
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.capability_errors import CapabilityError, CapabilityNeedsReviewError
+from app.capability_errors import CapabilityError, CapabilityNeedsReviewError, CapabilityRetryableError
 from app.models_integrations import CalendarCalendar, CalendarEventCache
 from app.providers import google_calendar as gcal_provider
 
@@ -108,6 +109,81 @@ def execute_event_create(
 
     access_token = integration_service.ensure_fresh_access_token(session, credential_store, http_client, "google_calendar")
     try:
+        return _create_event_with_reconciliation(
+            session,
+            calendar,
+            arguments,
+            http_client=http_client,
+            access_token=access_token,
+            action_proposal_id=action_proposal_id,
+        )
+    except gcal_provider.GoogleCalendarConflictError as exc:
+        return _resolve_create_conflict(
+            session, calendar, arguments, exc.event_id, http_client=http_client,
+            access_token=access_token, action_proposal_id=action_proposal_id,
+        )
+
+
+def _cache_created_event(session: Session, calendar: CalendarCalendar, external_id: str, arguments: dict) -> None:
+    existing_cache = session.execute(
+        select(CalendarEventCache).where(
+            CalendarEventCache.calendar_id == calendar.id,
+            CalendarEventCache.external_event_id == external_id,
+        )
+    ).scalar_one_or_none()
+    if existing_cache is None:
+        session.add(
+            CalendarEventCache(
+                calendar_id=calendar.id,
+                external_event_id=external_id,
+                title=arguments["title"],
+                description=arguments.get("description"),
+                location=arguments.get("location"),
+                all_day=bool(arguments.get("all_day", False)),
+            )
+        )
+        session.flush()
+
+
+def _is_cancelled(event: dict) -> bool:
+    """Google keeps a deleted event readable with status "cancelled" instead
+    of returning 404. A deleted event is never evidence that a create
+    succeeded."""
+    return event.get("status") == "cancelled"
+
+
+def _is_uncertain_write_failure(exc: Exception) -> bool:
+    """True when the insert may have reached Google even though no success
+    response came back: the response was lost (read timeout, dropped
+    connection) or Google answered 5xx, which it can do after storing the
+    event. A connect failure means the request never left this machine."""
+    if isinstance(exc, (httpx.ConnectError, httpx.ConnectTimeout)):
+        return False
+    if isinstance(exc, httpx.TransportError):
+        return True
+    if isinstance(exc, gcal_provider.GoogleCalendarError) and not isinstance(
+        exc, gcal_provider.GoogleCalendarConflictError
+    ):
+        return exc.code.startswith("http_5")
+    return False
+
+
+def _create_event_with_reconciliation(
+    session: Session,
+    calendar: CalendarCalendar,
+    arguments: dict,
+    *,
+    http_client,
+    access_token: str,
+    action_proposal_id: str | None,
+) -> dict:
+    """Sends the insert. If the outcome is uncertain, asks Google directly
+    whether an event exists at this action's deterministic ID before
+    deciding anything: found and tagged means it succeeded, confirmed
+    absent means it is safe to retry the same proposal, and anything else
+    is needs_review. Never reports a definite failure for a write Google
+    may have accepted."""
+    try:
         external_id = gcal_provider.create_event(
             client=http_client,
             access_token=access_token,
@@ -130,59 +206,109 @@ def execute_event_create(
             # against legacy events created before this scheme existed.
             idempotency_key=action_proposal_id,
         )
-    except gcal_provider.GoogleCalendarConflictError as exc:
+    except gcal_provider.GoogleCalendarConflictError:
+        raise
+    except (httpx.ConnectError, httpx.ConnectTimeout) as exc:
+        if action_proposal_id is None:
+            raise
+        raise CapabilityRetryableError(
+            f"Could not connect to Google Calendar ({type(exc).__name__}); the request never left this "
+            "machine, so no event was created. Safe to retry."
+        ) from exc
+    except Exception as exc:
+        if action_proposal_id is None or not _is_uncertain_write_failure(exc):
+            raise
+        return _reconcile_uncertain_create(
+            session, calendar, arguments, exc, http_client=http_client,
+            access_token=access_token, action_proposal_id=action_proposal_id,
+        )
+    _cache_created_event(session, calendar, external_id, arguments)
+    return {"external_event_id": external_id, "calendar_id": calendar.id}
+
+
+def _reconcile_uncertain_create(
+    session: Session,
+    calendar: CalendarCalendar,
+    arguments: dict,
+    original: Exception,
+    *,
+    http_client,
+    access_token: str,
+    action_proposal_id: str,
+) -> dict:
+    deterministic_id = gcal_provider.deterministic_event_id(action_proposal_id)
+    what = f"{type(original).__name__}: {original}"[:160]
+    try:
+        live = gcal_provider.get_event(
+            client=http_client,
+            access_token=access_token,
+            calendar_id=calendar.external_calendar_id,
+            event_id=deterministic_id,
+        )
+    except Exception as lookup_exc:
+        raise CapabilityNeedsReviewError(
+            f"Google Calendar did not confirm the create ({what}), and checking whether the event exists "
+            f"also failed ({type(lookup_exc).__name__}). Check the calendar before doing anything else."
+        ) from original
+    if live is None:
+        raise CapabilityRetryableError(
+            f"Google Calendar did not confirm the create ({what}). A direct check found no event for this "
+            "action right now. Safe to retry: a retry reuses the same event ID, so even if the first "
+            "attempt lands late it cannot create a duplicate."
+        ) from original
+    if _is_cancelled(live):
+        raise CapabilityNeedsReviewError(
+            "Google Calendar did not confirm the create, and the event at this action's ID has been "
+            "deleted. Check the calendar before doing anything else."
+        ) from original
+    tagged_id = ((live.get("extendedProperties") or {}).get("private", {})).get("jarvis_action_id")
+    if tagged_id != action_proposal_id:
+        raise CapabilityNeedsReviewError(
+            "Google Calendar did not confirm the create, and an event at this action's deterministic ID "
+            "is not tagged with this action. Check the calendar before doing anything else."
+        ) from original
+    _cache_created_event(session, calendar, deterministic_id, arguments)
+    return {"external_event_id": deterministic_id, "calendar_id": calendar.id}
+
+
+def _resolve_create_conflict(
+    session: Session,
+    calendar: CalendarCalendar,
+    arguments: dict,
+    event_id: str,
+    *,
+    http_client,
+    access_token: str,
+    action_proposal_id: str | None,
+) -> dict:
         # Google already has an event at this action's deterministic ID:
         # the expected outcome of retrying an insert whose earlier success
         # response was lost. Confirm it before trusting it: only an event
         # actually tagged with *this* action's own ID may be treated as
         # this action having already succeeded.
+    try:
         live = gcal_provider.get_event(
             client=http_client,
             access_token=access_token,
             calendar_id=calendar.external_calendar_id,
-            event_id=exc.event_id,
+            event_id=event_id,
         )
-        tagged_id = ((live or {}).get("extendedProperties") or {}).get("private", {}).get("jarvis_action_id")
-        if live is not None and tagged_id == action_proposal_id:
-            existing_cache = session.execute(
-                select(CalendarEventCache).where(
-                    CalendarEventCache.calendar_id == calendar.id,
-                    CalendarEventCache.external_event_id == exc.event_id,
-                )
-            ).scalar_one_or_none()
-            if existing_cache is None:
-                session.add(
-                    CalendarEventCache(
-                        calendar_id=calendar.id,
-                        external_event_id=exc.event_id,
-                        title=arguments["title"],
-                        description=arguments.get("description"),
-                        location=arguments.get("location"),
-                        all_day=bool(arguments.get("all_day", False)),
-                    )
-                )
-                session.flush()
-            return {"external_event_id": exc.event_id, "calendar_id": calendar.id}
-        # An event already occupies this deterministic ID but its metadata
-        # doesn't confirm it belongs to this action (or it could not be
-        # fetched to check). Never guess either way.
+    except Exception as exc:
         raise CapabilityNeedsReviewError(
-            "Google Calendar reported an event already exists at this action's deterministic ID, but its "
-            "metadata could not be confirmed as belonging to this action. Verify the calendar directly "
-            "before retrying."
+            "Google Calendar reported an event already exists at this action's deterministic ID, and "
+            f"fetching it to confirm failed ({type(exc).__name__}). Verify the calendar directly."
         ) from exc
-    session.add(
-        CalendarEventCache(
-            calendar_id=calendar.id,
-            external_event_id=external_id,
-            title=arguments["title"],
-            description=arguments.get("description"),
-            location=arguments.get("location"),
-            all_day=bool(arguments.get("all_day", False)),
-        )
+    tagged_id = ((live or {}).get("extendedProperties") or {}).get("private", {}).get("jarvis_action_id")
+    if live is not None and tagged_id == action_proposal_id and not _is_cancelled(live):
+        _cache_created_event(session, calendar, event_id, arguments)
+        return {"external_event_id": event_id, "calendar_id": calendar.id}
+    # An event already occupies this deterministic ID but its metadata
+    # doesn't confirm it belongs to this action. Never guess either way.
+    raise CapabilityNeedsReviewError(
+        "Google Calendar reported an event already exists at this action's deterministic ID, but its "
+        "metadata could not be confirmed as belonging to this action. Verify the calendar directly "
+        "before retrying."
     )
-    session.flush()
-    return {"external_event_id": external_id, "calendar_id": calendar.id}
 
 
 def validate_event_update(arguments: dict) -> None:

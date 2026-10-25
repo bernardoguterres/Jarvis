@@ -8,6 +8,7 @@ only one restore implementation.
 
 from __future__ import annotations
 
+import asyncio
 import re
 import shutil
 import tempfile
@@ -20,6 +21,7 @@ from app.backup_service import BackupError, CATEGORIES, create_backup, get_lates
 from app.config import Settings, get_settings
 from app.export_service import ExportError, ExportInProgressError, create_export
 from app.import_service import RestoreError, ValidationError, restore_archive, validate_archive
+from app.maintenance import MaintenanceBusyError
 from app.schemas import (
     BackupRead,
     DataDirRead,
@@ -161,20 +163,30 @@ async def restore_import(
     """
     with tempfile.TemporaryDirectory(prefix="jarvis-restore-upload-") as tmp_dir:
         upload_path = Path(tmp_dir) / "upload.zip"
-        with upload_path.open("wb") as dest:
-            shutil.copyfileobj(file.file, dest)
+        await asyncio.to_thread(_save_upload, file, upload_path)
 
-        # This request's own DB dependency (if any) already released its
-        # session by the time this handler body runs; disposing the shared
-        # engine's connection pool here, before the database file on disk
-        # is replaced, is what lets every *later* checkout (this process
-        # never rebuilds the Engine/sessionmaker objects themselves, only
-        # clears their pooled connections) transparently open the restored
-        # file instead of a stale handle to the file that used to be there.
-        request.app.state.engine.dispose()
-
+        state = request.app.state
         try:
-            report = restore_archive(upload_path, settings, confirm_overwrite=confirm)
+            # Close the gate: new API requests get a 503 and this waits for
+            # in-flight ones to finish, so nothing holds a connection to the
+            # old file or writes into the new one mid-swap.
+            async with state.maintenance.exclusive():
+                scheduler = getattr(state, "scheduler_runtime", None)
+                if scheduler is not None:
+                    await scheduler.stop()
+                try:
+                    # Disposing the pool makes every later checkout open the
+                    # restored file instead of a stale handle to the old one.
+                    state.engine.dispose()
+                    report = await asyncio.to_thread(
+                        restore_archive, upload_path, settings, confirm_overwrite=confirm
+                    )
+                finally:
+                    state.engine.dispose()
+                    if scheduler is not None:
+                        await scheduler.start()
+        except MaintenanceBusyError as exc:
+            raise HTTPException(status_code=503, detail=str(exc))
         except ValidationError as exc:
             raise HTTPException(status_code=422, detail=str(exc))
         except RestoreError as exc:
@@ -195,4 +207,12 @@ async def restore_import(
             str(report.hermes_profile_export_path) if report.hermes_profile_export_path else None
         ),
         hermes_profile_import_command=report.hermes_profile_import_command,
+        memories_restored=report.memories_restored,
+        structured_records_restored=report.structured_records_restored,
+        document_records_restored=report.document_records_restored,
     )
+
+
+def _save_upload(file: UploadFile, dest_path: Path) -> None:
+    with dest_path.open("wb") as dest:
+        shutil.copyfileobj(file.file, dest)

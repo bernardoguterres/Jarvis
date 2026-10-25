@@ -1,23 +1,34 @@
 """Local backups, using the same consistent-snapshot principle as exports.
 
 Retention is a simple grandfather-father-son scheme with three independent
-categories (daily/weekly/monthly), each pruned to its own target count. This
-is a lightweight due-check invoked on application startup, not a scheduler;
-see docs/ARCHITECTURE.md for why a heavier scheduler is deferred.
+categories (daily/weekly/monthly), each pruned to its own target count.
+The due-check runs at startup and again from the background scheduler
+while the backend stays up (app/scheduler_runtime.py), so a Jarvis that is
+left running for weeks still gets its daily backups.
+
+Every backup, and every restore, takes an exclusive file lock in the
+backups directory, so a scheduled backup, a manual one, a CLI one and a
+restore can never overlap, even across processes.
 """
 
 from __future__ import annotations
 
+import fcntl
 import hashlib
+import json
+import logging
 import os
 import re
 import sqlite3
 import time
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from app.config import Settings
+
+logger = logging.getLogger("jarvis.backups")
 
 CATEGORIES = ("daily", "weekly", "monthly")
 DUE_INTERVALS = {
@@ -30,16 +41,66 @@ DUE_INTERVALS = {
 # and never subject to DUE_INTERVALS. It's only created explicitly, right
 # before a permanent memory deletion (see app/memory_service.py), as a
 # rollback safety net.
-ALL_CATEGORIES = CATEGORIES + ("pre_delete",)
-RETENTION_TARGETS = {"daily": 7, "weekly": 4, "monthly": 12, "pre_delete": 20}
+# 'pre_migration' is likewise explicit-only: taken right before a schema
+# upgrade changes an existing database (see backup_before_migration).
+ALL_CATEGORIES = CATEGORIES + ("pre_delete", "pre_migration")
+RETENTION_TARGETS = {"daily": 7, "weekly": 4, "monthly": 12, "pre_delete": 20, "pre_migration": 10}
+
+# A daily backup older than this is reported as overdue. Slightly longer
+# than the 24h interval so a backup taken a few minutes late is not flagged.
+OVERDUE_AFTER = timedelta(hours=26)
 
 _FILENAME_RE = re.compile(
-    r"^jarvis-backup-(?P<category>daily|weekly|monthly|pre_delete)-(?P<ts>\d{8}-\d{6})\.sqlite$"
+    r"^jarvis-backup-(?P<category>daily|weekly|monthly|pre_delete|pre_migration)-(?P<ts>\d{8}-\d{6})\.sqlite$"
 )
+_LOCK_NAME = ".backup.lock"
+_STATUS_NAME = ".backup-status.json"
 
 
 class BackupError(Exception):
     pass
+
+
+class BackupBusyError(BackupError):
+    pass
+
+
+@contextmanager
+def backup_lock(settings: Settings, *, blocking: bool = True):
+    """Exclusive lock shared by every backup and restore, in any process.
+    Raises BackupBusyError when non-blocking and already held."""
+    settings.backups_dir.mkdir(parents=True, exist_ok=True)
+    fd = os.open(str(settings.backups_dir / _LOCK_NAME), os.O_CREAT | os.O_RDWR, 0o600)
+    try:
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | (0 if blocking else fcntl.LOCK_NB))
+        except BlockingIOError as exc:
+            raise BackupBusyError("Another backup or restore is in progress.") from exc
+        try:
+            yield
+        finally:
+            fcntl.flock(fd, fcntl.LOCK_UN)
+    finally:
+        os.close(fd)
+
+
+def _read_status(settings: Settings) -> dict:
+    try:
+        return json.loads((settings.backups_dir / _STATUS_NAME).read_text())
+    except (OSError, ValueError):
+        return {}
+
+
+def _write_status(settings: Settings, **fields) -> None:
+    status = _read_status(settings)
+    status.update(fields)
+    path = settings.backups_dir / _STATUS_NAME
+    tmp = path.with_name(path.name + ".tmp")
+    try:
+        tmp.write_text(json.dumps(status))
+        os.replace(tmp, path)
+    except OSError:
+        logger.warning("Could not record backup status.")
 
 
 @dataclass
@@ -87,8 +148,13 @@ def _snapshot_sqlite(source_db_path: Path, dest_db_path: Path) -> None:
 def create_backup(settings: Settings, category: str = "daily") -> BackupResult:
     if category not in ALL_CATEGORIES:
         raise BackupError(f"Unknown backup category: {category!r}")
-
     settings.ensure_directories()
+    with backup_lock(settings):
+        return _create_backup_locked(settings, category)
+
+
+def _create_backup_locked(settings: Settings, category: str) -> BackupResult:
+    """Caller must hold backup_lock."""
     _check_database_consistent(settings.database_path)
 
     category_dir = settings.backups_dir / category
@@ -205,7 +271,20 @@ def get_latest_backup_info(settings: Settings) -> dict:
     if latest_overall is not None:
         latest_overall = {k: v for k, v in latest_overall.items() if k != "_ts"}
 
-    return {"latest": latest_overall, "by_category": per_category}
+    status = _read_status(settings)
+    latest_daily = per_category.get("daily")
+    overdue = settings.database_path.exists() and (
+        latest_daily is None
+        or datetime.now(timezone.utc) - datetime.fromisoformat(latest_daily["created_at_utc"]) > OVERDUE_AFTER
+    )
+    return {
+        "latest": latest_overall,
+        "by_category": per_category,
+        "last_attempt_at_utc": status.get("last_attempt_at_utc"),
+        "last_error": status.get("last_error"),
+        "last_error_at_utc": status.get("last_error_at_utc"),
+        "overdue": bool(overdue),
+    }
 
 
 def _timestamp_to_iso(ts: str) -> str:
@@ -214,13 +293,24 @@ def _timestamp_to_iso(ts: str) -> str:
 
 
 def run_due_backups(settings: Settings) -> list[BackupResult]:
-    """Lightweight startup due-check: creates a backup for any category whose
-    most recent backup is older than that category's interval (or missing
-    entirely). Full recurring scheduling is deferred to a later phase."""
+    """Creates a backup for any category whose most recent backup is older
+    than that category's interval (or missing entirely). Called at startup
+    and periodically by the scheduler. If another backup or a restore holds
+    the lock, this run is skipped and the next check tries again. A failure
+    is logged and recorded so Data Management can show it; it never raises."""
     if not settings.database_path.exists():
         return []
+    try:
+        with backup_lock(settings, blocking=False):
+            return _run_due_backups_locked(settings)
+    except BackupBusyError:
+        logger.info("Backup due-check skipped: another backup or restore is in progress.")
+        return []
 
+
+def _run_due_backups_locked(settings: Settings) -> list[BackupResult]:
     created: list[BackupResult] = []
+    errors: list[str] = []
     now = datetime.now(timezone.utc)
 
     for category in CATEGORIES:
@@ -233,10 +323,38 @@ def run_due_backups(settings: Settings) -> list[BackupResult]:
 
         if is_due:
             try:
-                created.append(create_backup(settings, category=category))
-            except BackupError:
-                # Failure reporting is the caller's responsibility (e.g. logs);
-                # a failed due-backup must never block application startup.
-                continue
+                created.append(_create_backup_locked(settings, category))
+            except Exception as exc:
+                logger.error("Scheduled %s backup failed: %s", category, exc)
+                errors.append(f"{category} backup failed: {exc}")
 
+    if created or errors:
+        attempted_at = now.isoformat()
+        if errors:
+            _write_status(
+                settings,
+                last_attempt_at_utc=attempted_at,
+                last_error="; ".join(errors)[:300],
+                last_error_at_utc=attempted_at,
+            )
+        else:
+            _write_status(settings, last_attempt_at_utc=attempted_at, last_error=None, last_error_at_utc=None)
     return created
+
+
+def backup_before_migration(settings: Settings) -> BackupResult | None:
+    """Takes a verified snapshot of an existing database before a schema
+    upgrade changes it. Returns None when there is nothing to protect (no
+    database yet, a brand-new unstamped file, or already at head). Raises
+    BackupError if the snapshot fails, so the caller can refuse to migrate
+    personal data without a way back."""
+    from app.migration_info import get_head_revision, read_db_revision
+
+    if not settings.database_path.exists():
+        return None
+    current = read_db_revision(settings.database_path)
+    if current is None or current == get_head_revision():
+        return None
+    result = create_backup(settings, category="pre_migration")
+    logger.info("Pre-migration backup %s taken (schema %s).", result.filename, current)
+    return result

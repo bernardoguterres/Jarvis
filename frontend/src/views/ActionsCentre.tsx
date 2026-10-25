@@ -257,7 +257,7 @@ function ActionsCentre({ onBack }: ActionsCentreProps) {
         indicator={<MiniCoreIndicator active={pending.some((p) => p.status === "executing")} />}
         eyebrow="Centre"
         title="Actions Centre"
-        description="Every mutation Jarvis itself proposes — never one you make directly through the UI — appears here for review, approval, and audit. Nothing executes without your explicit approval of the exact proposed action."
+        description="Proposed actions, currently created when you invoke a skill, appear here for review, approval and audit. Changes you make directly elsewhere in the UI never pass through here. Nothing executes without your explicit approval of the exact proposed action."
         meta={
           proposals.length > 0 ? (
             <span>

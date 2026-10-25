@@ -25,6 +25,9 @@ class ProviderErrorCode:
     AUTH_FAILED = "auth_failed"
     MALFORMED_RESPONSE = "malformed_response"
     RATE_LIMITED = "rate_limited"
+    EMPTY_RESPONSE = "empty_response"
+    INTERRUPTED = "interrupted"
+    INTERNAL_ERROR = "internal_error"
     UNKNOWN = "unknown"
 
 

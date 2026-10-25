@@ -115,7 +115,7 @@ class HermesProvider(AgentProvider):
 
         try:
             data = resp.json()
-            content = data["choices"][0]["message"]["content"]
+            content = _message_text(data["choices"][0]["message"].get("content"))
             # data["model"] is Hermes's own virtual per-profile alias (e.g.
             # "jarvis"), not the underlying model, so use our configured label
             # for anything human-facing instead.
@@ -127,11 +127,17 @@ class HermesProvider(AgentProvider):
                 total_tokens=usage_data.get("total_tokens"),
             )
             external_run_id = data.get("id")
-        except (KeyError, IndexError, TypeError, ValueError) as exc:
+        except (KeyError, IndexError, TypeError, ValueError, AttributeError) as exc:
             raise ProviderError(
                 ProviderErrorCode.MALFORMED_RESPONSE,
                 "Hermes returned a response that could not be parsed.",
             ) from exc
+
+        if not content.strip():
+            # A null or blank reply (for example a tool-call-only turn, or a
+            # provider-side filter) is not an answer. Treat it as a failed
+            # turn rather than saving an empty assistant message.
+            raise ProviderError(ProviderErrorCode.EMPTY_RESPONSE, "Hermes returned an empty reply.")
 
         return TurnResult(
             content=content,
@@ -141,3 +147,22 @@ class HermesProvider(AgentProvider):
             usage=usage,
             external_run_id=external_run_id,
         )
+
+
+def _message_text(content) -> str:
+    """OpenAI-compatible servers return message content as a string, null,
+    or a list of typed parts. Only text parts count; anything else is
+    reported as malformed by the caller."""
+    if content is None:
+        return ""
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts = []
+        for part in content:
+            if not isinstance(part, dict):
+                raise TypeError("unexpected content part")
+            if part.get("type") == "text" and isinstance(part.get("text"), str):
+                parts.append(part["text"])
+        return "".join(parts)
+    raise TypeError("unexpected content type")

@@ -24,6 +24,8 @@ from typing import Any, Callable
 
 import httpx
 
+from app.providers.google_calendar import _oauth_error_reason
+
 AUTH_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth"
 TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token"
 REVOKE_ENDPOINT = "https://oauth2.googleapis.com/revoke"
@@ -484,7 +486,7 @@ def refresh_access_token(*, client: httpx.Client, client_id: str, client_secret:
         # pair, never a credential value.
         try:
             error_body = response.json()
-            reason = error_body.get("error_description") or error_body.get("error") or "unknown"
+            reason = _oauth_error_reason(error_body)
         except ValueError:
             reason = "unparseable response body"
         raise GoogleHealthError(

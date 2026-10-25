@@ -90,7 +90,18 @@ function MemoryItemCard({ memory, onChanged }: MemoryItemCardProps) {
       <div className="memory-card-header">
         <span className="memory-card-header-start">
           <span className="memory-kind">{memory.kind}</span>
-          {memory.sensitivity === "sensitive" && <span className="sensitive-tag">sensitive</span>}
+          {memory.sensitivity === "sensitive" && (
+            <span
+              className="sensitive-tag"
+              title={
+                memory.scope === "global"
+                  ? "Sensitive: left out of the global profile Jarvis sends with every conversation."
+                  : "Sensitive: only sent to the model in this domain's conversations, or when you explicitly include this domain."
+              }
+            >
+              sensitive
+            </span>
+          )}
         </span>
         <span className="memory-status">
           <StatusChip label={memory.status} tone={MEMORY_STATUS_TONE[memory.status]} />

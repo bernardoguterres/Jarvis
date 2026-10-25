@@ -289,6 +289,9 @@ def _store_tokens(store: CredentialStore, provider: str, access_token: str, refr
     store.set(provider, "access_token_expires_at", expires_at.isoformat())
 
 
+RECONNECT_REQUIRED_MESSAGE = "Saved sign-in credentials are missing. Reconnect to restore access."
+
+
 def ensure_fresh_access_token(
     session: Session, store: CredentialStore, http_client: httpx.Client, provider: str
 ) -> str:
@@ -296,7 +299,17 @@ def ensure_fresh_access_token(
     refresh_token = store.get(provider, "refresh_token")
     expires_at_raw = store.get(provider, "access_token_expires_at")
     if not access_token or not refresh_token:
-        raise IntegrationError("disconnected", f"{provider} is not connected.")
+        # The database can still say "connected" when the saved tokens are
+        # gone (deleted, revoked elsewhere, or never readable). Never leave
+        # the UI claiming a working connection in that case: mark it as an
+        # error that needs a reconnect. Only a fresh OAuth connect sets it
+        # back to "connected".
+        conn = _get_connection(session, provider)
+        if conn.status == "connected":
+            conn.status = "error"
+            conn.last_error = RECONNECT_REQUIRED_MESSAGE
+            session.commit()
+        raise IntegrationError("disconnected", f"{provider}: {RECONNECT_REQUIRED_MESSAGE}")
 
     expires_at = datetime.fromisoformat(expires_at_raw) if expires_at_raw else datetime.now(timezone.utc)
     if datetime.now(timezone.utc) + TOKEN_REFRESH_SKEW < expires_at:

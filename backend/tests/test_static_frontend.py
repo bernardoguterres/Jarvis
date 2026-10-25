@@ -3,9 +3,9 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from fastapi.testclient import TestClient
 
 from app import main as main_module
+from tests.conftest import authed_client
 
 
 def _build_app_with_dist_dir(monkeypatch: pytest.MonkeyPatch, dist_dir: Path):
@@ -21,7 +21,7 @@ def test_serves_index_html_when_a_production_build_exists(
     (dist_dir / "index.html").write_text("<html><body>fake jarvis build</body></html>")
 
     app = _build_app_with_dist_dir(monkeypatch, dist_dir)
-    with TestClient(app) as client:
+    with authed_client(app) as client:
         response = client.get("/")
 
     assert response.status_code == 200
@@ -34,7 +34,7 @@ def test_does_not_mount_static_files_when_no_build_exists(
     missing_dist_dir = tmp_path / "no-such-dist"
 
     app = _build_app_with_dist_dir(monkeypatch, missing_dist_dir)
-    with TestClient(app) as client:
+    with authed_client(app) as client:
         response = client.get("/")
 
     assert response.status_code == 404
@@ -52,7 +52,7 @@ def test_unmatched_api_path_still_returns_a_genuine_404_even_with_static_mount(
     (dist_dir / "index.html").write_text("<html></html>")
 
     app = _build_app_with_dist_dir(monkeypatch, dist_dir)
-    with TestClient(app) as client:
+    with authed_client(app) as client:
         response = client.post("/api/this-endpoint-does-not-exist")
 
     assert response.status_code == 404
@@ -72,7 +72,7 @@ def test_unknown_frontend_path_falls_back_to_index_html_not_a_bare_404(
     (dist_dir / "index.html").write_text("<html><body>fake jarvis build</body></html>")
 
     app = _build_app_with_dist_dir(monkeypatch, dist_dir)
-    with TestClient(app) as client:
+    with authed_client(app) as client:
         response = client.get("/this/path/does/not/exist")
 
     assert response.status_code == 200
@@ -88,7 +88,7 @@ def test_spa_fallback_serves_a_real_root_level_static_file_verbatim(
     (dist_dir / "favicon.svg").write_text("<svg>fake favicon</svg>")
 
     app = _build_app_with_dist_dir(monkeypatch, dist_dir)
-    with TestClient(app) as client:
+    with authed_client(app) as client:
         response = client.get("/favicon.svg")
 
     assert response.status_code == 200
@@ -105,7 +105,7 @@ def test_spa_fallback_never_leaks_files_outside_the_dist_directory(
     secret.write_text("outside the dist directory")
 
     app = _build_app_with_dist_dir(monkeypatch, dist_dir)
-    with TestClient(app) as client:
+    with authed_client(app) as client:
         response = client.get("/../secret.txt")
 
     assert response.status_code == 200
@@ -121,7 +121,7 @@ def test_real_api_routes_still_work_when_static_mount_is_active(
     (dist_dir / "index.html").write_text("<html></html>")
 
     app = _build_app_with_dist_dir(monkeypatch, dist_dir)
-    with TestClient(app) as client:
+    with authed_client(app) as client:
         response = client.get("/api/health")
 
     assert response.status_code == 200

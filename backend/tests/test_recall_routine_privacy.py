@@ -22,6 +22,7 @@ from app.models import Domain
 from app.models_integrations import CalendarCalendar, CalendarEventCache, GoogleHealthDailySummary
 from app.models_memory import StructuredRecord
 from app.models_routines import RoutineRun
+from tests.conftest import authed_client
 
 T0 = datetime(2026, 8, 27, 12, 0, tzinfo=timezone.utc)
 TODAY = date(2026, 8, 27)
@@ -310,7 +311,7 @@ def test_startup_backfill_reindexes_after_migration(client: TestClient) -> None:
         session.commit()
     engine.dispose()
 
-    with TestClient(create_app()) as restarted:
+    with authed_client(create_app()) as restarted:
         results = restarted.get("/api/recall/search", params={"q": LIFE_MARKER}).json()["results"]
         assert {r["source_type"] for r in results} >= {"structured_record", "routine_run"}
 

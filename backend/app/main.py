@@ -19,9 +19,11 @@ from app.action_service import expire_interrupted_executions
 from app.backup_service import run_due_backups
 from app.briefing_service import cleanup_old_briefing_state
 from app.config import get_settings
-from app.credential_store import KeychainCredentialStore
+from app.credential_store import build_credential_store
 from app.database import build_engine, build_sessionmaker
 from app.export_service import cleanup_stale_export_temp_files
+from app.local_api_guard import TOKEN_HEADER, LocalApiGuard, new_api_token
+from app.maintenance import MaintenanceGate
 from app.mission_control_service import cleanup_old_focus_sessions
 from app.oauth_flow import OAuthFlowStore
 from app.providers.hermes import HermesProvider
@@ -49,6 +51,7 @@ from app.routers import (
     voice,
 )
 from app.seed import seed_domains, seed_example_skills
+from app.turn_service import fail_interrupted_runs
 from app.voice.edge_tts_tts import EdgeTextToSpeech
 from app.voice.faster_whisper_stt import FasterWhisperSTT
 
@@ -96,7 +99,7 @@ async def lifespan(app: FastAPI):
 
     # Integrations: credentials/tokens live only in the Keychain,
     # never in this app's own database or config.
-    app.state.credential_store = KeychainCredentialStore()
+    app.state.credential_store = build_credential_store(settings.data_dir)
     app.state.oauth_flow_store = OAuthFlowStore()
     app.state.integration_http_client = httpx.Client(timeout=30.0)
     app.state.backend_base_url = settings.backend_base_url
@@ -123,6 +126,17 @@ async def lifespan(app: FastAPI):
                 )
     except Exception:
         logger.exception("Startup interrupted-execution recovery failed; continuing without it.")
+
+    # A conversation turn still marked 'running' was cut off by a prior
+    # process exit before its reply was saved. Mark it failed so the UI and
+    # a same-key retry see the truth. Must never block or fail startup.
+    try:
+        with session_factory() as session:
+            interrupted = fail_interrupted_runs(session)
+            if interrupted:
+                logger.warning("Marked %d interrupted conversation turn(s) as failed.", interrupted)
+    except Exception:
+        logger.exception("Startup interrupted-turn sweep failed; continuing without it.")
 
     # Remove any leftover export scratch file (.tmp-*/.dbsnapshot-*) a prior
     # process left behind by being killed mid-export. See
@@ -186,7 +200,11 @@ async def lifespan(app: FastAPI):
     # never a Hermes cron job, never a second process. See
     # docs/ARCHITECTURE.md and docs/DECISIONS.md.
     app.state.scheduler_runtime = SchedulerRuntime(
-        session_factory, app.state.credential_store, app.state.integration_http_client
+        session_factory,
+        app.state.credential_store,
+        app.state.integration_http_client,
+        backup_settings=settings,
+        backup_check_interval_seconds=settings.backup_check_interval_seconds,
     )
     await app.state.scheduler_runtime.start()
 
@@ -201,6 +219,17 @@ def create_app() -> FastAPI:
     settings = get_settings()
     app = FastAPI(title="Jarvis Controller", version="0.1.0", lifespan=lifespan)
 
+    # Per-launch API token, held only in memory (see app/local_api_guard.py).
+    app.state.api_token = new_api_token()
+    app.state.maintenance = MaintenanceGate()
+
+    # Middleware order: the last one added runs first. CORS stays outermost
+    # so a refused request from the dev origin still carries CORS headers
+    # and the frontend can read the 401 and fetch a fresh token. The guard
+    # runs before the maintenance gate, so an unauthenticated request can
+    # never hold up a restore.
+    app.add_middleware(MaintenanceGate.Middleware, gate=app.state.maintenance)
+    app.add_middleware(LocalApiGuard, token=app.state.api_token, extra_origins=[settings.cors_origin])
     app.add_middleware(
         CORSMiddleware,
         allow_origins=[settings.cors_origin],
@@ -213,7 +242,7 @@ def create_app() -> FastAPI:
         # per docs/DECISIONS.md D82. Still an explicit, non-wildcard list,
         # not "*".
         allow_methods=["GET", "POST", "PUT"],
-        allow_headers=["Content-Type"],
+        allow_headers=["Content-Type", TOKEN_HEADER],
     )
 
     app.include_router(health.router)

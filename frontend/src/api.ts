@@ -39,10 +39,53 @@ class ApiError extends Error {
   }
 }
 
+// The backend refuses every /api request that does not carry its
+// per-launch token (see backend/app/local_api_guard.py). The token is
+// fetched from /api/session, kept only in memory, and never put in a URL
+// or browser storage. A 401 means the backend restarted with a new token:
+// fetch it again and retry once.
+const TOKEN_HEADER = "X-Jarvis-Token";
+let apiTokenPromise: Promise<string> | null = null;
+
+async function fetchApiToken(): Promise<string> {
+  const response = await fetch(`${API_BASE_URL}/api/session`, { cache: "no-store" });
+  if (!response.ok) throw new ApiError(response.status, "Could not start a session with the Jarvis backend.");
+  const body = (await response.json()) as { token?: string };
+  if (!body.token) throw new ApiError(500, "The Jarvis backend returned no session token.");
+  return body.token;
+}
+
+function getApiToken(): Promise<string> {
+  if (!apiTokenPromise) {
+    apiTokenPromise = fetchApiToken().catch((err: unknown) => {
+      apiTokenPromise = null;
+      throw err;
+    });
+  }
+  return apiTokenPromise;
+}
+
+/** Test hook: forget the cached token. */
+export function resetApiTokenForTests(): void {
+  apiTokenPromise = null;
+}
+
+async function apiFetch(path: string, init: RequestInit = {}): Promise<Response> {
+  const send = async (token: string) => {
+    const headers = new Headers(init.headers);
+    headers.set(TOKEN_HEADER, token);
+    return fetch(`${API_BASE_URL}${path}`, { ...init, headers });
+  };
+  const response = await send(await getApiToken());
+  if (response.status !== 401) return response;
+  apiTokenPromise = null;
+  return send(await getApiToken());
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    headers: { "Content-Type": "application/json" },
+  const response = await apiFetch(path, {
     ...init,
+    headers: { "Content-Type": "application/json", ...(init?.headers as Record<string, string> | undefined) },
   });
 
   if (!response.ok) {
@@ -136,6 +179,10 @@ export interface BackupInfo {
 export interface LatestBackupInfo {
   latest: (BackupInfo & Record<string, unknown>) | null;
   by_category: Record<BackupCategory, (BackupInfo & Record<string, unknown>) | null>;
+  last_attempt_at_utc?: string | null;
+  last_error?: string | null;
+  last_error_at_utc?: string | null;
+  overdue?: boolean;
 }
 
 export interface ImportValidationResult {
@@ -168,7 +215,7 @@ export async function validateImportArchive(file: File): Promise<ImportValidatio
   const formData = new FormData();
   formData.append("file", file);
 
-  const response = await fetch(`${API_BASE_URL}/api/imports/validate`, {
+  const response = await apiFetch(`/api/imports/validate`, {
     method: "POST",
     body: formData,
   });
@@ -187,6 +234,9 @@ export interface RestoreResult {
   documents_restored: number;
   domain_summaries_restored: number;
   skills_restored: number;
+  memories_restored?: number;
+  structured_records_restored?: number;
+  document_records_restored?: number;
   schema_revision_before: string | null;
   schema_revision_after: string;
   rollback_dir: string | null;
@@ -206,7 +256,7 @@ export async function restoreImport(file: File, confirm: boolean): Promise<Resto
   formData.append("file", file);
   formData.append("confirm", confirm ? "true" : "false");
 
-  const response = await fetch(`${API_BASE_URL}/api/restore`, {
+  const response = await apiFetch(`/api/restore`, {
     method: "POST",
     body: formData,
   });
@@ -400,7 +450,7 @@ export async function permanentlyDeleteMemory(
   memoryId: string,
   confirmTitle: string,
 ): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/api/memories/${memoryId}/delete`, {
+  const response = await apiFetch(`/api/memories/${memoryId}/delete`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ confirm_title: confirmTitle }),
@@ -524,7 +574,7 @@ export async function transcribeAudio(audio: Blob): Promise<string> {
   const formData = new FormData();
   formData.append("audio", audio, "recording.webm");
 
-  const response = await fetch(`${API_BASE_URL}/api/voice/transcribe`, {
+  const response = await apiFetch(`/api/voice/transcribe`, {
     method: "POST",
     body: formData,
   });
@@ -545,7 +595,7 @@ export async function transcribeAudio(audio: Blob): Promise<string> {
 }
 
 export async function synthesizeSpeech(text: string): Promise<Blob> {
-  const response = await fetch(`${API_BASE_URL}/api/voice/speak`, {
+  const response = await apiFetch(`/api/voice/speak`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ text }),
@@ -984,7 +1034,7 @@ export async function uploadDocument(domainId: string, file: File): Promise<Docu
   formData.append("domain_id", domainId);
   formData.append("file", file);
 
-  const response = await fetch(`${API_BASE_URL}/api/documents`, { method: "POST", body: formData });
+  const response = await apiFetch(`/api/documents`, { method: "POST", body: formData });
   if (!response.ok) {
     let detail = response.statusText;
     try {
@@ -1008,7 +1058,7 @@ export async function getDocument(id: string): Promise<{ document: DocumentInfo;
 }
 
 export async function deleteDocument(id: string, confirmFilename: string): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/api/documents/${id}/delete`, {
+  const response = await apiFetch(`/api/documents/${id}/delete`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ confirm_filename: confirmFilename }),

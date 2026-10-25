@@ -428,7 +428,7 @@ interface EvidenceTabProps {
   onNavigate: (target: NavigateTarget) => void;
 }
 
-function EvidenceTab({ workspace, evidence, onEvidenceChanged, onNavigate }: EvidenceTabProps) {
+function EvidenceTab({ workspace, evidence, onEvidenceChanged, onWorkspaceChanged, onNavigate }: EvidenceTabProps) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<RecallResult[] | null>(null);
   const [partialFailures, setPartialFailures] = useState<string[]>([]);
@@ -485,6 +485,8 @@ function EvidenceTab({ workspace, evidence, onEvidenceChanged, onNavigate }: Evi
     try {
       await addResearchEvidence(workspace.id, { source_type: result.source_type as RecallSourceType, source_id: result.source_id });
       onEvidenceChanged();
+      // The workspace's evidence_count gates brief generation; refresh it too.
+      onWorkspaceChanged();
     } catch {
       setSearchError("Could not add that item as evidence.");
     } finally {
@@ -505,6 +507,7 @@ function EvidenceTab({ workspace, evidence, onEvidenceChanged, onNavigate }: Evi
     try {
       await removeResearchEvidence(workspace.id, item.id);
       onEvidenceChanged();
+      onWorkspaceChanged();
     } catch {
       /* no-op: row stays as-is, user can retry */
     }

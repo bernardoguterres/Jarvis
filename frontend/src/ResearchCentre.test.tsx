@@ -235,6 +235,23 @@ describe("ResearchCentre — workspace detail: evidence", () => {
     );
   });
 
+  it("refreshes the workspace after adding evidence so the brief can be generated without a reload", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(api, "fetchResearchWorkspaces").mockResolvedValue([workspace()]);
+    mockDetailFetches(workspace());
+    vi.spyOn(api, "searchResearchEvidence").mockResolvedValue(recallSearchResult({ results: [recallResult()] }));
+    vi.spyOn(api, "addResearchEvidence").mockResolvedValue(evidenceItem());
+
+    render(<ResearchCentre onBack={noop} onNavigate={noop} />);
+    await user.click(await screen.findByText("Tokenizer choice for Alpha"));
+    expect(await screen.findByText(/0 evidence/i)).toBeInTheDocument();
+    vi.spyOn(api, "fetchResearchWorkspace").mockResolvedValue(workspace({ evidence_count: 1 }));
+    await user.type(await screen.findByPlaceholderText(/search jarvis for evidence/i), "tokenizer");
+    await user.click(await screen.findByRole("button", { name: /add as evidence/i }));
+
+    expect(await screen.findByText(/1 evidence/i)).toBeInTheDocument();
+  });
+
   it("renders the evidence ledger with a classification select and an unavailable source truthfully", async () => {
     const user = userEvent.setup();
     vi.spyOn(api, "fetchResearchWorkspaces").mockResolvedValue([workspace({ evidence_count: 1 })]);

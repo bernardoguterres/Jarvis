@@ -37,8 +37,15 @@ def _run_migrations() -> None:
     # application startup does.
     from app.config import get_settings
 
+    from app.backup_service import backup_before_migration
+
     settings = get_settings()
     settings.ensure_directories()
+
+    # Snapshot an existing database before a pending upgrade changes it.
+    # Raises (and so stops startup) if the snapshot fails: personal data is
+    # never migrated without a verified way back.
+    backup_before_migration(settings)
 
     base = _bundled_base_dir()
     cfg = Config(str(base / "alembic.ini"))

@@ -111,3 +111,46 @@ class TestKeychainCredentialStoreSetControlFlow:
             store.set("google_calendar", "access_token", "value")
 
         mock_keyring_set.assert_not_called()
+
+
+class TestKeychainNamespacing:
+    """Regression for D114: an instance on a non-default data folder must
+    never address the real installation's Keychain items."""
+
+    def test_default_data_dir_keeps_the_original_service_names(self) -> None:
+        from pathlib import Path
+
+        from app.credential_store import keychain_namespace_for
+
+        namespace = keychain_namespace_for(Path.home() / "JarvisData")
+        assert namespace is None
+        assert KeychainCredentialStore(namespace=namespace)._service_name("google_calendar") == "jarvis.google_calendar"
+
+    def test_other_data_dirs_get_a_distinct_stable_namespace(self, tmp_path) -> None:
+        from app.credential_store import keychain_namespace_for
+
+        first = keychain_namespace_for(tmp_path / "a")
+        assert first and first == keychain_namespace_for(tmp_path / "a")
+        assert first != keychain_namespace_for(tmp_path / "b")
+        name = KeychainCredentialStore(namespace=first)._service_name("google_calendar")
+        assert name.startswith("jarvis.google_calendar.") and name != "jarvis.google_calendar"
+
+    def test_namespaced_store_writes_and_deletes_only_its_own_items(self, tmp_path) -> None:
+        from app.credential_store import keychain_namespace_for
+
+        store = KeychainCredentialStore(namespace=keychain_namespace_for(tmp_path / "isolated"))
+        with (
+            patch("app.keychain_update.update_generic_password_in_place", return_value=False),
+            patch("keyring.set_password") as mock_set,
+            patch("keyring.delete_password") as mock_delete,
+        ):
+            store.set("google_calendar", "access_token", "v")
+            store.delete_all("google_calendar", ["access_token"])
+        assert mock_set.call_args.args[0] != "jarvis.google_calendar"
+        assert all(c.args[0] != "jarvis.google_calendar" for c in mock_delete.call_args_list)
+
+
+def test_app_built_on_a_test_data_dir_never_uses_the_real_keychain(client) -> None:
+    from app.credential_store import FakeCredentialStore
+
+    assert isinstance(client.app.state.credential_store, FakeCredentialStore)

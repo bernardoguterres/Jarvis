@@ -58,7 +58,10 @@ def create_memory(
     source_note: str | None = None,
     change_reason: str | None = None,
     source: str = "explicit_remember",
+    commit: bool = True,
 ) -> MemoryItem:
+    """With commit=False the caller owns the transaction (a guarded action
+    commits this together with its own status change)."""
     _validate_scope_domain(scope, domain_id)
     if kind not in MEMORY_KINDS:
         raise MemoryValidationError(f"kind must be one of {MEMORY_KINDS}")
@@ -108,8 +111,9 @@ def create_memory(
     session.flush()
 
     upsert_memory_fts(session, item, title, content)
-    session.commit()
-    session.refresh(item)
+    if commit:
+        session.commit()
+        session.refresh(item)
     return item
 
 

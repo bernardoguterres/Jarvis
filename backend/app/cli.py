@@ -13,7 +13,7 @@ import getpass
 
 from app.backup_service import BackupError, create_backup, get_latest_backup_info
 from app.config import Settings, get_settings
-from app.credential_store import KeychainCredentialStore
+from app.credential_store import KeychainCredentialStore, keychain_namespace_for
 from app.export_service import ExportError, create_export
 from app.import_service import RestoreError, ValidationError, restore_archive, validate_archive
 from app.integration_service import store_client_credentials
@@ -112,6 +112,25 @@ def cmd_backup(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_backup_before_migrate(args: argparse.Namespace) -> int:
+    """Used by scripts/jarvisctl.sh right before `alembic upgrade head`.
+    Exits non-zero (so the script stops before migrating) if a needed
+    snapshot could not be taken."""
+    from app.backup_service import backup_before_migration
+
+    settings = _settings_for_target(args.data_dir)
+    try:
+        result = backup_before_migration(settings)
+    except BackupError as exc:
+        print(f"Pre-migration backup failed; not migrating: {exc}", file=sys.stderr)
+        return 1
+    if result is None:
+        print("No pre-migration backup needed (no database, or already at the current schema).")
+    else:
+        print(f"Pre-migration backup created: {result.path}")
+    return 0
+
+
 def cmd_list_backups(args: argparse.Namespace) -> int:
     settings = _settings_for_target(args.data_dir)
     info = get_latest_backup_info(settings)
@@ -134,7 +153,8 @@ def cmd_configure_integration(args: argparse.Namespace) -> int:
         print("Client secret is required.", file=sys.stderr)
         return 1
 
-    store_client_credentials(KeychainCredentialStore(), args.provider, client_id=client_id, client_secret=client_secret)
+    namespace = keychain_namespace_for(get_settings().data_dir)
+    store_client_credentials(KeychainCredentialStore(namespace=namespace), args.provider, client_id=client_id, client_secret=client_secret)
     print(f"Stored {args.provider} OAuth client credentials in the macOS Keychain.")
     print("Nothing was printed, logged, or written to any file by this command.")
     return 0
@@ -168,6 +188,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--category", choices=["daily", "weekly", "monthly"], default="daily"
     )
     backup_parser.set_defaults(func=cmd_backup)
+
+    pre_migrate_parser = subparsers.add_parser(
+        "backup-before-migrate", help="Snapshot the database if a schema upgrade is pending"
+    )
+    pre_migrate_parser.add_argument("--data-dir", help="Override JARVIS_DATA_DIR for this command")
+    pre_migrate_parser.set_defaults(func=cmd_backup_before_migrate)
 
     list_backups_parser = subparsers.add_parser("list-backups", help="Show latest backup metadata")
     list_backups_parser.add_argument("--data-dir", help="Override JARVIS_DATA_DIR for this command")

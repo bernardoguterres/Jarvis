@@ -24,6 +24,7 @@ from typing import Callable, Literal
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import delete, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models import Domain
@@ -1674,6 +1675,31 @@ def cleanup_old_briefing_state(session: Session, now: datetime) -> int:
 
 
 def assemble_home_briefing(
+    session: Session,
+    *,
+    include_body: bool,
+    include_mind: bool,
+    include_people: bool,
+    now: datetime,
+    trigger: str = "home_view",
+) -> HomeBriefing:
+    """Home loads the briefing and the Mission Control candidates in
+    parallel, and both assemble this briefing. When a concern appears for
+    the first time, both requests try to insert the same new ledger row
+    and the second one hits the unique key. The winner's row is then
+    committed, so one rollback and a second pass reconciles against it
+    instead of failing the request."""
+    kwargs = dict(
+        include_body=include_body, include_mind=include_mind, include_people=include_people, now=now, trigger=trigger
+    )
+    try:
+        return _assemble_home_briefing_once(session, **kwargs)
+    except IntegrityError:
+        session.rollback()
+        return _assemble_home_briefing_once(session, **kwargs)
+
+
+def _assemble_home_briefing_once(
     session: Session,
     *,
     include_body: bool,

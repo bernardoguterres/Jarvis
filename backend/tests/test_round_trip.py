@@ -106,8 +106,12 @@ def test_full_export_import_round_trip(tmp_path: Path) -> None:
     assert report.conversations_restored == 2
     assert report.messages_restored == 2
     assert report.documents_restored == 1
-    assert report.domain_summaries_restored == 1
-    assert report.skills_restored == 1
+    # Summaries and skills are counted from the restored database (this
+    # fixture has none there); the fixture's two planted files under
+    # domain-summaries/ and skills/ are reported separately.
+    assert report.domain_summaries_restored == 0
+    assert report.skills_restored == 0
+    assert report.extra_files_restored == 2
     assert report.schema_revision_after == get_head_revision()
 
     # Confirm six domains.

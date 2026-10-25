@@ -9,7 +9,10 @@ never the real Keychain.
 
 from __future__ import annotations
 
+import hashlib
 import logging
+import os
+from pathlib import Path
 from typing import Protocol
 
 logger = logging.getLogger("jarvis.credential_store")
@@ -27,12 +30,67 @@ class CredentialStore(Protocol):
     def delete_all(self, provider: str, keys: list[str]) -> None: ...
 
 
+def _default_data_dir() -> Path:
+    return (Path.home() / "JarvisData").resolve()
+
+
+def is_default_data_dir(data_dir: Path) -> bool:
+    """True when `data_dir` is the real installation's folder, however it
+    is spelled: `~`, relative paths, trailing slashes and symlinks are
+    resolved, and an existing folder is compared by identity (inode), so a
+    case variant on macOS's case-insensitive volume counts as the same
+    folder."""
+    resolved = Path(data_dir).expanduser().resolve()
+    default = _default_data_dir()
+    if resolved == default:
+        return True
+    if resolved.exists() and default.exists():
+        try:
+            return os.path.samefile(resolved, default)
+        except OSError:
+            return False
+    return str(resolved).casefold() == str(default).casefold()
+
+
+def keychain_namespace_for(data_dir: Path) -> str | None:
+    """Keychain items are global to the macOS user, not to a data folder.
+    Without a namespace, a Jarvis started against a throwaway
+    JARVIS_DATA_DIR (a test, a reproduction, a second instance) reads and
+    can revoke or delete the real installation's OAuth tokens; this
+    happened once during an audit (D114). The default ~/JarvisData keeps
+    the original unsuffixed names so the real installation's existing
+    items are unchanged. Any other folder gets a stable suffix derived
+    from its resolved, case-folded path. There is no fallback from a
+    namespaced name to the unsuffixed one."""
+    if is_default_data_dir(data_dir):
+        return None
+    resolved = str(Path(data_dir).expanduser().resolve()).casefold()
+    return hashlib.sha256(resolved.encode("utf-8")).hexdigest()[:12]
+
+
+def build_credential_store(data_dir: Path) -> "CredentialStore":
+    """The store the app uses. JARVIS_CREDENTIAL_STORE=memory selects an
+    in-memory store that never touches the Keychain; the test suite sets it
+    in the environment, so it also reaches subprocesses (a spawned backend,
+    a packaged sidecar under acceptance testing)."""
+    if os.environ.get("JARVIS_CREDENTIAL_STORE", "").strip().lower() == "memory":
+        logger.warning("JARVIS_CREDENTIAL_STORE=memory: using an in-memory credential store, not the Keychain.")
+        return FakeCredentialStore()
+    return KeychainCredentialStore(namespace=keychain_namespace_for(data_dir))
+
+
 class KeychainCredentialStore:
     """Real implementation, backed by the `keyring` package (macOS Keychain
-    on this platform). Never logs or returns the values it stores/reads."""
+    on this platform). Never logs or returns the values it stores/reads.
+    `namespace` comes from keychain_namespace_for(); None means the real
+    default installation."""
+
+    def __init__(self, namespace: str | None = None) -> None:
+        self._namespace = namespace
 
     def _service_name(self, provider: str) -> str:
-        return f"{SERVICE_PREFIX}.{provider}"
+        base = f"{SERVICE_PREFIX}.{provider}"
+        return f"{base}.{self._namespace}" if self._namespace else base
 
     def set(self, provider: str, key: str, value: str) -> None:
         # `keyring.set_password` deletes and recreates the Keychain item on

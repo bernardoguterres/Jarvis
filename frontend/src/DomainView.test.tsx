@@ -182,8 +182,60 @@ describe("DomainView — Jarvis turns", () => {
     await user.type(textarea, "Hi there");
     await user.click(screen.getByRole("button", { name: /send to jarvis/i }));
 
-    expect(await screen.findByText(/could not reach jarvis/i)).toBeInTheDocument();
+    expect(await screen.findByText(/lost contact with jarvis/i)).toBeInTheDocument();
     expect(textarea).toHaveValue("Hi there");
+  });
+
+  it("retries a failed turn with the same idempotency key and shows the saved message once", async () => {
+    baseMocks();
+    const user = userEvent.setup();
+    const userMessage = {
+      id: "u-1",
+      conversation_id: "conv-1",
+      role: "user" as const,
+      content: "Hi again",
+      created_at: "",
+      model_used: null,
+    };
+    const sendTurnSpy = vi
+      .spyOn(api, "sendTurn")
+      .mockResolvedValueOnce({
+        run_id: "run-f",
+        status: "failed",
+        user_message: userMessage,
+        assistant_message: null,
+        provider: "hermes",
+        model: "m",
+        latency_ms: null,
+        usage: null,
+        context_snapshot_id: null,
+        error: { code: "empty_response", summary: "Hermes returned an empty reply." },
+      })
+      .mockResolvedValueOnce({
+        run_id: "run-f",
+        status: "succeeded",
+        user_message: userMessage,
+        assistant_message: { ...userMessage, id: "a-1", role: "assistant", content: "Answer." },
+        provider: "hermes",
+        model: "m",
+        latency_ms: 10,
+        usage: null,
+        context_snapshot_id: null,
+        error: null,
+      });
+
+    const textarea = await openConversation(user);
+    await user.type(textarea, "Hi again");
+    await user.click(screen.getByRole("button", { name: /send to jarvis/i }));
+    expect(await screen.findByText(/your message is saved; press send again to retry/i)).toBeInTheDocument();
+    expect(textarea).toHaveValue("Hi again");
+
+    await user.click(screen.getByRole("button", { name: /send to jarvis/i }));
+    expect(await screen.findByText("Answer.")).toBeInTheDocument();
+    expect(sendTurnSpy).toHaveBeenCalledTimes(2);
+    expect(sendTurnSpy.mock.calls[0][2]).toBe(sendTurnSpy.mock.calls[1][2]);
+    expect(screen.getAllByText("Hi again", { selector: "p, div, span, li" }).length).toBeLessThanOrEqual(1);
+    expect(textarea).toHaveValue("");
   });
 
   it("distinguishes saving a note from sending to Jarvis", async () => {

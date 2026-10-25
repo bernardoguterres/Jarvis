@@ -83,6 +83,10 @@ class BackupRead(BaseModel):
 class LatestBackupInfo(BaseModel):
     latest: dict | None
     by_category: dict[str, dict | None]
+    last_attempt_at_utc: str | None = None
+    last_error: str | None = None
+    last_error_at_utc: str | None = None
+    overdue: bool = False
 
 
 class ImportValidationRead(BaseModel):
@@ -104,6 +108,9 @@ class RestoreRead(BaseModel):
     target_dir: str
     hermes_profile_export_path: str | None = None
     hermes_profile_import_command: str | None = None
+    memories_restored: int = 0
+    structured_records_restored: int = 0
+    document_records_restored: int = 0
 
 
 MAX_TURN_CONTENT_LENGTH = 4000

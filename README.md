@@ -27,7 +27,7 @@ HUD, permissions and guarded actions, Google Calendar/Health
 integrations, Recall/Research/Decision Room, and native macOS packaging)
 is implemented and tested:
 
-* **981 backend tests passing**, **469 frontend tests passing**.
+* **1053 backend tests passing**, **473 frontend tests passing**.
 * TypeScript type-check clean and the production frontend build succeeds.
 * Backend Ruff is clean for the files touched during hardening work (not
   asserted repository-wide).
@@ -175,9 +175,13 @@ See `docs/PRODUCT_SPEC.md` for the full product spec and
 
 ## Guarded action lifecycle
 
-Anything Jarvis proposes on its own, as opposed to something done directly
-through the UI, goes through one auditable lifecycle rather than
-executing immediately:
+Today a guarded action is created in one way only: you invoke a skill in
+the Skills Centre and supply each step's arguments as JSON. The model
+never creates proposals. The Hermes profile has no tools enabled for its
+API, and Jarvis does not read tool calls from a reply, so model output can
+only ever become reply text. Direct actions through the UI (saving a
+note, editing a memory) do not go through this lifecycle. A proposal goes
+through one auditable lifecycle rather than executing immediately:
 
 ```mermaid
 stateDiagram-v2
@@ -189,7 +193,8 @@ stateDiagram-v2
     approved --> expired: next access after confirmation window
     executing --> succeeded
     executing --> failed
-    executing --> needs_review: crash recovery, outcome unconfirmed
+    executing --> approved: Google confirmed nothing was created, safe to retry
+    executing --> needs_review: outcome unconfirmed
     denied --> [*]
     expired --> [*]
     succeeded --> [*]
@@ -200,16 +205,22 @@ stateDiagram-v2
 Approval is bound to the exact proposal payload: approving recomputes a
 SHA-256 digest of the payload and checks it matches, then mints a
 single-use, five-minute confirmation token. Execution requires that
-token and consumes it on the attempt, not on success. This is
-payload-bound confirmation, not cryptographic identity authentication.
-The five-minute window is checked lazily, on the next read or action
-after it passes, rather than by a background timer.
+token and consumes it on the attempt, not on success. Consumption is a
+single compare-and-set database update, so two concurrent execute
+requests with the same token can never both run: exactly one proceeds and
+the other is refused. Before executing, the stored payload is hashed
+again and must still match the approved digest. This is payload-bound
+confirmation, not cryptographic identity authentication, and the token
+is returned to the local UI that shows the proposal: it makes approval a
+deliberate two-step action, it is not a secret from the user. The
+five-minute window is checked lazily, on the next read or action after it
+passes, rather than by a background timer.
 
 A proposal left `executing` by a backend crash is reconciled at startup
 rather than blindly marked `failed`. A purely local action (memory,
-structured records, domain summaries) has no effect outside Jarvis's own
-database transaction, so an interrupted one genuinely never happened and
-`failed` is accurate. A Google Calendar write is different: its effect
+structured records, domain summaries) writes its change in the same
+database transaction as its `succeeded` status, so an interrupted one was
+rolled back and `failed` is accurate. A Google Calendar write is different: its effect
 lives in Google, outside that transaction, so recovery asks Google
 directly instead of guessing.
 
@@ -222,7 +233,16 @@ existing event and verifies it belongs to the same proposal (via the ID
 or, for events created before this scheme existed, the private-property
 tag) before treating the action as successful. If Google confirms the
 event genuinely does not exist, the proposal returns to `approved` with a
-fresh token so it can be retried. When the outcome cannot be determined,
+fresh token so it can be retried.
+
+The same reconciliation runs during a normal execution, not only after a
+crash. If a create times out after sending, the connection drops, or
+Google answers with a 5xx, Jarvis looks up the action's deterministic
+event ID before deciding: a tagged event there means the create
+succeeded, a confirmed absence returns the proposal to `approved` for a
+safe retry (which reuses the same event ID), and a failed lookup leaves it
+`needs_review`. Only a definite rejection, such as a 4xx, is recorded as
+`failed`. When the outcome cannot be determined,
 the proposal is left `needs_review`: it appears in the Actions Centre
 with a plain explanation, offers no approve, deny, execute, or retry
 control, and stays that way until the calendar is checked directly. This
@@ -261,6 +281,37 @@ never does.** It lives under `JARVIS_DATA_DIR`, which defaults to
   silently reappear elsewhere.
 * **Credentials never enter the export**; they stay in Keychain or
   Hermes-managed secret storage, as described above.
+  Keychain items belong to the data folder: the default `~/JarvisData`
+  uses the original names, and any other `JARVIS_DATA_DIR` gets its own.
+  Moving to a different folder therefore means reconnecting Google
+  Calendar and Health; Jarvis shows them as needing a reconnect rather
+  than as connected.
+* **Backups run while Jarvis runs**, not only at launch: the background
+  scheduler checks every five minutes whether a daily, weekly or monthly
+  backup is due, and a snapshot is taken before any schema upgrade of an
+  existing database. Data Management shows the newest backup, flags it
+  when the newest daily backup is over a day old, and shows the last
+  failed attempt. Backups, restores and exports never overlap.
+* **Permanent deletion is not erasure from backups.** Deleting a memory
+  removes it from the live database, but it stays in older backups
+  (including up to 20 snapshots taken just before permanent deletions)
+  and in any export you made, until those age out or you delete them.
+* **The local API only answers the app itself.** Every `/api` request
+  must come from a loopback `Host`, must not carry a foreign `Origin`, and
+  must carry a per-launch token held only in memory. A web page you visit
+  cannot change or read your data through `127.0.0.1`, including by DNS
+  rebinding. This does not defend against other programs running on the
+  same Mac.
+* **What the sensitive flag does, and what it doesn't.** A global memory
+  marked sensitive is left out of the profile sent with every
+  conversation; domain memories and records only reach the model in their
+  own domain or when you explicitly include that domain for one turn. The
+  flag does not hide a global memory anywhere else: it still shows up in
+  Recall search (which never calls a model), and you can add it as
+  evidence to a Research workspace or a Decision. If you then press "Draft
+  with Jarvis" or "Ask Jarvis to challenge this decision", its title and
+  snippet go to the model with the rest of that evidence. Nothing sends it
+  without one of those explicit steps.
 * **MIND and PEOPLE data is structurally excluded** from the home
   briefing and Recall's default search scope, regardless of any settings
   flag, because the code paths that would read those tables simply don't
@@ -344,6 +395,10 @@ this README on purpose; see `docs/ARCHITECTURE.md` §§7-8, §14, and §24
   against every provider.
 * Outstanding: a full VoiceOver pass and real-viewport inspection at a
   few fixed sizes, blocked on manual acceptance, not any known code issue.
+* Structured records can be created, listed and archived, not edited,
+  unarchived or permanently deleted, and conversations and messages have
+  no delete. These are known gaps against the "review, edit, archive or
+  delete" goal in `CLAUDE.md` §19, not hidden behavior.
 
 ## Explicitly out of scope
 

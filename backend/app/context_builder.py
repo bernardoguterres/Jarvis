@@ -127,9 +127,19 @@ def _retrieve_domain_memories(
 
 
 def _retrieve_global_memories(session: Session, limit: int, reasons: list[dict]) -> list[RetrievedMemory]:
+    """The global profile goes into every turn, whatever the domain, so a
+    memory marked sensitive is left out of it: otherwise a sensitive fact
+    stored globally would reach the model in an unrelated BUILD or LIFE
+    conversation. Domain memories and records are already limited to their
+    own domain (or a domain the user explicitly adds for one turn), so
+    their sensitivity flag does not change retrieval."""
     stmt = (
         select(MemoryItem)
-        .where(MemoryItem.scope == "global", MemoryItem.status == "active")
+        .where(
+            MemoryItem.scope == "global",
+            MemoryItem.status == "active",
+            MemoryItem.sensitivity == "normal",
+        )
         .order_by(MemoryItem.importance.desc(), MemoryItem.updated_at.desc())
         .limit(limit)
     )

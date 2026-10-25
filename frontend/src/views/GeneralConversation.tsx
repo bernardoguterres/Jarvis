@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
   createGeneralConversation,
   createMemory,
@@ -20,6 +20,14 @@ import VoiceCaptureOverlay from "../components/voice/VoiceCaptureOverlay";
 import { useVoiceCapture } from "../hooks/useVoiceCapture";
 import type { ParsedCommand } from "../commands/registry";
 import { SENSITIVE_SLUGS } from "../sensitiveDomains";
+import {
+  mergeMessages,
+  turnFailedMessage,
+  turnForAttempt,
+  TURN_LOST_CONTACT,
+  TURN_STILL_RUNNING,
+  type PendingTurn,
+} from "../turnSubmission";
 
 interface GeneralConversationProps {
   onBack: () => void;
@@ -47,6 +55,7 @@ function GeneralConversation({ onBack, onSystemCommand }: GeneralConversationPro
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [sendingToJarvis, setSendingToJarvis] = useState(false);
+  const pendingTurnRef = useRef<PendingTurn | null>(null);
   const [lastTurnMeta, setLastTurnMeta] = useState<{ provider: string; model: string } | null>(null);
   const [runIdByMessageId, setRunIdByMessageId] = useState<Record<string, string>>({});
   const [openContextFor, setOpenContextFor] = useState<string | null>(null);
@@ -131,28 +140,43 @@ function GeneralConversation({ onBack, onSystemCommand }: GeneralConversationPro
 
   async function submitTurn(content: string): Promise<{ ok: boolean; assistantMessage: Message | null }> {
     if (!selectedConversationId) return { ok: false, assistantMessage: null };
-    const idempotencyKey =
-      typeof crypto.randomUUID === "function" ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
+    const conversationId = selectedConversationId;
+    const attempt = turnForAttempt(pendingTurnRef.current, conversationId, content);
+    pendingTurnRef.current = attempt;
 
     setSendingToJarvis(true);
     setError(null);
     try {
-      const result = await sendTurn(selectedConversationId, content, idempotencyKey, selectedExtraDomains);
-      setMessages((prev) => [...prev, result.user_message, ...(result.assistant_message ? [result.assistant_message] : [])]);
+      const result = await sendTurn(conversationId, content, attempt.key, selectedExtraDomains);
+      setMessages((prev) =>
+        mergeMessages(prev, [result.user_message, ...(result.assistant_message ? [result.assistant_message] : [])]),
+      );
       if (result.context_snapshot_id && result.assistant_message) {
         setRunIdByMessageId((prev) => ({ ...prev, [result.assistant_message!.id]: result.run_id }));
       }
-      if (result.status === "succeeded") {
-        setLastTurnMeta({ provider: result.provider, model: result.model });
-      } else if (result.error) {
-        setError(`Jarvis could not respond: ${result.error.summary}`);
+      if (result.status === "running") {
+        setError(TURN_STILL_RUNNING);
+        return { ok: false, assistantMessage: null };
       }
-      // Per-turn domain inclusion never persists to the next turn.
+      if (result.status !== "succeeded") {
+        // The user message is saved; keep the draft and the key so Send
+        // retries this same turn instead of saving the message again.
+        setError(turnFailedMessage(result.error?.summary ?? "unknown error."));
+        return { ok: false, assistantMessage: null };
+      }
+      pendingTurnRef.current = null;
+      setLastTurnMeta({ provider: result.provider, model: result.model });
+      // Cross-domain selection applies only to this single turn.
       setSelectedExtraDomains([]);
       setSensitiveWarningAcknowledged(false);
       return { ok: true, assistantMessage: result.assistant_message };
     } catch {
-      setError("Could not reach Jarvis. Your message was not sent.");
+      // The request may or may not have reached the backend. Show what is
+      // actually saved rather than guessing.
+      setError(TURN_LOST_CONTACT);
+      fetchMessages(conversationId)
+        .then((saved) => setMessages(saved))
+        .catch(() => undefined);
       return { ok: false, assistantMessage: null };
     } finally {
       setSendingToJarvis(false);

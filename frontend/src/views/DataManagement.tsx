@@ -265,7 +265,25 @@ function DataManagement({ onBack }: DataManagementProps) {
             </span>
           </div>
         </div>
-        <p className="notice">Retention target: 7 daily · 4 weekly · 12 monthly.</p>
+        {latestBackup?.overdue && (
+          <p className="error-banner" role="alert">
+            {latestBackup.latest
+              ? "Backups are overdue: the newest daily backup is more than a day old."
+              : "No automatic backup exists yet."}
+          </p>
+        )}
+        {latestBackup?.last_error && (
+          <p className="error-banner" role="alert">
+            Last automatic backup attempt failed ({latestBackup.last_error_at_utc}): {latestBackup.last_error}
+          </p>
+        )}
+        <p className="notice">
+          While Jarvis is running it checks every few minutes whether a daily, weekly or monthly backup is due,
+          and it snapshots the database before any schema upgrade. Retention: 7 daily · 4 weekly · 12 monthly,
+          plus the 20 most recent snapshots taken just before a permanent memory deletion and the 10 most recent
+          pre-upgrade snapshots. Backups contain the whole database, so something you permanently delete stays in
+          older backups (and exports) until they age out of retention.
+        </p>
       </ConsoleModule>
 
       <ConsoleModule
@@ -337,8 +355,10 @@ function DataManagement({ onBack }: DataManagementProps) {
           <p role="status">
             Restored {restoreResult.domains_restored} domain(s),{" "}
             {restoreResult.conversations_restored} conversation(s),{" "}
-            {restoreResult.messages_restored} message(s), {restoreResult.documents_restored}{" "}
-            document(s). Integrations and all schedules/routines are now disabled — review and
+            {restoreResult.messages_restored} message(s), {restoreResult.memories_restored ?? 0} memory item(s),{" "}
+            {restoreResult.structured_records_restored ?? 0} record(s), {restoreResult.domain_summaries_restored}{" "}
+            domain summary(ies), {restoreResult.skills_restored} skill(s) and {restoreResult.documents_restored}{" "}
+            document file(s). Integrations and all schedules/routines are now disabled — review and
             re-enable them when ready.
           </p>
         )}

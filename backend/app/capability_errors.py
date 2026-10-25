@@ -29,3 +29,18 @@ class CapabilityNeedsReviewError(Exception):
     def __init__(self, detail: str) -> None:
         super().__init__(detail)
         self.detail = detail
+
+
+class CapabilityRetryableError(Exception):
+    """Raised by a capability's execute() when the external system
+    found no sign of the attempted change and a retry cannot duplicate it
+    (for example, a Google Calendar insert timed out, a lookup at the
+    action's own deterministic event ID found nothing, and a retry reuses
+    that same ID). action_service puts the proposal
+    back to `approved` with a fresh token, so a retry reuses the same
+    proposal ID and therefore the same idempotency key, instead of the user
+    re-proposing and risking a duplicate."""
+
+    def __init__(self, detail: str) -> None:
+        super().__init__(detail)
+        self.detail = detail

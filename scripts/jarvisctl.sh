@@ -114,6 +114,12 @@ apply_migrations() {
   # migration path used throughout Phases 1-4. Safe and idempotent to run on
   # every start: a fully up-to-date database is a no-op.
   log "Applying database migrations (if any are pending)..."
+  # Snapshot the existing database first when an upgrade is pending; stop
+  # here rather than migrate without a verified backup.
+  if ! (cd "$ROOT_DIR/backend" && uv run python -m app.cli backup-before-migrate) >>"$LOG_FILE" 2>&1; then
+    log "Pre-migration backup failed; not applying migrations. See $LOG_FILE."
+    return 1
+  fi
   (cd "$ROOT_DIR/backend" && uv run alembic upgrade head) >>"$LOG_FILE" 2>&1
 }
 

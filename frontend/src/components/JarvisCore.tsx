@@ -40,12 +40,11 @@ const SUBSTATE_TEXT: Record<CoreState, string | null> = {
   error: "Error",
 };
 
-/** The central Jarvis HUD element: a layered, state-driven ring system
- * (CLAUDE.md §9's central-state requirement and the cinematic-HUD
- * direction). Every layer is a decorative CSS transform/opacity animation
- * driven purely by the `state-*` class from the real `state` prop; the
- * "JARVIS" label and substate text live in their own non-rotating layer so
- * they always stay upright and readable. Purely presentational: callers
+/** The central Jarvis HUD element: two quiet rings around the core, an arc
+ * that turns only while Jarvis is transcribing or thinking, and level bars
+ * while it listens or speaks. Everything is driven purely by the `state-*`
+ * class from the real `state` prop; the "JARVIS" label and substate text
+ * never rotate, so they always stay upright and readable. Purely presentational: callers
  * own what `state` actually is (CLAUDE.md §9: "every status indicator must
  * correspond to real application state"), and every animation here is
  * globally disabled under prefers-reduced-motion (index.css). */
@@ -61,11 +60,8 @@ function JarvisCore({
   const rings = (
     <>
       <div className="jc-layer jc-boundary" aria-hidden="true" />
-      <div className="jc-layer jc-segmented jc-spin-cw" aria-hidden="true" />
-      <div className="jc-layer jc-ticks jc-spin-ccw" aria-hidden="true" />
-      <div className="jc-layer jc-inner-ring jc-spin-cw-fast" aria-hidden="true" />
+      <div className="jc-layer jc-inner-ring" aria-hidden="true" />
       <div className="jc-layer jc-sweep jc-spin-cw-sweep" aria-hidden="true" />
-      <div className="jc-halo" aria-hidden="true" />
       <div className="jc-bars" aria-hidden="true">
         {Array.from({ length: 8 }).map((_, i) => (
           <span key={i} className="jc-bar" style={{ transform: `rotate(${i * 45}deg) translateY(calc(-1 * var(--core-size) * 0.62))`, animationDelay: `${i * 90}ms` }} />

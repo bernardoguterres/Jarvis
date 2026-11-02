@@ -21,6 +21,17 @@ That project remains the canonical visual reference; this file is a text record 
 
 This was implemented in Phase 6, after the functional capabilities (voice, permissions, hooks, skills) were stable, per the project's own "don't implement later phases early" rule.
 
+### Later revision: quieter lighting
+
+The neon version of Direction C (saturated violet and cyan, blurred glows, a purple radial atmosphere, four spinning dashed rings around the core) still read as the stock "AI assistant HUD". The geometry, the six-domain orbit and the colour semantics below are unchanged; the lighting is now:
+
+* A neutral graphite canvas (no radial atmosphere, no grid texture) on Home and every interior page.
+* Muted accents with the same meanings: a soft lavender for Jarvis, a soft teal for live or confirmed state.
+* State shown by a thin outline in the state colour, not a blurred glow (`--glow-*` tokens are now 1-2px rings).
+* The core is two still rings and the label. An arc turns only while Jarvis is transcribing or thinking; level bars appear only while it listens or speaks.
+* Labels are sentence case in the system font. Monospace is for code and data, not for headings or eyebrows.
+* Interior pages use a wider column (1200px). The page header sits on the canvas above a rule rather than in a box, "Back to Jarvis" is a plain link, and buttons answer hover with a border change, not a lift.
+
 ## Why Jarvis needs its own visual grammar, not generic AI/SaaS styling
 
 This isn't a hypothetical concern; it's a failure mode that actually happened on this project (see D75) and is why `CLAUDE.md`'s aesthetics doctrine exists.
@@ -43,7 +54,7 @@ This isn't a hypothetical concern; it's a failure mode that actually happened on
 
 The orbital brief above was written for Home. Once the internal pages (domain conversations, the general conversation, all six Centres) reused Home's literal visual weight (large rounded cards, a purple-gradient hero per page), it read as a generic themed admin dashboard rather than the interior of the same instrument. The resolved direction for interior pages, deliberately distinct from Home's own atmosphere:
 
-* A near-black, flat canvas with a faint fixed grid texture, not a continuation of Home's atmospheric glow.
+* The same flat graphite canvas as Home, with no texture.
 * Matte module surfaces with a thin 1px violet border and a smaller corner radius than Home's circular language: instruments, not cards.
 * Cyan reserved strictly for a module genuinely live right now (listening, syncing, executing), never a default accent.
 * A small circular status glyph in place of a large decorative core wherever an interior page needs a system-status presence.

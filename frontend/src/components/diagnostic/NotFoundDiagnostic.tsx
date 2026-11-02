@@ -18,7 +18,7 @@ function NotFoundDiagnostic({ onReturnHome, onOpenPalette }: NotFoundDiagnosticP
 
   return (
     <DiagnosticPage
-      microLabel="NAVIGATION FAULT // 404"
+      microLabel="Navigation fault (404)"
       heading="Signal not found"
       explanation="The requested console does not exist or is no longer available."
       tone="neutral"

@@ -129,7 +129,7 @@ function ControllerOfflineDiagnostic({ checkHealth, onRecovered }: ControllerOff
 
   return (
     <DiagnosticPage
-      microLabel={recovering ? "CONTROLLER LINK // RESTORED" : "CONTROLLER LINK // OFFLINE"}
+      microLabel={recovering ? "Controller link restored" : "Controller link offline"}
       heading="Local controller unavailable"
       explanation="Jarvis's local controller is not responding. Your locally stored data has not been deleted."
       tone={recoveryTone ?? "critical"}

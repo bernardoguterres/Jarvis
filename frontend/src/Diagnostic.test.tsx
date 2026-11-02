@@ -118,7 +118,7 @@ describe("Controller (backend) offline", () => {
     // The RESTORED label appears only after checkHealth has genuinely
     // resolved true, and onRecovered (the real hand-off to Home) still
     // hasn't fired yet: the transition is real time, not instant.
-    expect(await screen.findByText(/controller link \/\/ restored/i)).toBeInTheDocument();
+    expect(await screen.findByText(/controller link restored/i)).toBeInTheDocument();
     expect(onRecovered).not.toHaveBeenCalled();
 
     await waitFor(() => expect(onRecovered).toHaveBeenCalledTimes(1));

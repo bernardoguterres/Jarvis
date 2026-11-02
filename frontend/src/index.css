@@ -14,46 +14,36 @@
   --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
 
   /* --- background layers (deep purple-black, darkest to most raised) --- */
-  --bg-void: #050308;
-  --bg-deep: #0a0714;
-  --bg-panel: #12101f;
-  --bg-panel-raised: #181528;
-  --bg-panel-hover: #1e1a33;
-  --bg-panel-sunken: #0d0b18;
+  --bg-void: #0e0e10;
+  --bg-deep: #111113;
+  --bg-panel: #161618;
+  --bg-panel-raised: #1b1b1e;
+  --bg-panel-hover: #212124;
+  --bg-panel-sunken: #121214;
 
   /* --- borders --- */
-  --border-subtle: #29233f;
-  --border-default: #342c4d;
-  --border-strong: #463c66;
-  --border-violet: #7c5cf0;
-  --border-cyan: #2dd9d0;
+  --border-subtle: #26262a;
+  --border-default: #303035;
+  --border-strong: #404047;
+  --border-violet: #6d6896;
+  --border-cyan: #5f938d;
 
   /* --- accents --- */
-  --accent-violet: #8b6bf2;
-  --accent-violet-strong: #a58bff;
-  --accent-violet-soft: rgba(139, 107, 242, 0.32);
-  --accent-cyan: #33d9e8;
-  --accent-cyan-strong: #6fe9f2;
-  --accent-cyan-soft: rgba(51, 217, 232, 0.28);
+  --accent-violet: #9a93c9;
+  --accent-violet-strong: #b4aedb;
+  --accent-violet-soft: rgba(154, 147, 201, 0.24);
+  --accent-cyan: #7db6ae;
+  --accent-cyan-strong: #a2cdc7;
+  --accent-cyan-soft: rgba(125, 182, 174, 0.22);
 
   /* --- text hierarchy --- */
-  --text-primary: #f2effa;
-  --text-secondary: #bcb6d8;
-  /* WCAG AA contrast correction: #85809f measured 4.466:1 against the
-     lightest panel background this token is ever paired with
-     (--bg-panel-hover, #1e1a33), a genuine miss of the 4.5:1 normal-text
-     threshold, found via axe-core on Research Centre's brief-version
-     ledger (.ledger-row-meta) but present on every other already-shipped
-     surface using this token too (44 usages across ~29 selectors:
-     .ledger-row-meta, .ledger-empty, .console-eyebrow/-description,
-     .change-badge, .briefing-item-subtitle, .memory-status, etc.).
-     +4/+4/+4 (the smallest RGB step that clears 4.5:1 with a real margin,
-     not exactly 4.50) raises the worst case to 4.712:1 against
-     --bg-panel-hover, with every other background this token is ever used
-     on landing at 5:1 or higher. See tests/contrast.test.ts. */
-  --text-tertiary: #8984a3;
-  --text-disabled: #6b6690;
-  --text-on-accent: #0a0714;
+  --text-primary: #ecebe7;
+  --text-secondary: #bab8b1;
+  /* Must clear WCAG AA (4.5:1) with margin against the lightest panel it
+     sits on, --bg-panel-hover: 4.83:1. Guarded by contrast.test.ts. */
+  --text-tertiary: #8f8d86;
+  --text-disabled: #6d6b66;
+  --text-on-accent: #111113;
 
   /* --- status colors (never the only signal; always paired with text) --- */
   --status-ok: #3fdb9a;
@@ -65,14 +55,15 @@
   --status-neutral: #8a84ab;
   --status-neutral-soft: rgba(138, 132, 171, 0.14);
 
-  /* --- glow (reserved for the core, active domain, voice activity,
-     meaningful state, never decorative/constant) --- */
-  --glow-violet-sm: 0 0 14px rgba(139, 107, 242, 0.4), 0 0 2px rgba(139, 107, 242, 0.6);
-  --glow-violet-md: 0 0 32px rgba(139, 107, 242, 0.45), 0 0 6px rgba(139, 107, 242, 0.5);
-  --glow-violet-lg: 0 0 64px rgba(139, 107, 242, 0.5), 0 0 12px rgba(139, 107, 242, 0.55);
-  --glow-cyan-sm: 0 0 14px rgba(51, 217, 232, 0.4);
-  --glow-cyan-md: 0 0 28px rgba(51, 217, 232, 0.42);
-  --glow-error-sm: 0 0 14px rgba(255, 107, 122, 0.45);
+  /* --- state outlines (reserved for the core, the active domain, voice
+     activity and meaningful state; never decorative or constant). A thin
+     ring in the state colour, not a blurred glow. --- */
+  --glow-violet-sm: 0 0 0 1px rgba(154, 147, 201, 0.35);
+  --glow-violet-md: 0 0 0 1px rgba(154, 147, 201, 0.5);
+  --glow-violet-lg: 0 0 0 2px rgba(154, 147, 201, 0.5);
+  --glow-cyan-sm: 0 0 0 1px rgba(125, 182, 174, 0.4);
+  --glow-cyan-md: 0 0 0 2px rgba(125, 182, 174, 0.45);
+  --glow-error-sm: 0 0 0 1px rgba(255, 107, 122, 0.45);
 
   /* --- shadows (depth) --- */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
@@ -161,10 +152,7 @@ body,
 }
 
 body {
-  background:
-    radial-gradient(ellipse 900px 600px at 50% -10%, rgba(139, 107, 242, 0.14), transparent 60%),
-    radial-gradient(ellipse 700px 500px at 90% 100%, rgba(51, 217, 232, 0.06), transparent 60%),
-    var(--bg-void);
+  background: var(--bg-void);
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
 }
@@ -217,8 +205,7 @@ h4 {
   gap: var(--space-3);
   padding: 0 var(--space-4);
   min-height: var(--topbar-height);
-  background: linear-gradient(180deg, rgba(18, 16, 31, 0.92), rgba(18, 16, 31, 0.72));
-  backdrop-filter: blur(10px);
+  background: var(--bg-deep);
   border-bottom: 1px solid var(--border-subtle);
   font-size: 0.82rem;
   color: var(--text-secondary);
@@ -300,9 +287,8 @@ h4 {
 }
 
 .palette-hint-button:hover {
-  border-color: var(--border-cyan);
+  border-color: var(--border-strong);
   background: var(--bg-panel-hover);
-  transform: translateY(-1px);
 }
 
 .palette-hint-button:active {
@@ -342,7 +328,6 @@ h4 {
   border-color: var(--border-cyan);
   color: var(--text-primary);
   background: var(--bg-panel-hover);
-  transform: translateY(-1px);
 }
 
 .systems-menu-trigger:active {
@@ -423,7 +408,7 @@ h4 {
   justify-content: center;
   gap: var(--space-5);
   padding: var(--space-2) var(--space-4);
-  background: linear-gradient(0deg, rgba(10, 7, 20, 0.9), rgba(10, 7, 20, 0.55));
+  background: var(--bg-deep);
   border-top: 1px solid var(--border-subtle);
   color: var(--text-tertiary);
   font-size: 0.72rem;
@@ -459,43 +444,32 @@ button {
   display: inline-flex;
   align-items: center;
   gap: 0.4em;
-  background: var(--bg-panel);
-  border: 1px solid var(--border-default);
+  background: none;
+  border: none;
   color: var(--text-secondary);
-  border-radius: var(--radius-sm);
-  padding: 0.45rem 0.9rem;
+  padding: 0;
   cursor: pointer;
   font-size: 0.85rem;
-  transition: border-color var(--motion-control) var(--ease-hud), color var(--motion-control) var(--ease-hud),
-    background var(--motion-control) var(--ease-hud), transform var(--motion-control) var(--ease-hud);
+  transition: color var(--motion-control) var(--ease-hud);
 }
 
 .back-button:hover {
-  border-color: var(--border-cyan);
   color: var(--text-primary);
-  background: var(--bg-panel-hover);
-  transform: translateY(-1px);
-}
-
-.back-button:active {
-  transform: scale(0.98);
 }
 
 button.primary {
-  background: linear-gradient(180deg, var(--accent-violet-strong), var(--accent-violet));
-  border: 1px solid var(--border-violet);
-  color: #100b22;
+  background: var(--accent-violet-strong);
+  border: 1px solid var(--accent-violet-strong);
+  color: var(--text-on-accent);
   font-weight: 600;
   border-radius: var(--radius-sm);
   padding: 0.55rem 1rem;
   cursor: pointer;
-  box-shadow: var(--shadow-sm);
-  transition: box-shadow var(--motion-control) var(--ease-hud), transform var(--motion-control) var(--ease-hud);
+  transition: background var(--motion-control) var(--ease-hud), transform var(--motion-control) var(--ease-hud);
 }
 
 button.primary:hover:not(:disabled) {
-  box-shadow: var(--glow-violet-sm), var(--shadow-sm);
-  transform: translateY(-1px);
+  background: var(--accent-violet);
 }
 
 button.primary:active:not(:disabled) {
@@ -521,9 +495,8 @@ button:not(.primary):not(.back-button):not(.domain-button):not(.push-to-talk-but
 }
 
 button:not(.primary):not(.back-button):not(.domain-button):not(.push-to-talk-button):not(.jarvis-hud-interactive):hover:not(:disabled) {
-  border-color: var(--border-cyan);
+  border-color: var(--border-strong);
   background: var(--bg-panel-hover);
-  transform: translateY(-1px);
 }
 
 button:not(.primary):not(.back-button):not(.domain-button):not(.push-to-talk-button):not(.jarvis-hud-interactive):active:not(:disabled) {
@@ -610,21 +583,15 @@ details > summary {
    Page shell used by every internal (non-home) view.
    ========================================================================= */
 
-/* Internal pages get a near-black operational canvas of their own, deliberately
-   flatter than Home's atmospheric violet glow: an interior console, not a
-   continuation of the hero screen. The grid is a fixed, near-invisible
-   texture (never scrolls with content, never implies activity). */
+/* Internal pages sit on the same flat canvas as Home: an interior console,
+   not a decorated backdrop. */
 .console-canvas {
-  background:
-    linear-gradient(rgba(124, 92, 240, 0.05) 1px, transparent 1px) 0 0 / 100% 42px,
-    linear-gradient(90deg, rgba(124, 92, 240, 0.05) 1px, transparent 1px) 0 0 / 42px 100%,
-    var(--bg-void);
-  background-attachment: fixed;
+  background: var(--bg-void);
 }
 
 .domain-view {
   flex: 1;
-  max-width: 920px;
+  max-width: 1200px;
   width: 100%;
   margin: 0 auto;
   padding: var(--space-5) var(--space-4) var(--space-8);
@@ -657,32 +624,14 @@ details > summary {
   overflow-x: auto;
 }
 
-/* Console header: near-black, matte, a thin 1px violet border instead of
-   the old gradient-and-glow hero card. A fine bottom divider stands in for
-   the decorative purple blob this used to carry. */
+/* Console header: matte panel with a thin border. */
 .domain-header {
-  background: var(--bg-panel-sunken);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  padding: var(--space-4) var(--space-5);
-  position: relative;
-}
-
-.domain-header::before {
-  content: "";
-  position: absolute;
-  left: var(--space-5);
-  right: var(--space-5);
-  bottom: 0;
-  height: 1px;
-  background: linear-gradient(90deg, var(--border-violet), transparent 70%);
-  opacity: 0.4;
-  pointer-events: none;
+  border-bottom: 1px solid var(--border-subtle);
+  padding: 0 0 var(--space-4);
 }
 
 .domain-header h1 {
   margin: 0 0 0.4rem;
-  letter-spacing: 0.04em;
   font-size: 1.5rem;
 }
 
@@ -732,20 +681,14 @@ section[aria-label].panel {
 
 .domain-view section[aria-label] h2 {
   margin-top: 0;
-  font-size: 0.78rem;
-  font-family: var(--font-mono);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  font-size: 0.8rem;
   color: var(--text-secondary);
   font-weight: 600;
 }
 
 .domain-view section[aria-label] h3 {
-  font-size: 0.78rem;
-  font-family: var(--font-mono);
+  font-size: 0.8rem;
   color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
 }
 
 /* A domain page's dashboard split: identity/memory/records (secondary,
@@ -861,10 +804,8 @@ section[aria-label].panel {
   gap: 0.35em;
   padding: 0.15em 0.65em;
   border-radius: var(--radius-full);
-  font-size: 0.72rem;
+  font-size: 0.8rem;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
   border: 1px solid var(--border-default);
   background: var(--status-neutral-soft);
   color: var(--text-secondary);
@@ -900,7 +841,7 @@ section[aria-label].panel {
 
 .status-chip.tone-active {
   color: var(--accent-cyan-strong);
-  border-color: rgba(51, 217, 232, 0.4);
+  border-color: var(--border-cyan);
   background: var(--accent-cyan-soft);
 }
 
@@ -970,7 +911,7 @@ section[aria-label].panel {
 .jarvis-hud-interactive:hover,
 .jarvis-hud-interactive:focus-visible {
   transform: scale(1.015);
-  filter: drop-shadow(0 0 18px color-mix(in srgb, var(--ring-color) 30%, transparent));
+  --ring-glow: var(--glow-violet-md);
 }
 
 .jarvis-hud-interactive:focus-visible {
@@ -1008,40 +949,10 @@ section[aria-label].panel {
   animation: jc-breathe calc(5.5s / var(--spin-speed)) ease-in-out infinite;
 }
 
-.jc-segmented {
-  width: 84%;
-  height: 84%;
-  background: repeating-conic-gradient(
-    var(--ring-color) 0deg 10deg,
-    transparent 10deg 26deg
-  );
-  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
-  mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
-  opacity: 0.55;
-}
-
-.jc-ticks {
-  width: 68%;
-  height: 68%;
-  background: repeating-conic-gradient(
-    var(--ring-color) 0deg 2deg,
-    transparent 2deg 30deg
-  );
-  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
-  mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
-  opacity: 0.7;
-}
-
 .jc-inner-ring {
-  width: 54%;
-  height: 54%;
-  background: repeating-conic-gradient(
-    var(--ring-color) 0deg 14deg,
-    transparent 14deg 40deg
-  );
-  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
-  mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
-  opacity: 0.65;
+  width: 74%;
+  height: 74%;
+  border: 1px solid color-mix(in srgb, var(--ring-color) 22%, transparent);
 }
 
 .jc-sweep {
@@ -1054,24 +965,16 @@ section[aria-label].panel {
     transparent 46deg,
     transparent 360deg
   );
-  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 30px), #000 calc(100% - 29px));
-  mask: radial-gradient(farthest-side, transparent calc(100% - 30px), #000 calc(100% - 29px));
-  opacity: 0.8;
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1px));
+  opacity: 0;
+  transition: opacity var(--motion-medium) var(--ease-standard);
 }
 
-.jc-spin-cw {
-  animation: jc-spin-cw calc(34s / var(--spin-speed)) linear infinite;
-}
-
-.jc-spin-ccw {
-  animation: jc-spin-ccw calc(46s / var(--spin-speed)) linear infinite;
-}
-
-.jc-spin-cw-fast {
-  /* Was 16s, the most frantic ambient layer relative to the others;
-     slowed ~25% so the idle core reads as calm rather than busy, while
-     staying visibly faster than .jc-spin-cw's 34s. */
-  animation: jc-spin-cw calc(20s / var(--spin-speed)) linear infinite;
+/* The arc only turns while Jarvis is actually working on something. */
+.jarvis-hud.state-transcribing .jc-sweep,
+.jarvis-hud.state-thinking .jc-sweep {
+  opacity: 0.9;
 }
 
 .jc-spin-cw-sweep {
@@ -1087,12 +990,6 @@ section[aria-label].panel {
   }
 }
 
-@keyframes jc-spin-ccw {
-  to {
-    transform: rotate(-360deg);
-  }
-}
-
 @keyframes jc-breathe {
   0%,
   100% {
@@ -1102,31 +999,6 @@ section[aria-label].panel {
   50% {
     opacity: 0.85;
     transform: scale(1.02);
-  }
-}
-
-.jc-halo {
-  position: absolute;
-  inset: 0;
-  margin: auto;
-  width: 62%;
-  height: 62%;
-  border-radius: 50%;
-  background: radial-gradient(circle, color-mix(in srgb, var(--ring-color) 55%, transparent), transparent 72%);
-  filter: blur(2px);
-  /* Was 2.4s; slowed ~25% to match the rest of the calmer idle core. */
-  animation: jc-halo-pulse calc(3s / var(--spin-speed)) ease-in-out infinite;
-}
-
-@keyframes jc-halo-pulse {
-  0%,
-  100% {
-    opacity: 0.35;
-    transform: scale(0.94);
-  }
-  50% {
-    opacity: 0.6;
-    transform: scale(1.04);
   }
 }
 
@@ -1174,10 +1046,10 @@ section[aria-label].panel {
   font-weight: 700;
   letter-spacing: 0.1em;
   font-size: clamp(0.78rem, 1.5vmin, 0.98rem);
-  background: radial-gradient(circle at 32% 28%, var(--bg-panel-hover), var(--bg-void) 72%);
+  background: var(--bg-panel);
   border: 1px solid var(--ring-color);
   color: var(--text-primary);
-  box-shadow: var(--ring-glow), var(--shadow-lg);
+  box-shadow: var(--ring-glow);
   z-index: 2;
   transition: box-shadow var(--motion-slow) var(--ease-standard), border-color var(--motion-slow) var(--ease-standard);
 }
@@ -1244,9 +1116,7 @@ section[aria-label].panel {
   --ring-glow: var(--glow-error-sm);
   --spin-speed: 0.4;
 }
-.jarvis-hud.state-error .jc-sweep,
 .jarvis-hud.state-error .jc-inner-ring {
-  animation-play-state: paused;
   opacity: 0.3;
 }
 
@@ -1260,7 +1130,7 @@ section[aria-label].panel {
   width: calc(38% * 2);
   height: calc(38% * 2);
   border-radius: 50%;
-  border: 1px dashed color-mix(in srgb, var(--accent-violet) 22%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent-violet) 14%, transparent);
   opacity: 0.5;
   transition: opacity var(--motion-medium) var(--ease-standard), border-color var(--motion-medium) var(--ease-standard);
   pointer-events: none;
@@ -1887,10 +1757,8 @@ section[aria-label].panel {
 }
 
 .message-role {
-  font-size: 0.68rem;
-  text-transform: uppercase;
+  font-size: 0.8rem;
   color: var(--text-tertiary);
-  letter-spacing: 0.06em;
 }
 
 .message-content {
@@ -2139,13 +2007,11 @@ section[aria-label].panel {
 }
 
 .memory-kind {
-  font-size: 0.68rem;
-  text-transform: uppercase;
+  font-size: 0.8rem;
   color: var(--text-tertiary);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-sm);
   padding: 0.1rem 0.45rem;
-  letter-spacing: 0.04em;
 }
 
 .memory-status {
@@ -2367,23 +2233,8 @@ body {
   display: flex;
   align-items: flex-start;
   gap: var(--space-4);
-  background: var(--bg-panel-sunken);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  padding: var(--space-4) var(--space-5);
-  position: relative;
-}
-
-.console-header::after {
-  content: "";
-  position: absolute;
-  left: var(--space-5);
-  right: var(--space-5);
-  bottom: 0;
-  height: 1px;
-  background: linear-gradient(90deg, var(--border-violet), transparent 70%);
-  opacity: 0.4;
-  pointer-events: none;
+  border-bottom: 1px solid var(--border-subtle);
+  padding: 0 0 var(--space-4);
 }
 
 .console-header-indicator {
@@ -2404,10 +2255,7 @@ body {
 
 .console-eyebrow {
   display: block;
-  font-family: var(--font-mono);
-  font-size: 0.68rem;
-  text-transform: uppercase;
-  letter-spacing: 0.14em;
+  font-size: 0.8rem;
   color: var(--text-tertiary);
 }
 
@@ -2431,11 +2279,8 @@ body {
   flex-wrap: wrap;
   gap: var(--space-3);
   margin-top: var(--space-3);
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
+  font-size: 0.8rem;
   color: var(--text-tertiary);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
 }
 
 .console-header-actions {
@@ -2475,10 +2320,7 @@ body {
 }
 
 .console-section-label {
-  font-family: var(--font-mono);
-  font-size: 0.7rem;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
+  font-size: 0.8rem;
   color: var(--text-tertiary);
 }
 
@@ -2499,10 +2341,7 @@ body {
 
 .telemetry-label {
   color: var(--text-tertiary);
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  font-size: 0.8rem;
   flex: none;
 }
 
@@ -2653,10 +2492,7 @@ body {
 .technical-details summary {
   cursor: pointer;
   color: var(--text-tertiary);
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  font-size: 0.8rem;
   list-style: none;
   display: inline-flex;
   align-items: center;
@@ -3059,10 +2895,7 @@ body {
 }
 
 .diag-code {
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
+  font-size: 0.8rem;
   padding: 0.2rem 0.6rem;
   border-radius: var(--radius-full);
   display: inline-block;
@@ -3230,20 +3063,9 @@ body {
    ========================================================================= */
 
 .jarvis-hud.has-waveform .jc-boundary,
-.jarvis-hud.has-waveform .jc-segmented,
-.jarvis-hud.has-waveform .jc-ticks,
 .jarvis-hud.has-waveform .jc-inner-ring,
-.jarvis-hud.has-waveform .jc-sweep,
-.jarvis-hud.has-waveform .jc-halo {
+.jarvis-hud.has-waveform .jc-sweep {
   opacity: 0.4;
-}
-
-.jc-core:has(.voice-waveform.tone-violet) {
-  box-shadow: var(--ring-glow), 0 0 40px rgba(139, 107, 242, 0.35);
-}
-
-.jc-core:has(.voice-waveform.tone-cyan) {
-  box-shadow: var(--ring-glow), 0 0 56px rgba(51, 217, 232, 0.3);
 }
 
 .voice-waveform {
@@ -3347,10 +3169,7 @@ body {
   border: 1px solid var(--border-strong);
   background: var(--bg-panel-raised);
   color: var(--text-primary);
-  font-family: var(--font-mono);
-  font-size: 0.78rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: 0.8rem;
   transition: border-color var(--motion-fast) var(--ease-standard), background var(--motion-fast) var(--ease-standard);
 }
 
@@ -3370,10 +3189,7 @@ body {
 }
 
 .voice-capture-scope {
-  font-family: var(--font-mono);
-  font-size: 0.74rem;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
+  font-size: 0.8rem;
   color: var(--text-tertiary);
 }
 
@@ -3386,10 +3202,7 @@ body {
 }
 
 .voice-capture-label {
-  font-family: var(--font-mono);
   font-size: 0.8rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
   color: var(--text-primary);
 }
 
@@ -3397,10 +3210,7 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 0.45em;
-  font-family: var(--font-mono);
-  font-size: 0.7rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  font-size: 0.8rem;
   color: var(--status-error);
 }
 
@@ -3813,10 +3623,7 @@ details > summary:focus-visible {
 }
 
 .builder-surface summary {
-  font-family: var(--font-mono);
-  font-size: 0.78rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  font-size: 0.8rem;
   color: var(--text-secondary);
   display: inline-flex;
   align-items: center;
@@ -3905,7 +3712,6 @@ button.action-note {
 button.action-note:hover:not(:disabled) {
   border-color: var(--border-strong);
   color: var(--text-primary);
-  transform: translateY(-1px);
 }
 
 button.action-note:active:not(:disabled) {
@@ -3947,10 +3753,8 @@ button.action-note:disabled {
 }
 
 .briefing-strip-title {
-  font-size: 0.72rem;
+  font-size: 0.8rem;
   font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
   color: var(--text-tertiary);
 }
 
@@ -4026,7 +3830,6 @@ button.briefing-strip-button:disabled {
 
 .briefing-item:hover:not(:disabled) {
   border-color: var(--border-strong);
-  transform: translateY(-1px);
 }
 
 .briefing-item:disabled {
@@ -4089,9 +3892,7 @@ button.briefing-strip-button:disabled {
 
 .briefing-item-freshness {
   flex-shrink: 0;
-  font-size: 0.68rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  font-size: 0.8rem;
   color: var(--text-tertiary);
 }
 
@@ -4498,10 +4299,8 @@ button.mc-duration-selected {
 }
 
 .mc-domain-picker legend {
-  font-size: 0.72rem;
+  font-size: 0.8rem;
   color: var(--text-tertiary);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
   padding: 0;
 }
 

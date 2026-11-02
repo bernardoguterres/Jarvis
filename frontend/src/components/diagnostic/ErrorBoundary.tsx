@@ -56,7 +56,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
 
     return (
       <DiagnosticPage
-        microLabel="INTERFACE FAULT"
+        microLabel="Interface fault"
         heading="Jarvis encountered an unexpected error"
         explanation="Something in the interface itself failed to render. Your locally stored data is untouched — this is a display fault, not a data or backend problem."
         tone="critical"

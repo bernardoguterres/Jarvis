@@ -65,6 +65,12 @@ const STATUS_FILTERS: Array<ActionStatus | "all"> = [
   "needs_review",
 ];
 
+/** Display label only ("needs_review" -> "Needs review"); the filter value stays the stored status. */
+function filterLabel(status: ActionStatus | "all"): string {
+  const words = status.replace(/_/g, " ");
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
 function ActionsCentre({ onBack }: ActionsCentreProps) {
   const [proposals, setProposals] = useState<ActionProposal[]>([]);
   const [statusFilter, setStatusFilter] = useState<ActionStatus | "all">("all");
@@ -274,7 +280,7 @@ function ActionsCentre({ onBack }: ActionsCentreProps) {
       )}
 
       <section aria-label="Filter by status">
-        <div className="tab-row">
+        <div className="tab-row tab-row--sentence">
           {STATUS_FILTERS.map((s) => (
             <label key={s}>
               <input
@@ -283,7 +289,7 @@ function ActionsCentre({ onBack }: ActionsCentreProps) {
                 checked={statusFilter === s}
                 onChange={() => setStatusFilter(s)}
               />
-              {s}
+              {filterLabel(s)}
             </label>
           ))}
         </div>

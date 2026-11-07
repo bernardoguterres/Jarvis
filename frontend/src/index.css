@@ -3374,6 +3374,11 @@ details > summary:focus-visible {
   transition: color var(--motion-control) var(--ease-hud), background var(--motion-control) var(--ease-hud);
 }
 
+/* Rows whose labels are already sentence case ("Needs review"). */
+.tab-row--sentence label {
+  text-transform: none;
+}
+
 .tab-row label:hover {
   color: var(--text-primary);
 }

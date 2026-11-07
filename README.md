@@ -13,6 +13,19 @@ records, retrieval, and workflow state.
   <sub>Home view: the six life domains around the central assistant.</sub>
 </p>
 
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/recall.png" alt="Jarvis Recall: a local search for 'export' with domain and source-type filters and four highlighted results"><br><sub>Recall: deterministic local search across everything Jarvis has stored.</sub></td>
+    <td width="50%"><img src="docs/screenshots/research-workspace.png" alt="Jarvis research workspace: a question with evidence classified as supporting, contextual, contradicting or unresolved"><br><sub>Research: evidence collected and classified before a brief is written.</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/decision-room.png" alt="Jarvis Decision Room: a decided decision with its read-only history and a saved outcome review"><br><sub>Decision Room: decisions keep their rationale and a read-only history.</sub></td>
+    <td width="50%"><img src="docs/screenshots/actions-centre.png" alt="Jarvis Actions Centre: a proposed action waiting for approval and a succeeded action in the history"><br><sub>Actions Centre: nothing executes without explicit approval.</sub></td>
+  </tr>
+</table>
+
+<sub>All screenshots use fake demo data.</sub>
+
 Jarvis is local-first, not fully offline. Persistent memory and
 application state stay in a local SQLite database under a data directory
 the app owns. Raw microphone audio is transcribed locally with

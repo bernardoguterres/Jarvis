@@ -22,6 +22,10 @@ records, retrieval, and workflow state.
     <td width="50%"><img src="docs/screenshots/decision-room.png" alt="Jarvis Decision Room: a decided decision with its read-only history and a saved outcome review"><br><sub>Decision Room: decisions keep their rationale and a read-only history.</sub></td>
     <td width="50%"><img src="docs/screenshots/actions-centre.png" alt="Jarvis Actions Centre: a proposed action waiting for approval and a succeeded action in the history"><br><sub>Actions Centre: nothing executes without explicit approval.</sub></td>
   </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/action-audit.png" alt="Jarvis Actions Centre: the audit history of one action moving from proposed to approved, executing and succeeded, each step timestamped"><br><sub>Audit trail: every action keeps a timestamped lifecycle.</sub></td>
+    <td width="50%"><img src="docs/screenshots/controller-unavailable.png" alt="Jarvis controller-unavailable screen with a retry button and the message that locally stored data has not been deleted"><br><sub>When the local controller is down, Jarvis says so and offers a retry.</sub></td>
+  </tr>
 </table>
 
 <sub>All screenshots use fake demo data.</sub>

@@ -341,7 +341,8 @@ function ResearchWorkspaceDetail({ workspaceId, onBackToList, onNavigate }: Rese
         meta={
           workspace ? (
             <span>
-              {workspace.evidence_count} evidence · {workspace.note_count} notes · {workspace.status}
+              {workspace.evidence_count} evidence · {workspace.note_count} {workspace.note_count === 1 ? "note" : "notes"} ·{" "}
+              {workspace.status}
             </span>
           ) : undefined
         }

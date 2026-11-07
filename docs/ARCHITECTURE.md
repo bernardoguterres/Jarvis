@@ -140,9 +140,9 @@ A fixed, controller-owned catalogue, Morning Briefing / Evening Check-in / Weekl
 
 ## 17. Frontend visual system
 
-Direction: "Direction B geometry with Direction C lighting" (`docs/DESIGN_DIRECTION.md`) - circular domain/core geometry only, no hexagons, a deep purple-black atmosphere with a violet core glow and cyan/teal accents, illumination reserved for the core, the active domain, voice activity, and meaningful state. Design tokens live in `frontend/src/index.css`; every existing component class was restyled against them rather than renamed.
+Direction: "Direction B geometry with Direction C lighting", later revised to quieter lighting (`docs/DESIGN_DIRECTION.md`, "Later revision: quieter lighting") - circular domain/core geometry only, no hexagons, a neutral graphite canvas with muted lavender and teal accents, state shown by thin outlines in the state colour rather than blurred glows, and illumination reserved for the core, the active domain, voice activity, and meaningful state. Design tokens live in `frontend/src/index.css`; every existing component class was restyled against them rather than renamed.
 
-**`JarvisCore`** is the central multi-ring HUD, built from masked gradient layers and CSS transforms (no SVG, no per-frame JS), driven by one CSS custom-property block per voice state (idle/listening/transcribing/thinking/speaking/error) so tuning a state never means touching each layer individually.
+**`JarvisCore`** is the central HUD element: two quiet rings around the label, an arc that turns only while Jarvis is transcribing or thinking, and level bars that appear only while it listens or speaks. It is built from CSS layers and transforms (no SVG, no per-frame JS), driven by one CSS custom-property block per voice state (idle/listening/transcribing/thinking/speaking/error) so tuning a state never means touching each layer individually.
 
 **Home** is the orbital view: nodes are positioned by container-relative percentages, a shared orbit ring brightens on hover/focus via `:has()`, and Home-to-domain navigation runs through one shared function (`transitions/domainViewTransition.ts`) built on the real browser View Transitions API, with a structural (not just CSS) reduced-motion bypass.
 

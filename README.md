@@ -7,6 +7,12 @@ six life domains (Body, Mind, People, Path, Build, Life), and its
 controller, not the configured AI provider, owns memory, structured
 records, retrieval, and workflow state.
 
+<p align="center">
+  <img src="docs/screenshots/home.png" alt="Jarvis home view: the six life domains (Body, Mind, People, Path, Build, Life) arranged around the central assistant, with a situational briefing panel below" width="900">
+  <br>
+  <sub>Home view: the six life domains around the central assistant.</sub>
+</p>
+
 Jarvis is local-first, not fully offline. Persistent memory and
 application state stay in a local SQLite database under a data directory
 the app owns. Raw microphone audio is transcribed locally with

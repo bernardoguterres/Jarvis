@@ -536,7 +536,10 @@ def _search_recall_fts(
         LIMIT :limit
         """
     )
-    rows = session.execute(sql, params).fetchall()
+    try:
+        rows = session.execute(sql, params).fetchall()
+    except Exception:
+        return []
     return [
         RecallHit(
             source_type=row[0],

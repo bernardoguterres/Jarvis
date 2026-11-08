@@ -234,7 +234,7 @@ def _render_action_proposal(session: Session, proposal_id: str) -> dict:
     if proposal is None:
         raise _NotIndexable
     title = proposal.capability_id.replace(".", " ").replace("_", " ")
-    content_parts = [proposal.reason, proposal.expected_effect, proposal.error_summary]
+    content_parts = [proposal.status, proposal.reason, proposal.expected_effect, proposal.error_summary]
     return {
         "domain_slug": _domain_slug(session, proposal.domain_id),
         "occurred_at": _iso(proposal.created_at),

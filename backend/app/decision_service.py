@@ -333,6 +333,11 @@ def reopen(session: Session, decision_id: str) -> Decision:
     if was_abandoned:
         decision.abandoned_at = None
         decision.abandoned_reason = None
+    for option in decision.options:
+        if option.status == "chosen":
+            option.status = "active"
+    session.commit()
+    sync_recall(session, "decision", decision.id)
     session.commit()
     session.refresh(decision)
     return decision

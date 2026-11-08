@@ -72,7 +72,7 @@ export function usePushToTalk({ onRecordingComplete, onError }: UsePushToTalkOpt
         mediaRecorderRef.current = null;
         const recordedChunks = chunksRef.current;
         chunksRef.current = [];
-        if (!wasCancelled && recordedChunks.length > 0) {
+        if (!wasCancelled) {
           onRecordingComplete(new Blob(recordedChunks, { type: recorder.mimeType || "audio/webm" }));
         }
       };

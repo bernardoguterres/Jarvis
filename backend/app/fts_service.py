@@ -18,7 +18,9 @@ from app.models_memory import MemoryItem
 # FTS5 query syntax treats these as operators/punctuation with special
 # meaning (AND/OR/NOT, column filters, phrase quotes, prefix *, grouping).
 # A raw user query containing them can otherwise raise "fts5: syntax error".
-_FTS_SPECIAL_CHARS = re.compile(r'["^*:()]')
+# Null bytes and ASCII control characters are also stripped to prevent
+# C-string termination and SQLite operational errors.
+_FTS_SPECIAL_CHARS = re.compile(r'["^*:()\x00-\x1f]')
 
 
 def sanitize_fts_query(raw_query: str) -> str:
@@ -29,7 +31,8 @@ def sanitize_fts_query(raw_query: str) -> str:
     ANY of its words, ranked by bm25. FTS5's default between bare terms is
     AND, which would otherwise require every word, including "what"/"do"/
     "you", to appear in the same short memory and silently match nothing)."""
-    tokens = [t for t in raw_query.strip().split() if t]
+    cleaned_query = raw_query.replace("\x00", " ")
+    tokens = [t for t in cleaned_query.strip().split() if t]
     if not tokens:
         return ""
     safe_tokens = []

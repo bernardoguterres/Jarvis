@@ -65,6 +65,11 @@ export function useVoiceCapture({ guard, onSystemCommand, submitTurn }: UseVoice
 
   const handleRecordingComplete = useCallback(
     (blob: Blob) => {
+      if (blob.size === 0) {
+        setVoiceState("idle");
+        return;
+      }
+
       if (guard) {
         const result = guard();
         if (result === false) return;
@@ -191,6 +196,15 @@ export function useVoiceCapture({ guard, onSystemCommand, submitTurn }: UseVoice
     // every Escape/cancel call from an error state silently doing nothing.
     if (voiceState === "error") {
       setVoiceError(null);
+      setVoiceState("idle");
+      return;
+    }
+    if (voiceState === "speaking") {
+      if (audioPlaybackRef.current) {
+        audioPlaybackRef.current.pause();
+        audioPlaybackRef.current.currentTime = 0;
+      }
+      setTtsAudioEl(null);
       setVoiceState("idle");
       return;
     }

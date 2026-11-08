@@ -175,7 +175,11 @@ def validate_archive(archive_path: Path) -> ValidationResult:
             return ValidationResult(ok=False, errors=["Archive is missing manifest.json."])
 
         extracted_dir = Path(tempfile.mkdtemp(prefix="jarvis-import-"))
-        _extract_safely(zf, extracted_dir)
+        try:
+            _extract_safely(zf, extracted_dir)
+        except Exception:
+            shutil.rmtree(extracted_dir, ignore_errors=True)
+            raise
 
     manifest_path = extracted_dir / MANIFEST_FILENAME
     try:

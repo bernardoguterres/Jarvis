@@ -193,6 +193,15 @@ function App() {
       });
   }, []);
 
+  const probeHealth = useCallback(async (): Promise<boolean> => {
+    try {
+      await fetchHealth();
+      return true;
+    } catch {
+      return false;
+    }
+  }, []);
+
   const checkHealth = useCallback(async (): Promise<boolean> => {
     try {
       await fetchHealth();
@@ -228,6 +237,7 @@ function App() {
   }, [health, checkHealth]);
 
   const handleControllerRecovered = useCallback(() => {
+    setHealth("ok");
     setDiagForceOffline(false);
     fetchDomains()
       .then(setDomains)
@@ -1064,7 +1074,7 @@ function App() {
             onOpenPalette={() => setShowPalette(true)}
           />
         ) : displayHealth === "error" ? (
-          <ControllerOfflineDiagnostic checkHealth={checkHealth} onRecovered={handleControllerRecovered} />
+          <ControllerOfflineDiagnostic checkHealth={probeHealth} onRecovered={handleControllerRecovered} />
         ) : showDataManagement ? (
           <DataManagement onBack={() => setShowDataManagement(false)} />
         ) : showMemoryCentre ? (
@@ -1105,6 +1115,7 @@ function App() {
           />
         ) : (
           <DomainView
+            key={selectedSlug}
             slug={selectedSlug}
             onBack={goHomeFromDomainWithTransition}
             onSystemCommand={runParsedCommand}

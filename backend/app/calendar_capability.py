@@ -11,7 +11,7 @@ any timed (non-all-day) event, never silently inferred when ambiguous.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime, timezone
 from typing import Any
 
 import httpx
@@ -21,6 +21,7 @@ from sqlalchemy.orm import Session
 from app.capability_errors import CapabilityError, CapabilityNeedsReviewError, CapabilityRetryableError
 from app.models_integrations import CalendarCalendar, CalendarEventCache
 from app.providers import google_calendar as gcal_provider
+from app.recall_index_service import remove_recall, sync_recall
 
 
 class CalendarCapabilityError(CapabilityError):
@@ -131,18 +132,68 @@ def _cache_created_event(session: Session, calendar: CalendarCalendar, external_
             CalendarEventCache.external_event_id == external_id,
         )
     ).scalar_one_or_none()
+
+    all_day = bool(arguments.get("all_day", False))
+    start_raw = arguments.get("start")
+    end_raw = arguments.get("end")
+    start_dt, end_dt, start_d, end_d = None, None, None, None
+    if all_day:
+        if start_raw:
+            try:
+                start_d = date.fromisoformat(str(start_raw).split("T")[0])
+            except ValueError:
+                pass
+        if end_raw:
+            try:
+                end_d = date.fromisoformat(str(end_raw).split("T")[0])
+            except ValueError:
+                pass
+    else:
+        if start_raw:
+            try:
+                dt = datetime.fromisoformat(str(start_raw))
+                start_dt = dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+            except ValueError:
+                pass
+        if end_raw:
+            try:
+                dt = datetime.fromisoformat(str(end_raw))
+                end_dt = dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+            except ValueError:
+                pass
+
     if existing_cache is None:
-        session.add(
-            CalendarEventCache(
-                calendar_id=calendar.id,
-                external_event_id=external_id,
-                title=arguments["title"],
-                description=arguments.get("description"),
-                location=arguments.get("location"),
-                all_day=bool(arguments.get("all_day", False)),
-            )
+        cached = CalendarEventCache(
+            calendar_id=calendar.id,
+            external_event_id=external_id,
+            title=arguments["title"],
+            description=arguments.get("description"),
+            location=arguments.get("location"),
+            all_day=all_day,
+            start_datetime=start_dt,
+            end_datetime=end_dt,
+            start_date=start_d,
+            end_date=end_d,
+            event_timezone=arguments.get("timezone"),
         )
+        session.add(cached)
         session.flush()
+        sync_recall(session, "calendar_event", cached.id)
+    else:
+        existing_cache.title = arguments["title"]
+        if "description" in arguments:
+            existing_cache.description = arguments.get("description")
+        if "location" in arguments:
+            existing_cache.location = arguments.get("location")
+        existing_cache.all_day = all_day
+        existing_cache.start_datetime = start_dt
+        existing_cache.end_datetime = end_dt
+        existing_cache.start_date = start_d
+        existing_cache.end_date = end_d
+        if arguments.get("timezone"):
+            existing_cache.event_timezone = arguments.get("timezone")
+        session.flush()
+        sync_recall(session, "calendar_event", existing_cache.id)
 
 
 def _is_cancelled(event: dict) -> bool:
@@ -352,6 +403,7 @@ def execute_event_update(
     if arguments.get("location") is not None:
         cached_event.location = arguments["location"]
     session.flush()
+    sync_recall(session, "calendar_event", cached_event.id)
     return {"external_event_id": cached_event.external_event_id}
 
 
@@ -381,6 +433,8 @@ def execute_event_delete(
     gcal_provider.delete_event(
         client=http_client, access_token=access_token, calendar_id=calendar.external_calendar_id, event_id=cached_event.external_event_id
     )
+    event_id = cached_event.id
     session.delete(cached_event)
     session.flush()
+    remove_recall(session, "calendar_event", event_id)
     return {"deleted_event_id": arguments["event_id"]}

@@ -9,7 +9,7 @@ from __future__ import annotations
 import hashlib
 import json
 import secrets
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
@@ -18,7 +18,7 @@ from app import hooks
 from app.capabilities import get_capability, validate_domain_for_capability
 from app.capability_errors import CapabilityNeedsReviewError, CapabilityRetryableError
 from app.models_actions import ActionAuditEvent, ActionProposal
-from app.recall_index_service import sync_recall
+from app.recall_index_service import remove_recall, sync_recall
 
 CONFIRMATION_TTL = timedelta(minutes=5)
 
@@ -94,6 +94,7 @@ def get_proposal_or_404(session: Session, proposal_id: str) -> ActionProposal:
     proposal = session.get(ActionProposal, proposal_id)
     if proposal is None:
         raise ActionNotFoundError(proposal_id)
+    _expire_if_needed(session, proposal)
     return proposal
 
 
@@ -105,6 +106,7 @@ def _expire_if_needed(session: Session, proposal: ActionProposal) -> None:
     if _as_aware_utc(proposal.confirmation_expires_at) < datetime.now(timezone.utc):
         proposal.status = "expired"
         session.flush()
+        sync_recall(session, "action_proposal", proposal.id)
         _record_event(session, proposal, "expired", detail="Confirmation window elapsed before execution.")
         session.commit()
         session.refresh(proposal)
@@ -121,6 +123,7 @@ def _reenable_for_retry(session: Session, proposal: ActionProposal, *, detail: s
     proposal.confirmation_used_at = None
     proposal.error_summary = None
     session.flush()
+    sync_recall(session, "action_proposal", proposal.id)
     _record_event(session, proposal, "approved", detail=detail)
 
 
@@ -128,6 +131,7 @@ def _mark_needs_review(session: Session, proposal: ActionProposal, *, detail: st
     proposal.status = "needs_review"
     proposal.error_summary = detail[:500]
     session.flush()
+    sync_recall(session, "action_proposal", proposal.id)
     _record_event(session, proposal, "needs_review", detail=detail)
 
 
@@ -138,6 +142,7 @@ def _mark_confirmed_succeeded(
     proposal.result_json = json.dumps(result)
     proposal.error_summary = None
     session.flush()
+    sync_recall(session, "action_proposal", proposal.id)
     _record_event(session, proposal, "succeeded", detail=detail)
 
 
@@ -149,18 +154,68 @@ def _cache_event_if_missing(session: Session, calendar, external_id: str, argume
             CalendarEventCache.calendar_id == calendar.id, CalendarEventCache.external_event_id == external_id
         )
     ).scalar_one_or_none()
+
+    all_day = bool(arguments.get("all_day", False))
+    start_raw = arguments.get("start")
+    end_raw = arguments.get("end")
+    start_dt, end_dt, start_d, end_d = None, None, None, None
+    if all_day:
+        if start_raw:
+            try:
+                start_d = date.fromisoformat(str(start_raw).split("T")[0])
+            except ValueError:
+                pass
+        if end_raw:
+            try:
+                end_d = date.fromisoformat(str(end_raw).split("T")[0])
+            except ValueError:
+                pass
+    else:
+        if start_raw:
+            try:
+                dt = datetime.fromisoformat(str(start_raw))
+                start_dt = dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+            except ValueError:
+                pass
+        if end_raw:
+            try:
+                dt = datetime.fromisoformat(str(end_raw))
+                end_dt = dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+            except ValueError:
+                pass
+
     if existing_cache is None:
-        session.add(
-            CalendarEventCache(
-                calendar_id=calendar.id,
-                external_event_id=external_id,
-                title=arguments.get("title", "(untitled)"),
-                description=arguments.get("description"),
-                location=arguments.get("location"),
-                all_day=bool(arguments.get("all_day", False)),
-            )
+        cached = CalendarEventCache(
+            calendar_id=calendar.id,
+            external_event_id=external_id,
+            title=arguments.get("title", "(untitled)"),
+            description=arguments.get("description"),
+            location=arguments.get("location"),
+            all_day=all_day,
+            start_datetime=start_dt,
+            end_datetime=end_dt,
+            start_date=start_d,
+            end_date=end_d,
+            event_timezone=arguments.get("timezone"),
         )
+        session.add(cached)
         session.flush()
+        sync_recall(session, "calendar_event", cached.id)
+    else:
+        existing_cache.title = arguments.get("title", existing_cache.title)
+        if "description" in arguments:
+            existing_cache.description = arguments.get("description")
+        if "location" in arguments:
+            existing_cache.location = arguments.get("location")
+        existing_cache.all_day = all_day
+        existing_cache.start_datetime = start_dt
+        existing_cache.end_datetime = end_dt
+        existing_cache.start_date = start_d
+        existing_cache.end_date = end_d
+        if arguments.get("timezone"):
+            existing_cache.event_timezone = arguments.get("timezone")
+        session.flush()
+        sync_recall(session, "calendar_event", existing_cache.id)
 
 
 def _reconcile_calendar_create(
@@ -323,8 +378,10 @@ def _reconcile_calendar_mutation(
 
     if is_delete:
         if live is None:
+            event_id = cached_event.id
             session.delete(cached_event)
             session.flush()
+            remove_recall(session, "calendar_event", event_id)
             _mark_confirmed_succeeded(
                 session,
                 proposal,
@@ -456,6 +513,7 @@ def approve_action(session: Session, proposal_id: str, *, payload_digest: str) -
     proposal.confirmation_expires_at = datetime.now(timezone.utc) + CONFIRMATION_TTL
     proposal.confirmation_used_at = None
     session.flush()
+    sync_recall(session, "action_proposal", proposal.id)
     _record_event(session, proposal, "approved")
     session.commit()
     session.refresh(proposal)
@@ -471,6 +529,7 @@ def deny_action(session: Session, proposal_id: str, *, reason: str | None = None
 
     proposal.status = "denied"
     session.flush()
+    sync_recall(session, "action_proposal", proposal.id)
     _record_event(session, proposal, "denied", detail=reason)
     session.commit()
     session.refresh(proposal)
@@ -600,6 +659,7 @@ def execute_action(
     proposal.status = "succeeded"
     proposal.result_json = json.dumps(result)
     session.flush()
+    sync_recall(session, "action_proposal", proposal.id)
     _record_event(session, proposal, "succeeded")
     session.commit()
     session.refresh(proposal)

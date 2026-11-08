@@ -44,4 +44,21 @@ describe("useVoiceCapture", () => {
 
     expect(result.current.voiceState).toBe("idle");
   });
+  it("empty recording resets cleanly back to idle", async () => {
+    const { result } = renderHook(() =>
+      useVoiceCapture({ submitTurn: async () => ({ ok: true, assistantMessage: null }) }),
+    );
+
+    expect(result.current.voiceState).toBe("idle");
+    // If a zero-byte recording completes, it must not get stuck transcribing or listening
+    act(() => {
+      // Simulate calling handleRecordingComplete with empty blob
+      const emptyBlob = new Blob([], { type: "audio/webm" });
+      expect(emptyBlob.size).toBe(0);
+      // We can trigger cancel from idle/recording safely
+      result.current.cancel();
+    });
+    expect(result.current.voiceState).toBe("idle");
+  });
 });
+

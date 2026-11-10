@@ -1533,8 +1533,12 @@ export type RecallSourceType =
   | "routine_run"
   | "mission_control_session";
 
+// Everything Recall search can return. Research evidence accepts all of
+// these except decisions, which is why RecallSourceType stays narrower.
+export type RecallSearchSourceType = RecallSourceType | "decision";
+
 export interface RecallResult {
-  source_type: RecallSourceType;
+  source_type: RecallSearchSourceType;
   source_id: string;
   domain_slug: "body" | "build" | "life" | "mind" | "path" | "people" | null;
   title: string;
@@ -1566,7 +1570,7 @@ export async function searchRecall(
   params: {
     q: string;
     domains?: string[];
-    sourceTypes?: RecallSourceType[];
+    sourceTypes?: RecallSearchSourceType[];
     includeGlobal?: boolean;
     currentDomain?: string | null;
     limit?: number;

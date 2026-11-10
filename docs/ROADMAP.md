@@ -7,7 +7,7 @@ This is a status tracker: what phase is done and what's left. For the full histo
 **V1's feature set is frozen.** Every phase below is complete. Two items remain, both against the installed native app rather than a dev build:
 
 1. **A full manual VoiceOver pass**, deliberately deferred to installed-app acceptance (see D103). A checklist covering Home, one domain, General Conversation, Recall, Research, Decision Room, Actions Centre, and one diagnostic state is ready to run. Not yet done.
-2. **Real-viewport inspection at 1280x800, 1024x768, and 820x900**, outstanding since the automation tooling used throughout this project can't actually resize a real browser window. The native app's own window can be resized by hand instead, whenever this is revisited.
+2. **Real-viewport inspection at 1280x800, 1024x768, and 820x900**: done in a real browser viewport with Playwright (D116), which found and fixed a narrow-window conversation layout defect and focus lost on view changes. Not yet repeated in the native app's own window.
 
 ## Phases
 

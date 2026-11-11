@@ -27,8 +27,37 @@ export interface Message {
   model_used: string | null;
 }
 
-const API_BASE_URL: string =
-  (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? "http://127.0.0.1:8000";
+const DEV_API_BASE_URL = "http://127.0.0.1:8000";
+
+/**
+ * Decide where API requests go.
+ *
+ * - An explicit VITE_API_BASE_URL at build time always wins.
+ * - Under the Vite dev server the page lives on its own port (5173), so the
+ *   API is the default backend on 127.0.0.1:8000.
+ * - A production build is served by the backend itself (scripts/jarvisctl.sh
+ *   or the native shell), so the API is the page's own origin. This is what
+ *   lets the bundle follow JARVIS_BACKEND_PORT instead of a port baked in at
+ *   build time. A page not served over http(s) falls back to the default.
+ */
+export function resolveApiBaseUrl(options: {
+  envOverride: string | undefined;
+  isDev: boolean;
+  location: Pick<Location, "protocol" | "origin"> | undefined;
+}): string {
+  const override = options.envOverride?.trim();
+  if (override) return override.replace(/\/+$/, "");
+  if (options.isDev) return DEV_API_BASE_URL;
+  const loc = options.location;
+  if (loc && (loc.protocol === "http:" || loc.protocol === "https:")) return loc.origin;
+  return DEV_API_BASE_URL;
+}
+
+const API_BASE_URL: string = resolveApiBaseUrl({
+  envOverride: import.meta.env.VITE_API_BASE_URL as string | undefined,
+  isDev: import.meta.env.DEV,
+  location: typeof window === "undefined" ? undefined : window.location,
+});
 
 class ApiError extends Error {
   status: number;

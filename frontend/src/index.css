@@ -179,6 +179,12 @@ h4 {
   border-radius: var(--radius-sm);
 }
 
+/* A view heading receives focus only so its title is announced after
+   navigation; it is not a control, so it gets no focus ring. */
+h1[tabindex="-1"]:focus {
+  outline: none;
+}
+
 /* =========================================================================
    App shell: reserves real layout space for top/bottom chrome; the main
    content area never sits underneath either bar.
@@ -1711,13 +1717,19 @@ section[aria-label].panel {
 
 .new-conversation-form {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.5rem;
   margin-top: var(--space-3);
 }
 
 .new-conversation-form input {
-  flex: 1;
+  flex: 1 1 12rem;
   min-width: 0;
+}
+
+.conversation-panel > .empty-console-state {
+  flex: 2;
+  min-width: 280px;
 }
 
 .conversation-detail {
@@ -2191,6 +2203,11 @@ section[aria-label].panel {
 
   .conversation-panel {
     flex-direction: column;
+    align-items: stretch;
+  }
+
+  .conversation-panel > * {
+    flex: none;
   }
 
   .core-layout {

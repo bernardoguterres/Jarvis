@@ -970,6 +970,83 @@ function App() {
   const isDiagnosticPage = !isKnownRoute || displayHealth === "error";
   const onHome = noOverlayActive && selectedSlug === null && !isDiagnosticPage;
 
+  // Which main view is on screen, in the same order the render below picks it.
+  const viewKey = !isKnownRoute
+    ? "not-found"
+    : displayHealth === "error"
+      ? "offline"
+      : showDataManagement
+        ? "data"
+        : showMemoryCentre
+          ? "memory"
+          : showActionsCentre
+            ? "actions"
+            : showSkillsCentre
+              ? "skills"
+              : showIntegrationsCentre
+                ? "integrations"
+                : showRoutineCentre
+                  ? "routines"
+                  : showRecallCentre
+                    ? "recall"
+                    : showResearchCentre
+                      ? "research"
+                      : showDecisionCentre
+                        ? "decisions"
+                        : showGeneral
+                          ? "general"
+                          : selectedSlug === null
+                            ? "home"
+                            : `domain:${selectedSlug}`;
+
+  // Switching views unmounts the control that was focused, which drops
+  // keyboard and VoiceOver focus to <body>. When that happens, put focus
+  // on the new view's heading, or back on the domain node when returning
+  // Home from a domain. Focus the user or a view placed elsewhere is left
+  // alone, and nothing moves on first load.
+  const mainRef = useRef<HTMLDivElement>(null);
+  const previousViewKeyRef = useRef(viewKey);
+  useEffect(() => {
+    const previous = previousViewKeyRef.current;
+    previousViewKeyRef.current = viewKey;
+    if (previous === viewKey) return;
+    const focusLost = () => {
+      const active = document.activeElement;
+      return !active || active === document.body || !active.isConnected;
+    };
+    const focusHeading = () => {
+      const heading = mainRef.current?.querySelector<HTMLElement>("h1");
+      if (!heading) return;
+      if (!heading.hasAttribute("tabindex")) heading.setAttribute("tabindex", "-1");
+      heading.focus({ preventScroll: true });
+    };
+    if (!focusLost()) return;
+    if (!(viewKey === "home" && previous.startsWith("domain:"))) {
+      focusHeading();
+      return;
+    }
+    // Home loads its domain nodes after mounting, so wait briefly for the
+    // node being returned to, then fall back to Home's heading.
+    const slug = previous.slice("domain:".length);
+    let attempts = 0;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const tryNode = () => {
+      if (!focusLost()) return;
+      const node = Array.from(
+        mainRef.current?.querySelectorAll<HTMLElement>("button[data-domain-transition-slug]") ?? [],
+      ).find((button) => button.dataset.domainTransitionSlug === slug);
+      if (node) {
+        node.focus({ preventScroll: true });
+      } else if (++attempts < 20) {
+        timer = setTimeout(tryNode, 50);
+      } else {
+        focusHeading();
+      }
+    };
+    tryNode();
+    return () => clearTimeout(timer);
+  }, [viewKey]);
+
   const activeDomain = domains.find((d) => d.slug === selectedSlug);
   const currentLocation = showDataManagement
     ? "Data Management"
@@ -1063,7 +1140,7 @@ function App() {
         )}
       </div>
 
-      <div className={`app-main${onHome ? "" : " console-canvas"}`}>
+      <div ref={mainRef} className={`app-main${onHome ? "" : " console-canvas"}`}>
         {!isKnownRoute ? (
           <NotFoundDiagnostic
             onReturnHome={() => {

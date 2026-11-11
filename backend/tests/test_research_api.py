@@ -108,6 +108,54 @@ def test_evidence_search_scoped_to_workspace_policy(client: TestClient) -> None:
     assert results[0]["domain_slug"] == "life"
 
 
+def test_evidence_search_offers_only_attachable_types_while_recall_still_finds_decisions(client: TestClient) -> None:
+    # A decision is Recall-indexed but is not a Research evidence type, so
+    # the picker used to offer it and adding it then failed with 422.
+    ws = _create_workspace(client)
+    task_id = _create_life_task(client, "lamp-marker receipt task")
+    decision = client.post("/api/decisions", json={"title": "lamp-marker decision"})
+    assert decision.status_code == 201, decision.text
+
+    candidates = client.get(f"/api/research/workspaces/{ws['id']}/evidence/search", params={"q": "lamp-marker"})
+    assert candidates.status_code == 200
+    offered = {(r["source_type"], r["source_id"]) for r in candidates.json()["results"]}
+    assert offered == {("structured_record", task_id)}
+
+    # Everything the picker offers can actually be attached.
+    for source_type, source_id in offered:
+        added = client.post(
+            f"/api/research/workspaces/{ws['id']}/evidence",
+            json={"source_type": source_type, "source_id": source_id},
+        )
+        assert added.status_code == 201, added.text
+
+    # Global Recall is unaffected and still finds the decision.
+    recall = client.get("/api/recall/search", params={"q": "lamp-marker"})
+    assert recall.status_code == 200
+    found = {(r["source_type"], r["source_id"]) for r in recall.json()["results"]}
+    assert ("decision", decision.json()["id"]) in found
+    assert ("structured_record", task_id) in found
+
+
+def test_evidence_search_ignores_a_requested_type_that_cannot_be_attached(client: TestClient) -> None:
+    ws = _create_workspace(client)
+    _create_life_task(client, "lamp-marker task")
+    client.post("/api/decisions", json={"title": "lamp-marker decision"})
+
+    only_decisions = client.get(
+        f"/api/research/workspaces/{ws['id']}/evidence/search",
+        params={"q": "lamp-marker", "source_types": "decision"},
+    )
+    assert only_decisions.status_code == 200
+    assert only_decisions.json()["results"] == []
+
+    mixed = client.get(
+        f"/api/research/workspaces/{ws['id']}/evidence/search",
+        params={"q": "lamp-marker", "source_types": "decision,structured_record"},
+    )
+    assert [r["source_type"] for r in mixed.json()["results"]] == ["structured_record"]
+
+
 def test_evidence_search_unknown_workspace_returns_404(client: TestClient) -> None:
     resp = client.get("/api/research/workspaces/nope/evidence/search", params={"q": "x"})
     assert resp.status_code == 404

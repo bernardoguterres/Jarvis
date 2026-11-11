@@ -260,13 +260,23 @@ def search_workspace_evidence(
     """Evidence discovery delegates directly to `recall_service.search()`
     rather than a parallel query/ranking implementation. The workspace's own
     domain policy is always the effective boundary, regardless of any
-    wider access `recall_service`'s own default would otherwise allow."""
+    wider access `recall_service`'s own default would otherwise allow.
+
+    Only source types that can be attached as evidence are searched, so the
+    picker never offers something `add_evidence` would refuse (decisions, for
+    example, are found by global Recall but are not Research evidence). A
+    requested type outside that set is dropped; if none remain, nothing
+    matches."""
     workspace = _require_workspace(session, workspace_id)
+    if source_types is None:
+        attachable = list(RESEARCH_EVIDENCE_SOURCE_TYPES)
+    else:
+        attachable = [t for t in source_types if t in RESEARCH_EVIDENCE_SOURCE_TYPES]
     return recall_service.search(
         session,
         query,
         domain_slugs=included_domain_slugs(workspace),
-        source_types=source_types,
+        source_types=attachable,
         include_global=True,
         limit=limit,
         offset=offset,

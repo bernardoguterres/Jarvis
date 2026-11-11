@@ -180,6 +180,45 @@ describe("RecallCentre", () => {
     expect(onNavigate).toHaveBeenCalledWith("domain:life");
   });
 
+  it("includes decisions in the source types it searches by default", async () => {
+    const user = userEvent.setup();
+    const spy = vi.spyOn(api, "searchRecall").mockResolvedValue(searchResult());
+    render(<RecallCentre onBack={noop} onNavigate={noop} seed={null} />);
+
+    await user.type(screen.getByLabelText(/search query/i), "desk lamp");
+
+    await waitFor(() => expect(spy).toHaveBeenCalled());
+    expect(spy.mock.calls.at(-1)?.[0].sourceTypes).toContain("decision");
+    expect(screen.getByRole("checkbox", { name: /decisions/i })).toBeChecked();
+  });
+
+  it("labels a decision result and opens the Decision Room from it", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(api, "searchRecall").mockResolvedValue(
+      searchResult({
+        results: [
+          result({
+            source_type: "decision",
+            source_id: "d1",
+            domain_slug: null,
+            title: "Which desk lamp to buy",
+            snippet_html: "Which <mark>desk lamp</mark> to buy",
+            link_target: "decision_centre",
+          }),
+        ],
+        total_considered: 1,
+      }),
+    );
+    const onNavigate = vi.fn();
+    render(<RecallCentre onBack={noop} onNavigate={onNavigate} seed={null} />);
+
+    await user.type(screen.getByLabelText(/search query/i), "desk lamp");
+    expect(await screen.findByText(/^Decision · .* · Global$/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /open source/i }));
+
+    expect(onNavigate).toHaveBeenCalledWith("decision_centre");
+  });
+
   it("every filter control has an accessible name reachable by keyboard", () => {
     render(<RecallCentre onBack={noop} onNavigate={noop} seed={null} />);
     for (const checkbox of screen.getAllByRole("checkbox")) {

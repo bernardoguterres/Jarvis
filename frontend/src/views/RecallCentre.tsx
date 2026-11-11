@@ -3,7 +3,7 @@ import {
   rebuildRecallIndex,
   searchRecall,
   type RecallResult,
-  type RecallSourceType,
+  type RecallSearchSourceType,
 } from "../api";
 import { isNavigateTarget, type NavigateTarget } from "../commands/registry";
 import { DOMAIN_SLUG_ORDER, type DomainSlug } from "../domainOrder";
@@ -31,7 +31,7 @@ interface RecallCentreProps {
 // checkbox UI and the actual request in obvious agreement.
 const DEFAULT_DOMAINS: DomainSlug[] = ["life", "path", "build"];
 
-const SOURCE_TYPE_GROUPS: Array<{ label: string; types: RecallSourceType[] }> = [
+const SOURCE_TYPE_GROUPS: Array<{ label: string; types: RecallSearchSourceType[] }> = [
   { label: "Conversations", types: ["conversation", "message"] },
   { label: "Memory", types: ["memory_item"] },
   { label: "Records & summaries", types: ["structured_record", "domain_summary"] },
@@ -40,10 +40,11 @@ const SOURCE_TYPE_GROUPS: Array<{ label: string; types: RecallSourceType[] }> = 
   { label: "Actions", types: ["action_proposal"] },
   { label: "Routines", types: ["routine_run"] },
   { label: "Mission Control", types: ["mission_control_session"] },
+  { label: "Decisions", types: ["decision"] },
 ];
-const ALL_SOURCE_TYPES: RecallSourceType[] = SOURCE_TYPE_GROUPS.flatMap((g) => g.types);
+const ALL_SOURCE_TYPES: RecallSearchSourceType[] = SOURCE_TYPE_GROUPS.flatMap((g) => g.types);
 
-const SOURCE_TYPE_LABELS: Record<RecallSourceType, string> = {
+const SOURCE_TYPE_LABELS: Record<RecallSearchSourceType, string> = {
   conversation: "Conversation",
   message: "Message",
   memory_item: "Memory",
@@ -55,6 +56,7 @@ const SOURCE_TYPE_LABELS: Record<RecallSourceType, string> = {
   action_proposal: "Action",
   routine_run: "Routine run",
   mission_control_session: "Focus session",
+  decision: "Decision",
 };
 
 const PAGE_SIZE = 20;
@@ -68,7 +70,7 @@ function formatOccurredAt(iso: string | null): string | null {
 function RecallCentre({ onBack, onNavigate, seed }: RecallCentreProps) {
   const [query, setQuery] = useState("");
   const [domains, setDomains] = useState<DomainSlug[]>(DEFAULT_DOMAINS);
-  const [sourceTypes, setSourceTypes] = useState<RecallSourceType[]>(ALL_SOURCE_TYPES);
+  const [sourceTypes, setSourceTypes] = useState<RecallSearchSourceType[]>(ALL_SOURCE_TYPES);
   const [offset, setOffset] = useState(0);
   const [results, setResults] = useState<RecallResult[] | null>(null);
   const [totalConsidered, setTotalConsidered] = useState(0);
@@ -159,7 +161,7 @@ function RecallCentre({ onBack, onNavigate, seed }: RecallCentreProps) {
     setDomains((prev) => (prev.includes(slug) ? prev.filter((d) => d !== slug) : [...prev, slug]));
   }
 
-  function toggleSourceGroup(types: RecallSourceType[]) {
+  function toggleSourceGroup(types: RecallSearchSourceType[]) {
     setOffset(0);
     setSourceTypes((prev) => {
       const allSelected = types.every((t) => prev.includes(t));

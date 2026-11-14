@@ -47,6 +47,7 @@ A few real-use issues surfaced after Stage 1 packaging shipped and were fixed wi
 * Seven real defects reported from daily use of the installed app (icon/tray issues, Keychain re-prompting, a broken OAuth Connect button, a voice-error screen with no way out, denied microphone access, a scroll-hijacking Space key). See D106.
 * A diagnostic pass on push-to-talk latency: one real fix kept (transcription no longer blocks the event loop), one attempted fix (eager model preload) reverted after it caused a runaway process-respawn loop on the real Mac. See D107.
 * The respawn loop's actual root cause, a missing `multiprocessing.freeze_support()` call in the packaged entrypoint, was found and fixed. See D109.
+* Narrow-window conversation layout and focus after view changes (D116); Recall searching decisions, Research offering only attachable evidence, the bundle following the backend's runtime port, and a menu-bar icon that was invisible on a dark menu bar (D117).
 
 ## Explicitly deferred
 

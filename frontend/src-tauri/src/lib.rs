@@ -114,7 +114,7 @@ pub fn run() {
                 "../icons/tray/tray-icon@2x.png"
             ))?;
 
-            TrayIconBuilder::new()
+            let tray = TrayIconBuilder::new()
                 .icon(tray_icon)
                 .icon_as_template(true)
                 .menu(&tray_menu)
@@ -226,6 +226,10 @@ pub fn run() {
                     _ => {}
                 })
                 .build(app)?;
+            // The builder marks the image as a template only after handing it to the
+            // menu bar button, which macOS 26 ignores, so the icon stayed black on a
+            // dark menu bar. Setting it again re-applies the image as a template.
+            let _ = tray.set_icon_as_template(true);
 
             sidecar::start(app.handle().clone());
 

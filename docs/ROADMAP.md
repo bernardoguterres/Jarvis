@@ -4,10 +4,10 @@ Subordinate to the project rules. If anything here conflicts with them, the proj
 
 This is a status tracker: what phase is done and what's left. For the full history of how each phase was built, verified, and what bugs came up along the way, see `docs/DECISIONS.md`.
 
-**V1's feature set is frozen.** Every phase below is complete. Two items remain, both against the installed native app rather than a dev build:
+**V1's feature set is frozen.** Every phase below is complete, and the last installed-app acceptance items passed on 2026-11-14 (D118):
 
-1. **A full manual VoiceOver pass**, deliberately deferred to installed-app acceptance (see D103). A checklist covering Home, one domain, General Conversation, Recall, Research, Decision Room, Actions Centre, and one diagnostic state is ready to run. Not yet done.
-2. **Real-viewport inspection at 1280x800, 1024x768, and 820x900**: done in a real browser viewport with Playwright (D116), which found and fixed a narrow-window conversation layout defect and focus lost on view changes. Not yet repeated in the native app's own window.
+1. **A full manual VoiceOver pass**, deferred to installed-app acceptance (see D103). Done in the installed app.
+2. **Real-viewport inspection at 1280x800, 1024x768, and 820x900**: done in a real browser viewport with Playwright (D116), which found and fixed a narrow-window conversation layout defect and focus lost on view changes. The narrow layout and focus were then confirmed in the native app's own window.
 
 ## Phases
 

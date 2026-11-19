@@ -25,3 +25,11 @@ beforeEach(() => {
     });
   }
 });
+
+// jsdom has no object URLs either. Spoken replies create one per chunk and
+// release it when playback stops, which can happen during cleanup's unmount,
+// after a test has already restored its own URL stub.
+beforeEach(() => {
+  if (typeof URL.createObjectURL !== "function") URL.createObjectURL = () => "blob:jsdom";
+  if (typeof URL.revokeObjectURL !== "function") URL.revokeObjectURL = () => {};
+});

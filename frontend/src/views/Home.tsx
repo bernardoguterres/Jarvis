@@ -15,7 +15,6 @@ import {
   sendTurn,
   snoozeBriefingItem,
   startMission,
-  synthesizeSpeech,
   unpinMissionFocusPin,
   type BriefingItem,
   type BriefingSnoozeDuration,
@@ -27,6 +26,7 @@ import {
   type MissionFocusEntry,
 } from "../api";
 import { isNavigateTarget, type NavigateTarget } from "../commands/registry";
+import { playSpeech } from "../speechPlayback";
 import type { DomainSlug } from "../domainOrder";
 import BriefingStrip from "../components/BriefingStrip";
 import DomainNode from "../components/DomainNode";
@@ -532,18 +532,20 @@ function Home({
     setReadAudioEl(audioEl);
     try {
       const text = briefing.items.map((item) => `${item.category}: ${item.title}.`).join(" ");
-      const audioBlob = await synthesizeSpeech(text);
-      const audioUrl = URL.createObjectURL(audioBlob);
+      const speech = playSpeech(text, audioEl);
+      await speech.started;
       if (!mountedRef.current) {
-        URL.revokeObjectURL(audioUrl);
+        speech.stop();
         return;
       }
-      audioEl.src = audioUrl;
-      audioEl.onended = () => {
-        URL.revokeObjectURL(audioUrl);
-        setReading(false);
-      };
-      await audioEl.play();
+      speech.done.then(
+        () => {
+          if (mountedRef.current) setReading(false);
+        },
+        () => {
+          if (mountedRef.current) setReading(false);
+        },
+      );
     } catch {
       if (mountedRef.current) setReading(false);
     }

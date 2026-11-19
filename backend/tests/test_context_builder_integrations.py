@@ -214,3 +214,30 @@ def test_general_conversation_document_leak_fixed_but_explicit_domain_still_work
     )
     assert len(package.snapshot.document_chunk_ids) >= 1
     assert "Cited document excerpts" in package.system_prompt
+
+
+def test_general_conversation_gets_google_health_only_when_body_is_added(db_session: Session) -> None:
+    """D119: a Home voice question about health adds BODY to that one
+    general turn, and that alone is what brings Google Health data in. A
+    general turn without BODY still gets none of it."""
+    _connect(db_session, "google_health")
+    db_session.add(GoogleHealthDailySummary(date=date.today(), steps=4321, sleep_minutes_asleep=402))
+    db_session.commit()
+    body = db_session.query(Domain).filter_by(slug="body").one()
+    conv = Conversation(domain_id=None, title="Home voice")
+    db_session.add(conv)
+    db_session.commit()
+
+    without = context_builder.build_context(
+        db_session, conversation=conv, domain=None, additional_domain_ids=[], query_text="how did I sleep", max_recent_messages=5
+    )
+    assert "Google Health" not in without.system_prompt
+    assert without.snapshot.google_health_summary_ids == []
+
+    with_body = context_builder.build_context(
+        db_session, conversation=conv, domain=None, additional_domain_ids=[body.id], query_text="how did I sleep", max_recent_messages=5
+    )
+    assert "BODY — Google Health data" in with_body.system_prompt
+    assert "steps=4321" in with_body.system_prompt and "sleep_min=402" in with_body.system_prompt
+    assert len(with_body.snapshot.google_health_summary_ids) == 1
+    assert with_body.snapshot.additional_domain_ids == [body.id]

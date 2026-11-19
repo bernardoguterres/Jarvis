@@ -1688,3 +1688,14 @@ Fix, proposed to Bernardo in full before creating anything and only executed aft
 ## D118: Installed-app acceptance finished
 
 On 2026-11-14 Bernardo ran the remaining manual checks in the installed Jarvis.app rebuilt that day (D117) on his real data, and all of them passed: closing the window keeps Jarvis in the menu bar and the tray icon reopens it; tray Quit and the Cmd+Q keystroke both quit; the conversation layout holds in a narrow window and keyboard focus follows view changes; Recall finds a decision and opens it; Research does not offer decisions as evidence and shows "Added" for attached items; and VoiceOver announces the headings and labels. This completes the VoiceOver pass deferred in D103 and repeats the D116 viewport and focus checks in the native window. These checks were performed by Bernardo, not by an agent. With them, no installed-app acceptance item for V1 remains open.
+
+## D119: Home voice questions about health include BODY for that turn
+
+**Why**: asking "what Google Health data can you see?" by voice from Home got a reply telling Bernardo to go to BODY. Home and Centre voice questions go to the ambient general conversation, which always sent an empty domain list, and Google Health data only enters a turn when BODY is in scope. The model never saw the data. Bernardo chose to have BODY included automatically when he asks about health, over being asked to confirm each time.
+
+**What changed**: `findHealthTopic()` in `frontend/src/commands/healthTopics.ts` checks the transcript against a fixed word list (Google Health, Fitbit, Pixel Watch, health data, my health, sleep, steps, heart rate, HRV, pulse, my weight, weigh, body fat, calories, workouts, exercise, knee). On a match, `ambientSubmitTurn` in `App.tsx` sends BODY's id as the one additional domain for that turn, using the existing `additional_domain_ids` path, so the backend and its privacy checks are unchanged. The reply banner starts with "BODY data included because you mentioned ..." and the turn's context snapshot lists BODY. Words such as "weights", "body" and "mood" do not match.
+
+**Boundaries**: the match is deterministic, never a model call. It can only add BODY, and only for that one turn of the ambient conversation; MIND and PEOPLE are never added automatically, whatever the question says. Typed General Conversation still uses its manual domain chips, and a domain conversation is unchanged. The Home briefing's own BODY opt-in (D86) is a separate setting and is not affected.
+
+**Tests**: matcher cases for each phrase and for near misses; Home voice turns that name Google Health, sleep and heart rate send only BODY's id and show the banner; a mood and relationship question sends no domain; the existing Centre-page knee question now includes BODY; a backend test shows a general turn gets Google Health data only when BODY is added.
+

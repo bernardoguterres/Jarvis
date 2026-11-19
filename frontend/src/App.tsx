@@ -37,6 +37,7 @@ import RecallCentre from "./views/RecallCentre";
 import ResearchCentre from "./views/ResearchCentre";
 import DecisionCentre from "./views/DecisionCentre";
 import CommandPalette, { type PaletteAction } from "./components/CommandPalette";
+import { findHealthTopic } from "./commands/healthTopics";
 import SystemsMenu, { type SystemsMenuItem } from "./components/SystemsMenu";
 import NotFoundDiagnostic from "./components/diagnostic/NotFoundDiagnostic";
 import ControllerOfflineDiagnostic from "./components/diagnostic/ControllerOfflineDiagnostic";
@@ -597,19 +598,38 @@ function App() {
     return ambientConversationPromiseRef.current;
   }, [ambientConversationId]);
 
+  // BODY's domain id, looked up once, for the health-topic inclusion below.
+  const bodyDomainIdPromiseRef = useRef<Promise<string | null> | null>(null);
+  const resolveBodyDomainId = useCallback((): Promise<string | null> => {
+    if (!bodyDomainIdPromiseRef.current) {
+      bodyDomainIdPromiseRef.current = fetchDomains().then(
+        (domains) => domains.find((d) => d.slug === "body")?.id ?? null,
+        () => {
+          bodyDomainIdPromiseRef.current = null;
+          return null;
+        },
+      );
+    }
+    return bodyDomainIdPromiseRef.current;
+  }, []);
+
   // An ordinary question asked by voice from Home or a Centre page. The
-  // exact same sendTurn mechanism GeneralConversation.tsx uses, with an
-  // explicitly empty domain array so a general turn never mixes in a
-  // domain automatically, from any surface.
+  // exact same sendTurn mechanism GeneralConversation.tsx uses. No domain is
+  // mixed in, except BODY for this one turn when Bernardo's own words name a
+  // health topic (see commands/healthTopics.ts, D119). MIND and PEOPLE are
+  // never added here.
   const ambientSubmitTurn = useCallback(
     async (transcript: string): Promise<{ ok: boolean; assistantMessage: Message | null }> => {
       try {
         const conversationId = await ensureAmbientConversation();
         const idempotencyKey =
           typeof crypto.randomUUID === "function" ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
-        const result = await sendTurn(conversationId, transcript, idempotencyKey, []);
+        const healthTopic = findHealthTopic(transcript);
+        const bodyDomainId = healthTopic ? await resolveBodyDomainId() : null;
+        const result = await sendTurn(conversationId, transcript, idempotencyKey, bodyDomainId ? [bodyDomainId] : []);
         if (result.status === "succeeded" && result.assistant_message) {
-          showCommandFeedback(result.assistant_message.content, "ok");
+          const note = bodyDomainId ? `BODY data included because you mentioned "${healthTopic}". ` : "";
+          showCommandFeedback(note + result.assistant_message.content, "ok");
           return { ok: true, assistantMessage: result.assistant_message };
         }
         showCommandFeedback(result.error ? `Jarvis could not respond: ${result.error.summary}` : "Jarvis could not respond.", "error");
@@ -619,7 +639,7 @@ function App() {
         return { ok: false, assistantMessage: null };
       }
     },
-    [ensureAmbientConversation, showCommandFeedback],
+    [ensureAmbientConversation, resolveBodyDomainId, showCommandFeedback],
   );
 
   // The one shared voice state machine (useVoiceCapture) for every surface

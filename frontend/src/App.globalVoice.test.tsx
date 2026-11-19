@@ -129,6 +129,66 @@ describe("Global voice — Home (acceptance #2, #8, #10, #11, #12)", () => {
     expect(FakeMediaRecorder.instances).toHaveLength(1);
   });
 
+  it.each([
+    ["What's the latest Google Health data you have for me?", "google health"],
+    ["How did I sleep last night?", "sleep"],
+    ["What was my resting heart rate this week?", "heart rate"],
+  ])("includes BODY for this one turn when a Home question names a health topic: %s", async (question, phrase) => {
+    baseMocks();
+    vi.spyOn(api, "fetchGeneralConversations").mockResolvedValue([]);
+    vi.spyOn(api, "createGeneralConversation").mockResolvedValue(AMBIENT_CONVERSATION);
+    vi.spyOn(api, "transcribeAudio").mockResolvedValue(question);
+    const sendTurnSpy = vi.spyOn(api, "sendTurn").mockResolvedValue({
+      run_id: "run-h",
+      status: "succeeded",
+      user_message: { id: "m1", conversation_id: "ambient-1", role: "user", content: question, created_at: "", model_used: null },
+      assistant_message: { id: "m2", conversation_id: "ambient-1", role: "assistant", content: "You slept seven hours.", created_at: "", model_used: "openai-codex/gpt-5.6-terra" },
+      provider: "hermes",
+      model: "openai-codex/gpt-5.6-terra",
+      latency_ms: 400,
+      usage: null,
+      context_snapshot_id: null,
+      error: null,
+    } satisfies TurnResult);
+    vi.spyOn(api, "synthesizeSpeech").mockResolvedValue(new Blob(["fake-mp3"], { type: "audio/mpeg" }));
+
+    render(<App />);
+    await screen.findByText("BODY");
+    await pressAndReleaseSpace();
+
+    await waitFor(() => expect(sendTurnSpy).toHaveBeenCalledTimes(1));
+    // Only BODY's id, never MIND or PEOPLE.
+    expect(sendTurnSpy).toHaveBeenCalledWith("ambient-1", question, expect.any(String), ["1"]);
+    expect(await screen.findByText(new RegExp(`BODY data included because you mentioned "${phrase}"`))).toBeInTheDocument();
+  });
+
+  it("never adds MIND or PEOPLE from Home, even when the question is about them", async () => {
+    baseMocks();
+    vi.spyOn(api, "fetchGeneralConversations").mockResolvedValue([]);
+    vi.spyOn(api, "createGeneralConversation").mockResolvedValue(AMBIENT_CONVERSATION);
+    vi.spyOn(api, "transcribeAudio").mockResolvedValue("How has my mood and my relationship been lately?");
+    const sendTurnSpy = vi.spyOn(api, "sendTurn").mockResolvedValue({
+      run_id: "run-m",
+      status: "succeeded",
+      user_message: { id: "m1", conversation_id: "ambient-1", role: "user", content: "x", created_at: "", model_used: null },
+      assistant_message: { id: "m2", conversation_id: "ambient-1", role: "assistant", content: "Open MIND for that.", created_at: "", model_used: "openai-codex/gpt-5.6-terra" },
+      provider: "hermes",
+      model: "openai-codex/gpt-5.6-terra",
+      latency_ms: 400,
+      usage: null,
+      context_snapshot_id: null,
+      error: null,
+    } satisfies TurnResult);
+    vi.spyOn(api, "synthesizeSpeech").mockResolvedValue(new Blob(["fake-mp3"], { type: "audio/mpeg" }));
+
+    render(<App />);
+    await screen.findByText("BODY");
+    await pressAndReleaseSpace();
+
+    await waitFor(() => expect(sendTurnSpy).toHaveBeenCalledTimes(1));
+    expect(sendTurnSpy.mock.calls[0][3]).toEqual([]);
+  });
+
   it("cancels the ambient capture on Escape without sending anything", async () => {
     baseMocks();
     vi.spyOn(api, "fetchGeneralConversations").mockResolvedValue([]);
@@ -196,7 +256,8 @@ describe("Global voice — Centre pages (acceptance #3, #4)", () => {
     // Never "not recognized as a command": it's sent to Jarvis as an
     // ordinary question, exactly as it would be from Home or a domain.
     await waitFor(() => expect(sendTurnSpy).toHaveBeenCalledTimes(1));
-    expect(sendTurnSpy).toHaveBeenCalledWith("ambient-1", "How is my knee doing lately?", expect.any(String), []);
+    // "knee" is a health topic, so this one turn includes BODY (D119).
+    expect(sendTurnSpy).toHaveBeenCalledWith("ambient-1", "How is my knee doing lately?", expect.any(String), ["1"]);
   });
 });
 

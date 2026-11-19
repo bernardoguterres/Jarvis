@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { transcribeAudio, synthesizeSpeech, type Message } from "../api";
+import { transcribeAudio, type Message } from "../api";
+import { playSpeech, type SpeechPlayback } from "../speechPlayback";
 import { usePushToTalk } from "./usePushToTalk";
 import { parseCommand, type ParsedCommand } from "../commands/registry";
 import type { VoiceState } from "../voiceState";
@@ -60,6 +61,7 @@ export function useVoiceCapture({ guard, onSystemCommand, submitTurn }: UseVoice
   const [voiceError, setVoiceError] = useState<string | null>(null);
   const [lastCommand, setLastCommand] = useState<{ heard: string; interpreted: string; sensitive: boolean } | null>(null);
   const audioPlaybackRef = useRef<HTMLAudioElement | null>(null);
+  const speechRef = useRef<SpeechPlayback | null>(null);
   const [ttsAudioEl, setTtsAudioEl] = useState<HTMLAudioElement | null>(null);
   const cancelFlashRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -130,23 +132,34 @@ export function useVoiceCapture({ guard, onSystemCommand, submitTurn }: UseVoice
             return;
           }
 
-          const audioBlob = await synthesizeSpeech(assistantMessage.content);
-          const audioUrl = URL.createObjectURL(audioBlob);
           const audioEl = audioPlaybackRef.current ?? new Audio();
           audioPlaybackRef.current = audioEl;
-          audioEl.src = audioUrl;
-          audioEl.onended = () => {
-            URL.revokeObjectURL(audioUrl);
-            setTtsAudioEl(null);
-            setVoiceState("idle");
-          };
-          // setVoiceState("speaking") before .play() resolves (so the
+          speechRef.current?.stop();
+          // setVoiceState("speaking") before the first chunk plays (so the
           // overlay appears immediately); ttsAudioEl only *after* .play()
           // resolves. Tapping a Web Audio analyser onto the element any
           // earlier is a real Chromium loading race (see D78).
           setVoiceState("speaking");
-          await audioEl.play();
+          const speech = playSpeech(assistantMessage.content, audioEl);
+          speechRef.current = speech;
+          await speech.started;
+          if (speechRef.current !== speech) return;
           setTtsAudioEl(audioEl);
+          speech.done.then(
+            () => {
+              if (speechRef.current !== speech) return;
+              speechRef.current = null;
+              setTtsAudioEl(null);
+              setVoiceState("idle");
+            },
+            () => {
+              if (speechRef.current !== speech) return;
+              speechRef.current = null;
+              setTtsAudioEl(null);
+              setVoiceState("error");
+              setVoiceError("Part of the spoken reply could not be played.");
+            },
+          );
         } catch {
           setTtsAudioEl(null);
           setVoiceState("error");
@@ -200,7 +213,10 @@ export function useVoiceCapture({ guard, onSystemCommand, submitTurn }: UseVoice
       return;
     }
     if (voiceState === "speaking") {
-      if (audioPlaybackRef.current) {
+      if (speechRef.current) {
+        speechRef.current.stop();
+        speechRef.current = null;
+      } else if (audioPlaybackRef.current) {
         audioPlaybackRef.current.pause();
         audioPlaybackRef.current.currentTime = 0;
       }
@@ -218,6 +234,8 @@ export function useVoiceCapture({ guard, onSystemCommand, submitTurn }: UseVoice
   useEffect(() => {
     return () => {
       if (cancelFlashRef.current) clearTimeout(cancelFlashRef.current);
+      speechRef.current?.stop();
+      speechRef.current = null;
     };
   }, []);
 

@@ -139,6 +139,41 @@ describe("DomainView — push-to-talk voice", () => {
     expect(api.synthesizeSpeech).toHaveBeenCalledWith("It's healing well.");
   });
 
+  it("starts speaking a long reply after its first sentence, before the rest is synthesized", async () => {
+    baseMocks();
+    const user = userEvent.setup();
+    vi.spyOn(api, "transcribeAudio").mockResolvedValue("How is my knee?");
+    const reply =
+      "Your knee is improving steadily. Swelling has been lower for three sessions in a row, and you reported no pain on the stairs. " +
+      "Keep the current plan until your physio appointment on Friday.";
+    vi.spyOn(api, "sendTurn").mockResolvedValue({
+      run_id: "run-2",
+      status: "succeeded",
+      user_message: { id: "m3", conversation_id: "conv-1", role: "user", content: "How is my knee?", created_at: "", model_used: null },
+      assistant_message: { id: "m4", conversation_id: "conv-1", role: "assistant", content: reply, created_at: "", model_used: "openai-codex/gpt-5.6-terra" },
+      provider: "hermes",
+      model: "openai-codex/gpt-5.6-terra",
+      latency_ms: 500,
+      usage: { input_tokens: 10, output_tokens: 30, total_tokens: 40 },
+      context_snapshot_id: null,
+      error: null,
+    });
+    // Only the first sentence ever finishes; the later chunks stay pending.
+    const synth = vi
+      .spyOn(api, "synthesizeSpeech")
+      .mockImplementation((text: string) =>
+        text.startsWith("Your knee is improving") ? Promise.resolve(new Blob(["first"], { type: "audio/mpeg" })) : new Promise<Blob>(() => {}),
+      );
+
+    const button = await openConversation(user);
+    await user.pointer({ keys: "[MouseLeft>]", target: button });
+    await user.pointer({ keys: "[/MouseLeft]", target: button });
+
+    await waitFor(() => expect(HTMLMediaElement.prototype.play).toHaveBeenCalledTimes(1));
+    expect(synth.mock.calls[0][0]).toBe("Your knee is improving steadily.");
+    expect(synth.mock.calls.length).toBeGreaterThan(1);
+  });
+
   it("shows an error and does not submit a turn when transcription is empty", async () => {
     baseMocks();
     const user = userEvent.setup();

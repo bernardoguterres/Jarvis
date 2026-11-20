@@ -224,7 +224,11 @@ def _normalize_event(item: dict[str, Any]) -> NormalizedEvent:
     def _parse_dt(value: str | None) -> datetime | None:
         if not value:
             return None
-        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+        # Stored as UTC: SQLite keeps only the clock time, and every reader
+        # treats a stored time as UTC, so a "+01:00" summer time must be
+        # converted first or it comes back an hour late (D121).
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        return parsed.astimezone(timezone.utc) if parsed.tzinfo is not None else parsed
 
     updated = item.get("updated")
     return NormalizedEvent(

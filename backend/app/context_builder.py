@@ -12,7 +12,7 @@ explicitly names/selects an additional domain.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session
 from app.document_fts_service import search_document_fts
 from app.fts_service import search_memory_fts
 from app.models import Conversation, Domain, Message
-from app.models_integrations import CalendarEventCache, Document, DocumentChunk, GoogleHealthDailySummary, IntegrationConnection
+from app.models_integrations import CalendarCalendar, CalendarEventCache, Document, DocumentChunk, GoogleHealthDailySummary, IntegrationConnection
 from app.models_memory import DomainSummary, MemoryItem, StructuredRecord
 from app.providers.base import TurnMessage
 from app.structured_record_service import payload_dict
@@ -42,7 +42,7 @@ _GOOGLE_HEALTH_DAILY_METRICS = (
     ("weight_kg", "weight_kg"),
     ("body_fat_percent", "body_fat_pct"),
 )
-MAX_CALENDAR_EVENTS_IN_CONTEXT = 10
+MAX_CALENDAR_EVENTS_IN_CONTEXT = 15
 
 GLOBAL_SYSTEM_INSTRUCTION = """You are Jarvis, Bernardo's private local personal assistant.
 
@@ -360,17 +360,35 @@ def _retrieve_google_health_context(session: Session, days: int) -> tuple[list[s
     return used_ids, "\n".join(lines)
 
 
+def _local_now() -> datetime:
+    """The Mac's own local time, timezone-aware. A separate function so
+    tests can fix it."""
+    return datetime.now().astimezone()
+
+
 def _retrieve_calendar_context(session: Session, limit: int) -> tuple[list[str], str | None]:
+    """Calendar events from the start of today (local time) onwards, in start
+    order with all-day and timed events interleaved, shown in local time with
+    the weekday and end time (D121). Stored times are UTC."""
     conn = session.get(IntegrationConnection, "google_calendar")
     if conn is None or conn.status != "connected":
         return [], None
-    now = datetime.now(timezone.utc)
+    local_now = _local_now()
+    local_tz = local_now.tzinfo
+    today_start_utc = local_now.replace(hour=0, minute=0, second=0, microsecond=0).astimezone(timezone.utc)
+    effective_start = func.coalesce(CalendarEventCache.start_datetime, CalendarEventCache.start_date)
     stmt = (
         select(CalendarEventCache)
+        .join(CalendarCalendar, CalendarCalendar.id == CalendarEventCache.calendar_id)
+        .where(CalendarCalendar.selected.is_(True))
         .where(
-            (CalendarEventCache.start_datetime >= now) | (CalendarEventCache.start_date >= now.date())
+            (CalendarEventCache.start_datetime >= today_start_utc.replace(tzinfo=None))
+            | (CalendarEventCache.start_date >= local_now.date())
+            # An event already in progress (started before today, ends later).
+            | (CalendarEventCache.end_datetime > local_now.astimezone(timezone.utc).replace(tzinfo=None))
+            | (CalendarEventCache.end_date > local_now.date())
         )
-        .order_by(CalendarEventCache.start_datetime, CalendarEventCache.start_date)
+        .order_by(effective_start, CalendarEventCache.id)
         .limit(limit)
     )
     rows = list(session.execute(stmt).scalars().all())
@@ -380,12 +398,28 @@ def _retrieve_calendar_context(session: Session, limit: int) -> tuple[list[str],
     if conn.last_sync_at is not None:
         age = datetime.now(timezone.utc) - conn.last_sync_at.replace(tzinfo=timezone.utc) if conn.last_sync_at.tzinfo is None else datetime.now(timezone.utc) - conn.last_sync_at
         staleness = f" (last synced {age.days}d {age.seconds // 3600}h ago — locally cached, not live)"
-    lines = [f"Upcoming Google Calendar events{staleness}:"]
+
+    def _local(dt: datetime) -> datetime:
+        aware = dt if dt.tzinfo is not None else dt.replace(tzinfo=timezone.utc)
+        return aware.astimezone(local_tz)
+
+    lines = [f"Google Calendar events from today onwards, in local time{staleness}:"]
     for row in rows:
-        when = row.start_date.isoformat() if row.all_day else (row.start_datetime.isoformat() if row.start_datetime else "?")
+        if row.all_day or row.start_datetime is None:
+            start_day = row.start_date
+            when = f"{start_day:%a %Y-%m-%d} (all day)" if start_day else "? (all day)"
+            # Google's all-day end date is exclusive.
+            if row.start_date and row.end_date and (row.end_date - row.start_date).days > 1:
+                last_day = row.end_date - timedelta(days=1)
+                when = f"{start_day:%a %Y-%m-%d} to {last_day:%a %Y-%m-%d} (all day)"
+        else:
+            start_local = _local(row.start_datetime)
+            when = f"{start_local:%a %Y-%m-%d %H:%M}"
+            if row.end_datetime is not None:
+                end_local = _local(row.end_datetime)
+                when += f"-{end_local:%H:%M}" if end_local.date() == start_local.date() else f" to {end_local:%a %Y-%m-%d %H:%M}"
         lines.append(f"- [cal_event:{row.id[:8]}] {when}: {row.title}" + (f" @ {row.location}" if row.location else ""))
     return [r.id for r in rows], "\n".join(lines)
-
 
 def build_context(
     session: Session,
@@ -549,7 +583,11 @@ def build_context(
     scope_names = ([domain.name] if domain is not None else ["none (general conversation)"]) + [
         d.name for did in additional_domain_ids if (d := session.get(Domain, did)) is not None
     ]
-    domain_scope_note = f"Domain scope for this turn: {', '.join(scope_names)}."
+    local_now = _local_now()
+    domain_scope_note = (
+        f"Domain scope for this turn: {', '.join(scope_names)}.\n"
+        f"Current local date and time: {local_now:%A %d %B %Y, %H:%M} ({local_now.tzname()})."
+    )
 
     reference_data = "\n".join(sections)
     system_prompt = (

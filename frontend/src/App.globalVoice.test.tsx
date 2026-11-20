@@ -96,7 +96,7 @@ async function pressAndReleaseSpace() {
 }
 
 describe("Global voice — Home (acceptance #2, #8, #10, #11, #12)", () => {
-  it("sends an ordinary question spoken from Home to the ambient general conversation, with no domain included", async () => {
+  it("sends an ordinary question spoken from Home to the ambient general conversation, adding LIFE for a calendar question", async () => {
     baseMocks();
     vi.spyOn(api, "fetchGeneralConversations").mockResolvedValue([]);
     vi.spyOn(api, "createGeneralConversation").mockResolvedValue(AMBIENT_CONVERSATION);
@@ -121,8 +121,9 @@ describe("Global voice — Home (acceptance #2, #8, #10, #11, #12)", () => {
     await pressAndReleaseSpace();
 
     await waitFor(() => expect(sendTurnSpy).toHaveBeenCalledTimes(1));
-    // Empty domain array: never mixes in a domain automatically.
-    expect(sendTurnSpy).toHaveBeenCalledWith("ambient-1", "What's on my calendar this week?", expect.any(String), []);
+    // A calendar question includes LIFE for this one turn (D121), and only LIFE.
+    expect(sendTurnSpy).toHaveBeenCalledWith("ambient-1", "What's on my calendar this week?", expect.any(String), ["6"]);
+    expect(await screen.findByText(/LIFE data included because you mentioned "what's on"/)).toBeInTheDocument();
     expect(api.createGeneralConversation).toHaveBeenCalledTimes(1);
     await waitFor(() => expect(HTMLMediaElement.prototype.play).toHaveBeenCalled());
     // Exactly one capture for the one gesture.
@@ -160,6 +161,40 @@ describe("Global voice — Home (acceptance #2, #8, #10, #11, #12)", () => {
     // Only BODY's id, never MIND or PEOPLE.
     expect(sendTurnSpy).toHaveBeenCalledWith("ambient-1", question, expect.any(String), ["1"]);
     expect(await screen.findByText(new RegExp(`BODY data included because you mentioned "${phrase}"`))).toBeInTheDocument();
+  });
+
+  it.each([
+    ["What should I focus on today?", []],
+    ["Did I sleep enough before my meeting tomorrow?", ["1", "6"]],
+    ["Don't check my calendar, just give me a focus tip", []],
+  ])("adds exactly the domains the question names: %s", async (question, expected) => {
+    baseMocks();
+    vi.spyOn(api, "fetchGeneralConversations").mockResolvedValue([]);
+    vi.spyOn(api, "createGeneralConversation").mockResolvedValue(AMBIENT_CONVERSATION);
+    vi.spyOn(api, "transcribeAudio").mockResolvedValue(question);
+    const sendTurnSpy = vi.spyOn(api, "sendTurn").mockResolvedValue({
+      run_id: "run-c",
+      status: "succeeded",
+      user_message: { id: "m1", conversation_id: "ambient-1", role: "user", content: question, created_at: "", model_used: null },
+      assistant_message: { id: "m2", conversation_id: "ambient-1", role: "assistant", content: "Reply.", created_at: "", model_used: "openai-codex/gpt-5.6-terra" },
+      provider: "hermes",
+      model: "openai-codex/gpt-5.6-terra",
+      latency_ms: 400,
+      usage: null,
+      context_snapshot_id: null,
+      error: null,
+    } satisfies TurnResult);
+    vi.spyOn(api, "synthesizeSpeech").mockResolvedValue(new Blob(["fake-mp3"], { type: "audio/mpeg" }));
+
+    render(<App />);
+    await screen.findByText("BODY");
+    await pressAndReleaseSpace();
+
+    await waitFor(() => expect(sendTurnSpy).toHaveBeenCalledTimes(1));
+    expect(sendTurnSpy.mock.calls[0][3]).toEqual(expected);
+    if (expected.length === 2) {
+      expect(await screen.findByText(/BODY and LIFE data included because you mentioned "sleep" and "meeting"/)).toBeInTheDocument();
+    }
   });
 
   it("never adds MIND or PEOPLE from Home, even when the question is about them", async () => {

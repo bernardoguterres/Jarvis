@@ -1709,3 +1709,15 @@ On 2026-11-14 Bernardo ran the remaining manual checks in the installed Jarvis.a
 
 **Not changed**: earlier replies in the same conversation still carry health numbers into later turns that do not add BODY, so a follow-up can repeat a value from earlier in the day. LIFE, PATH and BUILD questions from Home still get no domain data.
 
+## D121: Home voice calendar questions include LIFE; calendar context fixed
+
+**Why**: asked from Home, "What's on my calendar this week?" got "switch to a LIFE conversation", because Google Calendar data only enters a turn when LIFE is in scope. Bernardo asked for the same treatment D119 gave health questions. Checking what LIFE actually gives the model found three more problems, in LIFE conversations as well as from Home: the model was never told the current date or time, so "tomorrow" was a guess; events were sorted with every all-day event ahead of every timed one, so the 10-event limit could be filled by all-day events weeks away while tomorrow's meetings were dropped (on the real data the 11 December event was already cut); and only events starting after the current moment were included, so "what did I have today" missed this morning.
+
+**What changed**:
+- `frontend/src/commands/calendarTopics.ts` adds a fixed calendar word list (calendar, schedule, agenda, meeting, appointment, reminder, "my/any/next/upcoming events", "am I free/busy/available", "free/busy today/tomorrow/...", "what's on", "what do I have", "what have I got", "what am I doing today/...", "my/any plans", "plans for/tonight/...", "coming up", "when/what time is my"), with the same negation rule as health ("don't check my calendar" adds nothing). A match adds LIFE for that one ambient turn; a question can add BODY and LIFE together, and the banner names both.
+- `_retrieve_calendar_context` now includes events from the start of today in local time, plus any still in progress; sorts all-day and timed events together by start; shows each event in the Mac's local time with weekday and end time (multi-day all-day events as a range, honouring Google's exclusive end date); only uses selected calendars, matching the Home briefing; and allows 15 events instead of 10.
+- Every turn's system prompt now states the current local date, time and timezone after the domain scope line.
+- `google_calendar._normalize_event` converts event times to UTC before they are stored. SQLite keeps only the clock time and every reader treats it as UTC, so a British Summer Time event ("+01:00") would have been read an hour late. Current events are all in winter time and were unaffected; summer events already cached are corrected on their next sync.
+
+**Not changed**: past events before today are still not given to the model. PATH and BUILD questions from Home still get no domain data, and MIND and PEOPLE are never added.
+

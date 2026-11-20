@@ -292,3 +292,75 @@ def test_body_context_omits_older_values_already_shown(db_session: Session) -> N
     assert "weight_kg=71.2" in package.system_prompt
     assert "Most recent value of metrics" not in package.system_prompt
     assert "Latest session of each other activity type" not in package.system_prompt
+
+
+def _fixed_local_now(monkeypatch, when: datetime) -> None:
+    monkeypatch.setattr(context_builder, "_local_now", lambda: when)
+
+
+def test_calendar_context_orders_by_start_and_includes_earlier_today(db_session: Session, monkeypatch) -> None:
+    """D121: all-day and timed events are interleaved by start, events from
+    earlier today are kept, times are shown in local time with weekday and
+    end time, and the model is told the current date."""
+    from zoneinfo import ZoneInfo
+
+    london = ZoneInfo("Europe/London")
+    now_local = datetime(2026, 11, 20, 20, 0, tzinfo=london)
+    _fixed_local_now(monkeypatch, now_local)
+    _connect(db_session, "google_calendar")
+    cal = CalendarCalendar(external_calendar_id="primary", summary="Bernardo", access_role="owner", is_owned=True, selected=True)
+    db_session.add(cal)
+    db_session.flush()
+    utc = timezone.utc
+    db_session.add_all([
+        CalendarEventCache(calendar_id=cal.id, external_event_id="far-all-day", title="Far holiday", all_day=True,
+                           start_date=date(2026, 12, 1), end_date=date(2026, 12, 2)),
+        CalendarEventCache(calendar_id=cal.id, external_event_id="this-morning", title="Morning class", all_day=False,
+                           start_datetime=datetime(2026, 11, 20, 10, 0, tzinfo=utc), end_datetime=datetime(2026, 11, 20, 12, 0, tzinfo=utc)),
+        CalendarEventCache(calendar_id=cal.id, external_event_id="tomorrow", title="Breakfast", all_day=False,
+                           start_datetime=datetime(2026, 11, 21, 8, 30, tzinfo=utc), end_datetime=datetime(2026, 11, 21, 9, 30, tzinfo=utc)),
+        CalendarEventCache(calendar_id=cal.id, external_event_id="yesterday", title="Old event", all_day=False,
+                           start_datetime=datetime(2026, 11, 19, 10, 0, tzinfo=utc), end_datetime=datetime(2026, 11, 19, 11, 0, tzinfo=utc)),
+    ])
+    db_session.commit()
+    life = db_session.query(Domain).filter_by(slug="life").one()
+
+    prompt = context_builder.build_context(
+        db_session, conversation=_conversation(db_session, life), domain=life, additional_domain_ids=[], query_text="what's on", max_recent_messages=5
+    ).system_prompt
+
+    assert "Current local date and time: Friday 20 November 2026, 20:00 (GMT)." in prompt
+    assert "Old event" not in prompt
+    morning = prompt.index("Fri 2026-11-20 10:00-12:00: Morning class")
+    breakfast = prompt.index("Sat 2026-11-21 08:30-09:30: Breakfast")
+    holiday = prompt.index("Tue 2026-12-01 (all day): Far holiday")
+    assert morning < breakfast < holiday
+
+
+def test_calendar_context_excludes_unselected_calendars(db_session: Session) -> None:
+    _connect(db_session, "google_calendar")
+    hidden = CalendarCalendar(external_calendar_id="other", summary="Other", access_role="reader", is_owned=False, selected=False)
+    db_session.add(hidden)
+    db_session.flush()
+    db_session.add(CalendarEventCache(calendar_id=hidden.id, external_event_id="h1", title="Hidden calendar event", all_day=False,
+                                      start_datetime=datetime.now(timezone.utc) + timedelta(days=1)))
+    db_session.commit()
+    life = db_session.query(Domain).filter_by(slug="life").one()
+    prompt = context_builder.build_context(
+        db_session, conversation=_conversation(db_session, life), domain=life, additional_domain_ids=[], query_text="q", max_recent_messages=5
+    ).system_prompt
+    assert "Hidden calendar event" not in prompt
+
+
+def test_calendar_event_times_are_stored_as_utc() -> None:
+    """D121: a summer time with an offset is converted to UTC before it is
+    stored, since SQLite drops the offset and readers treat it as UTC."""
+    from app.providers.google_calendar import _normalize_event
+
+    event = _normalize_event({
+        "id": "e1", "summary": "Summer dinner",
+        "start": {"dateTime": "2026-07-01T19:00:00+01:00"},
+        "end": {"dateTime": "2026-07-01T21:00:00+01:00"},
+    })
+    assert event.start_datetime == datetime(2026, 7, 1, 18, 0, tzinfo=timezone.utc)
+    assert event.end_datetime.utcoffset() == timedelta(0)

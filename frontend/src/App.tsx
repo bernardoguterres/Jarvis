@@ -38,6 +38,7 @@ import ResearchCentre from "./views/ResearchCentre";
 import DecisionCentre from "./views/DecisionCentre";
 import CommandPalette, { type PaletteAction } from "./components/CommandPalette";
 import { findHealthTopic } from "./commands/healthTopics";
+import { findCalendarTopic } from "./commands/calendarTopics";
 import SystemsMenu, { type SystemsMenuItem } from "./components/SystemsMenu";
 import NotFoundDiagnostic from "./components/diagnostic/NotFoundDiagnostic";
 import ControllerOfflineDiagnostic from "./components/diagnostic/ControllerOfflineDiagnostic";
@@ -598,37 +599,53 @@ function App() {
     return ambientConversationPromiseRef.current;
   }, [ambientConversationId]);
 
-  // BODY's domain id, looked up once, for the health-topic inclusion below.
-  const bodyDomainIdPromiseRef = useRef<Promise<string | null> | null>(null);
-  const resolveBodyDomainId = useCallback((): Promise<string | null> => {
-    if (!bodyDomainIdPromiseRef.current) {
-      bodyDomainIdPromiseRef.current = fetchDomains().then(
-        (domains) => domains.find((d) => d.slug === "body")?.id ?? null,
+  // Domain ids by slug, looked up once, for the topic inclusion below.
+  const domainIdsPromiseRef = useRef<Promise<Record<string, string>> | null>(null);
+  const resolveDomainIds = useCallback((): Promise<Record<string, string>> => {
+    if (!domainIdsPromiseRef.current) {
+      domainIdsPromiseRef.current = fetchDomains().then(
+        (domains) => Object.fromEntries(domains.map((d) => [d.slug, d.id])),
         () => {
-          bodyDomainIdPromiseRef.current = null;
-          return null;
+          domainIdsPromiseRef.current = null;
+          return {};
         },
       );
     }
-    return bodyDomainIdPromiseRef.current;
+    return domainIdsPromiseRef.current;
   }, []);
 
   // An ordinary question asked by voice from Home or a Centre page. The
   // exact same sendTurn mechanism GeneralConversation.tsx uses. No domain is
-  // mixed in, except BODY for this one turn when Bernardo's own words name a
-  // health topic (see commands/healthTopics.ts, D119). MIND and PEOPLE are
-  // never added here.
+  // mixed in, except for this one turn: BODY when Bernardo's own words name
+  // a health topic (commands/healthTopics.ts, D119/D120) and LIFE when they
+  // ask about his calendar (commands/calendarTopics.ts, D121). MIND and
+  // PEOPLE are never added here.
   const ambientSubmitTurn = useCallback(
     async (transcript: string): Promise<{ ok: boolean; assistantMessage: Message | null }> => {
       try {
         const conversationId = await ensureAmbientConversation();
         const idempotencyKey =
           typeof crypto.randomUUID === "function" ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
+        const topics: { slug: "body" | "life"; name: string; phrase: string }[] = [];
         const healthTopic = findHealthTopic(transcript);
-        const bodyDomainId = healthTopic ? await resolveBodyDomainId() : null;
-        const result = await sendTurn(conversationId, transcript, idempotencyKey, bodyDomainId ? [bodyDomainId] : []);
+        if (healthTopic) topics.push({ slug: "body", name: "BODY", phrase: healthTopic });
+        const calendarTopic = findCalendarTopic(transcript);
+        if (calendarTopic) topics.push({ slug: "life", name: "LIFE", phrase: calendarTopic });
+        const domainIds = topics.length > 0 ? await resolveDomainIds() : {};
+        const included = topics.filter((topic) => domainIds[topic.slug]);
+        const result = await sendTurn(
+          conversationId,
+          transcript,
+          idempotencyKey,
+          included.map((topic) => domainIds[topic.slug]),
+        );
         if (result.status === "succeeded" && result.assistant_message) {
-          const note = bodyDomainId ? `BODY data included because you mentioned "${healthTopic}". ` : "";
+          const note =
+            included.length > 0
+              ? `${included.map((topic) => topic.name).join(" and ")} data included because you mentioned ${included
+                  .map((topic) => `"${topic.phrase}"`)
+                  .join(" and ")}. `
+              : "";
           showCommandFeedback(note + result.assistant_message.content, "ok");
           return { ok: true, assistantMessage: result.assistant_message };
         }
@@ -639,7 +656,7 @@ function App() {
         return { ok: false, assistantMessage: null };
       }
     },
-    [ensureAmbientConversation, resolveBodyDomainId, showCommandFeedback],
+    [ensureAmbientConversation, resolveDomainIds, showCommandFeedback],
   );
 
   // The one shared voice state machine (useVoiceCapture) for every surface

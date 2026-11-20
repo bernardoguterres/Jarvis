@@ -1699,3 +1699,13 @@ On 2026-11-14 Bernardo ran the remaining manual checks in the installed Jarvis.a
 
 **Tests**: matcher cases for each phrase and for near misses; Home voice turns that name Google Health, sleep and heart rate send only BODY's id and show the banner; a mood and relationship question sends no domain; the existing Centre-page knee question now includes BODY; a backend test shows a general turn gets Google Health data only when BODY is added.
 
+## D120: Health questions cover everyday wording, older values and the latest run
+
+**Why**: 14 real Home voice questions run against the installed app on 2026-11-20 (fake microphone, fixed transcripts, real backend, data and model) showed four gaps. "Should I train today?", "How am I doing physically?", "Did I walk enough?" and "How far did I run?" did not add BODY; the first three were answered only from numbers repeated earlier in the conversation, and the last was told to switch to BODY. "Don't look at my health data" still added BODY (the model obeyed, but the data was sent). And BODY itself only saw the last 3 days and the 4 latest sessions without distances, so a weigh-in from 23 September was reported as "no weight records", and a 9.66 km run from 15 November was invisible behind later walks, in BODY conversations as well as from Home.
+
+**Word list**: `healthTopics.ts` adds phrases about Bernardo's own body only: "did I run/walk/train/exercise/work out", "how far did I", "my/last/latest/recent run, walk, jog, ride, swim, gym session, training session", "walk(ed) enough", jog, gym, "should I train/run/rest/work out", "rest day", "physically", "my fitness", and "work out" unless followed by words like "how", "the" or "whether". "Run the tests", "walk me through", "work out the budget" and "is the backup running" do not match. A negation shortly before a health word ("don't", "do not", "never", "without", "no need to") means BODY is not added; a bare "not" or "didn't" does not count, so "I didn't sleep well" still adds BODY.
+
+**BODY context**: `_retrieve_google_health_context` keeps the last 3 daily summaries and adds a "Most recent value of metrics not recorded in the days above" list, each with its date, and a "Latest session of each other activity type" list (up to 8 types). Session lines now carry distance, calories and average heart rate where recorded, and average heart rate is rounded. Older summaries used this way are recorded in the context snapshot. On the real data this section is about 1,070 characters.
+
+**Not changed**: earlier replies in the same conversation still carry health numbers into later turns that do not add BODY, so a follow-up can repeat a value from earlier in the day. LIFE, PATH and BUILD questions from Home still get no domain data.
+

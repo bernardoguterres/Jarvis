@@ -241,3 +241,54 @@ def test_general_conversation_gets_google_health_only_when_body_is_added(db_sess
     assert "steps=4321" in with_body.system_prompt and "sleep_min=402" in with_body.system_prompt
     assert len(with_body.snapshot.google_health_summary_ids) == 1
     assert with_body.snapshot.additional_domain_ids == [body.id]
+
+
+def test_body_context_reports_older_latest_values_and_latest_run(db_session: Session) -> None:
+    """D120: a weigh-in older than the last few days is still reported with
+    its date, and the latest run (with distance) is reported even when more
+    recent walks fill the recent-sessions list."""
+    _connect(db_session, "google_health")
+    today = date.today()
+    for offset in range(3):
+        db_session.add(GoogleHealthDailySummary(date=today - timedelta(days=offset), steps=10000 + offset, heart_rate_avg_bpm=77.557))
+    db_session.add(GoogleHealthDailySummary(date=today - timedelta(days=40), weight_kg=70.04))
+    now = datetime.now(timezone.utc)
+    db_session.add(
+        GoogleHealthSession(
+            session_type="exercise", external_id="run-1", activity_type="Run",
+            start_time=now - timedelta(days=5, minutes=49), end_time=now - timedelta(days=5), distance_km=9.66,
+        )
+    )
+    for i in range(5):
+        db_session.add(
+            GoogleHealthSession(
+                session_type="exercise", external_id=f"walk-{i}", activity_type="Walk",
+                start_time=now - timedelta(days=i, minutes=30), end_time=now - timedelta(days=i), distance_km=2.0,
+            )
+        )
+    db_session.commit()
+    body = db_session.query(Domain).filter_by(slug="body").one()
+
+    package = context_builder.build_context(
+        db_session, conversation=_conversation(db_session, body), domain=body, additional_domain_ids=[], query_text="how far was my last run", max_recent_messages=5
+    )
+    prompt = package.system_prompt
+    assert f"weight_kg=70.0 (recorded {(today - timedelta(days=40)).isoformat()})" in prompt
+    assert "Latest session of each other activity type:" in prompt
+    assert "(Run, 49m, 9.66 km)" in prompt
+    assert "hr_avg=78" in prompt and "hr_avg=77.5" not in prompt
+    # The older weigh-in's summary is recorded in the snapshot for audit.
+    assert len(package.snapshot.google_health_summary_ids) == 4
+
+
+def test_body_context_omits_older_values_already_shown(db_session: Session) -> None:
+    _connect(db_session, "google_health")
+    db_session.add(GoogleHealthDailySummary(date=date.today(), steps=5000, weight_kg=71.2))
+    db_session.commit()
+    body = db_session.query(Domain).filter_by(slug="body").one()
+    package = context_builder.build_context(
+        db_session, conversation=_conversation(db_session, body), domain=body, additional_domain_ids=[], query_text="q", max_recent_messages=5
+    )
+    assert "weight_kg=71.2" in package.system_prompt
+    assert "Most recent value of metrics" not in package.system_prompt
+    assert "Latest session of each other activity type" not in package.system_prompt

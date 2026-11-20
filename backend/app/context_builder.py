@@ -14,7 +14,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.document_fts_service import search_document_fts
@@ -27,6 +27,21 @@ from app.structured_record_service import payload_dict
 
 MAX_DOCUMENT_CITATIONS = 4
 MAX_GOOGLE_HEALTH_DAYS_IN_CONTEXT = 3
+MAX_GOOGLE_HEALTH_RECENT_SESSIONS = 4
+MAX_GOOGLE_HEALTH_ACTIVITY_TYPES = 8
+
+# (column, label) for each daily metric whose most recent value is reported
+# even when it falls outside the last few days (D120): a weigh-in from weeks
+# ago is still the latest weight Jarvis knows.
+_GOOGLE_HEALTH_DAILY_METRICS = (
+    ("steps", "steps"),
+    ("active_calories_kcal", "active_kcal"),
+    ("resting_heart_rate", "resting_hr"),
+    ("hrv_daily_rmssd_ms", "hrv_ms"),
+    ("sleep_minutes_asleep", "sleep_min"),
+    ("weight_kg", "weight_kg"),
+    ("body_fat_percent", "body_fat_pct"),
+)
 MAX_CALENDAR_EVENTS_IN_CONTEXT = 10
 
 GLOBAL_SYSTEM_INSTRUCTION = """You are Jarvis, Bernardo's private local personal assistant.
@@ -225,7 +240,11 @@ def _retrieve_google_health_context(session: Session, days: int) -> tuple[list[s
 
     from app.models_integrations import GoogleHealthSession
 
-    session_stmt = select(GoogleHealthSession).order_by(GoogleHealthSession.end_time.desc()).limit(4)
+    session_stmt = (
+        select(GoogleHealthSession)
+        .order_by(GoogleHealthSession.end_time.desc())
+        .limit(MAX_GOOGLE_HEALTH_RECENT_SESSIONS)
+    )
     recent_sessions = list(session.execute(session_stmt).scalars().all())
 
     if not rows and not recent_sessions:
@@ -236,6 +255,11 @@ def _retrieve_google_health_context(session: Session, days: int) -> tuple[list[s
         age = datetime.now(timezone.utc) - conn.last_sync_at.replace(tzinfo=timezone.utc) if conn.last_sync_at.tzinfo is None else datetime.now(timezone.utc) - conn.last_sync_at
         staleness = f" (last synced {age.days}d {age.seconds // 3600}h ago — locally cached, not live)"
 
+    def _fmt(column: str, value: object) -> str:
+        if isinstance(value, float):
+            return f"{value:.1f}" if column in ("weight_kg", "body_fat_percent") else f"{value:.0f}"
+        return str(value)
+
     lines = [f"Google Health daily summaries{staleness}:"]
     for row in rows:
         parts = [f"{row.date.isoformat()}:"]
@@ -244,7 +268,7 @@ def _retrieve_google_health_context(session: Session, days: int) -> tuple[list[s
         if row.active_calories_kcal is not None:
             parts.append(f"active_kcal={row.active_calories_kcal:.0f}")
         if row.heart_rate_avg_bpm is not None:
-            parts.append(f"hr_avg={row.heart_rate_avg_bpm}")
+            parts.append(f"hr_avg={row.heart_rate_avg_bpm:.0f}")
         if row.resting_heart_rate is not None:
             parts.append(f"resting_hr={row.resting_heart_rate}")
         if row.hrv_daily_rmssd_ms is not None:
@@ -259,23 +283,81 @@ def _retrieve_google_health_context(session: Session, days: int) -> tuple[list[s
             parts.append("(no metrics available for this day)")
         lines.append("- " + " ".join(parts))
 
+    # Latest value of each metric that the days above do not show, with the
+    # date it was recorded, so an older weigh-in is reported as such rather
+    # than as "no weight data".
+    shown_ids = {r.id for r in rows}
+    used_ids = [r.id for r in rows]
+    older_values: list[str] = []
+    for column, label in _GOOGLE_HEALTH_DAILY_METRICS:
+        attr = getattr(GoogleHealthDailySummary, column)
+        latest = session.execute(
+            select(GoogleHealthDailySummary)
+            .where(attr.is_not(None))
+            .order_by(GoogleHealthDailySummary.date.desc())
+            .limit(1)
+        ).scalar_one_or_none()
+        if latest is None or latest.id in shown_ids:
+            continue
+        older_values.append(f"- {label}={_fmt(column, getattr(latest, column))} (recorded {latest.date.isoformat()})")
+        if latest.id not in used_ids:
+            used_ids.append(latest.id)
+    if older_values:
+        lines.append("Most recent value of metrics not recorded in the days above:")
+        lines.extend(older_values)
+
+    def _session_line(s: GoogleHealthSession) -> str:
+        source = f" via {s.source_platform}" if s.source_platform else ""
+        if s.session_type == "sleep":
+            return (
+                f"- sleep {s.start_time.date().isoformat()}: "
+                f"{s.minutes_asleep or '?'}m asleep, {s.minutes_awake or 0}m awake{source}"
+            )
+        dur_min = int((s.end_time - s.start_time).total_seconds() // 60)
+        extras = ""
+        if s.distance_km is not None:
+            extras += f", {s.distance_km:.2f} km"
+        if s.calories_kcal is not None:
+            extras += f", {s.calories_kcal:.0f} kcal"
+        if s.average_heart_rate_bpm is not None:
+            extras += f", avg hr {s.average_heart_rate_bpm:.0f}"
+        return (
+            f"- exercise {s.start_time.date().isoformat()} ({s.activity_type or 'unknown type'}, {dur_min}m{extras})"
+            f"{source}"
+        )
+
     if recent_sessions:
         lines.append("Recent sessions:")
-        for s in recent_sessions:
-            source = f" via {s.source_platform}" if s.source_platform else ""
-            if s.session_type == "sleep":
-                lines.append(
-                    f"- sleep {s.start_time.date().isoformat()}: "
-                    f"{s.minutes_asleep or '?'}m asleep, {s.minutes_awake or 0}m awake{source}"
-                )
-            else:
-                dur_min = int((s.end_time - s.start_time).total_seconds() // 60)
-                lines.append(
-                    f"- exercise {s.start_time.date().isoformat()} ({s.activity_type or 'unknown type'}, {dur_min}m)"
-                    f"{source}"
-                )
+        lines.extend(_session_line(s) for s in recent_sessions)
 
-    return [r.id for r in rows], "\n".join(lines)
+    # The latest session of each other activity type, so "how far was my
+    # last run" works even when several walks came after it.
+    shown_session_ids = {s.id for s in recent_sessions}
+    shown_types = {s.activity_type for s in recent_sessions if s.session_type != "sleep"}
+    type_rows = session.execute(
+        select(GoogleHealthSession.activity_type)
+        .where(GoogleHealthSession.session_type != "sleep", GoogleHealthSession.activity_type.is_not(None))
+        .group_by(GoogleHealthSession.activity_type)
+        .order_by(func.max(GoogleHealthSession.end_time).desc())
+        .limit(MAX_GOOGLE_HEALTH_ACTIVITY_TYPES)
+    ).scalars().all()
+    per_type: list[str] = []
+    for activity_type in type_rows:
+        if activity_type in shown_types:
+            continue
+        latest_of_type = session.execute(
+            select(GoogleHealthSession)
+            .where(GoogleHealthSession.activity_type == activity_type, GoogleHealthSession.session_type != "sleep")
+            .order_by(GoogleHealthSession.end_time.desc())
+            .limit(1)
+        ).scalar_one_or_none()
+        if latest_of_type is not None and latest_of_type.id not in shown_session_ids:
+            per_type.append(_session_line(latest_of_type))
+    if per_type:
+        lines.append("Latest session of each other activity type:")
+        lines.extend(per_type)
+
+    return used_ids, "\n".join(lines)
 
 
 def _retrieve_calendar_context(session: Session, limit: int) -> tuple[list[str], str | None]:
